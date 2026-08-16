@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
-import 'components/Navegación.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'auth/auth_gate.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Asegúrate de cargar el archivo .env antes de inicializar Supabase
+  await dotenv.load(fileName: ".env");
+
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    publishableKey: dotenv.env['SUPABASE_PUBLIC_KEY']!,
+  );
+
+  runApp(const MyApp()); // Añadido const por buenas prácticas de Flutter
 }
 
 class MyApp extends StatelessWidget {
@@ -14,7 +26,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Academias App',
       theme: ThemeData.dark(),
-      home: const Navegacion(), // Cargamos la navegación principal
+      home: const AuthGate(),
     );
   }
 }

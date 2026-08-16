@@ -1,30 +1,113 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:typed_data';
 
-import 'package:academia_events/main.dart';
+import 'package:academia_events/auth/auth_gate.dart';
+import 'package:academia_events/auth/auth_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Rutas privadas bloqueadas sin autenticacion', (
+    WidgetTester tester,
+  ) async {
+    final fakeAuth = _FakeAuthService();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AuthGate(authService: fakeAuth),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Iniciar sesion'), findsOneWidget);
+    expect(find.text('HORARIO'), findsNothing);
   });
+}
+
+class _FakeAuthService implements IAuthService {
+  final Stream<AuthState> _stream = const Stream<AuthState>.empty();
+
+  @override
+  User? get currentUser => null;
+
+  @override
+  Session? get currentSession => null;
+
+  @override
+  bool get isAuthenticated => false;
+
+  @override
+  Stream<AuthState> get onAuthStateChange => _stream;
+
+  @override
+  bool consumeManualSignOutFlag() => false;
+
+  @override
+  Future<void> ensureAuthenticated() async {}
+
+  @override
+  Future<Map<String, dynamic>?> fetchCurrentProfile() async => null;
+
+  @override
+  Future<AuthResponse> signIn({
+    required String email,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> signOut() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthResponse> signUp({
+    required String email,
+    required String password,
+    String? fullName,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> sendPasswordRecovery({
+    required String email,
+    String? redirectTo,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<UserResponse> updatePassword({required String newPassword}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String?> createAvatarSignedUrl(String avatarPath) async => null;
+
+  @override
+  Future<void> updateMyProfile({
+    required String firstName,
+    required String lastName,
+    String? phone,
+    DateTime? birthDate,
+    bool? isActive,
+    String? avatarPath,
+  }) async {}
+
+  @override
+  Future<String> uploadAvatar(Uint8List bytes, {required String extension}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<UserResponse> updateEmail(String email, {String? emailRedirectTo}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> setMyAccountActive(bool isActive) async {}
+
+  @override
+  Future<void> upsertMyProfile({String? fullName}) async {}
 }
