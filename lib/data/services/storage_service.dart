@@ -54,12 +54,13 @@ class StorageService {
 
   /// Genera una URL firmada válida por 1 hora.
   /// Si [path] ya es una URL completa la devuelve tal cual.
-  Future<String?> signedUrl(String? path) async {
+  /// [bucket] permite especificar un bucket distinto al de avatars.
+  Future<String?> signedUrl(String? path, {String? bucket}) async {
     if (path == null || path.trim().isEmpty) return null;
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
 
     return supabase.storage
-        .from(_avatarBucket)
+        .from(bucket ?? _avatarBucket)
         .createSignedUrl(path, 60 * 60);
   }
 }
