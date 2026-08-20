@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/event_model.dart';
 import 'event_card.dart';
@@ -78,10 +79,10 @@ class WeekTimeline extends StatelessWidget {
                       top: i * AppSizes.calendarHourHeight,
                       left: 0,
                       right: 0,
-                      child: const Divider(
+                      child: Divider(
                         height: 1,
                         thickness: 0.5,
-                        color: AppColors.border,
+                        color: context.divider,
                       ),
                     );
                   }),

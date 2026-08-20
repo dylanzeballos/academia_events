@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../providers/events_provider.dart';
 import '../../../shared/widgets/error_banner.dart';
@@ -20,7 +21,6 @@ class WeekCalendarView extends ConsumerWidget {
     final weekDays = DateFormatter.weekDays(selectedWeek);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -36,7 +36,7 @@ class WeekCalendarView extends ConsumerWidget {
                   ref.read(selectedDayProvider.notifier).setDay(day),
             ),
 
-            const Divider(height: 1, color: AppColors.border),
+            Divider(height: 1, color: context.divider),
 
             // ── Timeline ───────────────────────────────────────────
             Expanded(
@@ -100,7 +100,7 @@ class _WeekNavigationHeader extends StatelessWidget {
         '${DateFormatter.dayMonth(first)} — ${DateFormatter.dayMonth(last)}';
 
     return Container(
-      color: AppColors.surface,
+      color: context.cardBg,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.paddingSmall,
         vertical: AppSizes.paddingSmall,
@@ -111,7 +111,7 @@ class _WeekNavigationHeader extends StatelessWidget {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.chevron_left, color: Colors.white),
+                icon: Icon(Icons.chevron_left, color: context.textOnBg),
                 onPressed: onPreviousWeek,
                 tooltip: 'Semana anterior',
               ),
@@ -119,8 +119,8 @@ class _WeekNavigationHeader extends StatelessWidget {
                 child: Text(
                   monthLabel.toUpperCase(),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: context.textOnBg,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 1.1,
@@ -128,7 +128,7 @@ class _WeekNavigationHeader extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_right, color: Colors.white),
+                icon: Icon(Icons.chevron_right, color: context.textOnBg),
                 onPressed: onNextWeek,
                 tooltip: 'Semana siguiente',
               ),

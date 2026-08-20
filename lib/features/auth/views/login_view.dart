@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/error_banner.dart';
@@ -45,7 +46,6 @@ class _LoginViewState extends ConsumerState<LoginView> {
     final authState = ref.watch(authControllerProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -66,11 +66,11 @@ class _LoginViewState extends ConsumerState<LoginView> {
                           color: AppColors.primary,
                         ),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'Iniciar sesión',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.white,
+                            color: context.textOnBg,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
@@ -145,8 +145,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
                         Row(
                           children: [
-                            const Expanded(
-                              child: Divider(color: AppColors.border),
+                            Expanded(
+                              child: Divider(color: context.divider),
                             ),
                             Padding(
                               padding:
@@ -159,8 +159,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
                                 ),
                               ),
                             ),
-                            const Expanded(
-                              child: Divider(color: AppColors.border),
+                            Expanded(
+                              child: Divider(color: context.divider),
                             ),
                           ],
                         ),
@@ -172,7 +172,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                           label: const Text('Continuar con Google'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: AppColors.border),
+                            side: BorderSide(color: context.divider),
                             minimumSize:
                                 const Size.fromHeight(AppSizes.buttonHeight),
                             shape: RoundedRectangleBorder(

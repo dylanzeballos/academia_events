@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -40,7 +41,6 @@ class _ForgotPasswordViewState extends ConsumerState<ForgotPasswordView> {
     final authState = ref.watch(authControllerProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Recuperar contraseña')),
       body: SafeArea(
         child: Padding(
@@ -97,12 +97,12 @@ class _SuccessContent extends StatelessWidget {
           color: AppColors.success,
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           '¡Correo enviado!',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: context.textOnBg,
           ),
         ),
         const SizedBox(height: 8),

@@ -5,11 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/theme_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/error_banner.dart';
+import '../organization/views/organization_list_view.dart';
 
 class ProfileView extends ConsumerStatefulWidget {
   const ProfileView({super.key});
@@ -90,9 +93,9 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Cerrar sesión',
-            style: TextStyle(color: Colors.white)),
+        backgroundColor: context.cardBg,
+        title: Text('Cerrar sesión',
+            style: TextStyle(color: context.textOnBg)),
         content: const Text('¿Estás seguro de que quieres salir?',
             style: TextStyle(color: Colors.grey)),
         actions: [
@@ -118,7 +121,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     final profileAsync = ref.watch(currentProfileProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: profileAsync.when(
           loading: () => const Center(
@@ -154,7 +156,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundColor: AppColors.surface,
+                      backgroundColor: context.cardBg,
                       backgroundImage: profile.profileImageUrl != null
                           ? NetworkImage(profile.profileImageUrl!)
                           : null,
@@ -179,10 +181,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.camera_alt,
                           size: 16,
-                          color: Colors.white,
+                          color: context.textOnBg,
                         ),
                       ),
                     ),
@@ -191,8 +193,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 const SizedBox(height: 12),
                 Text(
                   profile.fullName,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: context.textOnBg,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
@@ -217,10 +219,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Datos personales',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: context.textOnBg,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -292,8 +294,42 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Divider(color: AppColors.border),
+                Divider(color: context.divider),
                 const SizedBox(height: 16),
+                SwitchListTile(
+                  title: Text('Modo oscuro',
+                      style: TextStyle(color: context.textOnBg, fontSize: 15)),
+                  subtitle: Text(
+                    ref.watch(themeModeProvider) == ThemeMode.dark
+                        ? 'Activado'
+                        : 'Desactivado',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  secondary: Icon(
+                    ref.watch(themeModeProvider) == ThemeMode.dark
+                        ? Icons.dark_mode
+                        : Icons.light_mode,
+                    color: AppColors.primary,
+                  ),
+                  value: ref.watch(themeModeProvider) == ThemeMode.dark,
+                  onChanged: (_) =>
+                      ref.read(themeModeProvider.notifier).toggle(),
+                  activeThumbColor: AppColors.primary,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
+                AppButton(
+                  label: 'Mis Organizaciones',
+                  isOutlined: true,
+                  icon: Icons.business_outlined,
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const OrganizationListView(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 AppButton(
                   label: 'Cerrar sesión',
                   isOutlined: true,

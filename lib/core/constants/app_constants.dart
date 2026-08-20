@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFFC000FF); // Morado principal
-  static const Color secondary = Color(0xFF7C3AED); // Morado más suave
+  static const Color primary = Color(0xFF00BFA6); // Teal / aqua
+  static const Color secondary = Color(0xFF7C4DFF); // Violeta acento
   static const Color background = Color(0xFF0F0F1A);
   static const Color surface = Color(0xFF1B1B2F);
   static const Color border = Color(0xFF2E2E4E);
@@ -17,15 +17,13 @@ class AppColors {
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Colors.grey;
 
-  // Colores de nivel de clase
   static const Color levelBeginner = Color(0xFF22C55E);
   static const Color levelIntermediate = Color(0xFFFACC15);
   static const Color levelAdvanced = Color(0xFFEF4444);
 
-  // Colores para eventos solapados en el calendario
   static const List<Color> calendarEventColors = [
-    Color(0xFFC000FF),
-    Color(0xFF7C3AED),
+    Color(0xFF00BFA6),
+    Color(0xFF7C4DFF),
     Color(0xFF2563EB),
     Color(0xFF0891B2),
     Color(0xFF059669),
@@ -44,19 +42,21 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String updatePassword = '/update-password';
 
-  // Estudiante
   static const String studentHome = '/student';
   static const String studentCalendar = '/student/calendar';
   static const String studentClasses = '/student/classes';
   static const String studentProfile = '/student/profile';
 
-  // Academia
   static const String academyDashboard = '/academy';
   static const String academyEvents = '/academy/events';
   static const String academyClasses = '/academy/classes';
   static const String academyTeachers = '/academy/teachers';
   static const String academyTickets = '/academy/tickets';
   static const String academyProfile = '/academy/profile';
+
+  static const String organizations = '/organizations';
+  static const String organizationsCreate = '/organizations/create';
+  static const String organizationsDetail = '/organizations/detail';
 }
 
 // ─────────────────────────────────────────────
@@ -73,7 +73,7 @@ class AppSizes {
   static const double radiusLarge = 20;
   static const double radiusXl = 30;
   static const double buttonHeight = 48;
-  static const double calendarHourHeight = 60.0; // px por hora en el calendario
+  static const double calendarHourHeight = 60.0;
   static const double calendarEventMinWidth = 100.0;
 }
 

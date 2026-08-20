@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -39,7 +40,6 @@ class _UpdatePasswordViewState extends ConsumerState<UpdatePasswordView> {
     final authState = ref.watch(authControllerProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -60,11 +60,11 @@ class _UpdatePasswordViewState extends ConsumerState<UpdatePasswordView> {
                           color: AppColors.primary,
                         ),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'Nueva contraseña',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.white,
+                            color: context.textOnBg,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),

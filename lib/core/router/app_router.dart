@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../constants/app_constants.dart';
+import '../utils/theme_extensions.dart';
 import '../../data/models/profile_model.dart';
 import '../../features/auth/views/forgot_password_view.dart';
 import '../../features/auth/views/login_view.dart';
@@ -11,6 +12,9 @@ import '../../features/auth/views/register_view.dart';
 import '../../features/auth/views/update_password_view.dart';
 import '../../features/calendar/week_calendar_view.dart';
 import '../../features/profile/profile_view.dart';
+import '../../features/organization/views/organization_list_view.dart';
+import '../../features/organization/views/organization_detail_view.dart';
+import '../../features/organization/views/organization_create_view.dart';
 import '../../providers/auth_provider.dart';
 
 class _StudentShell extends StatelessWidget {
@@ -39,14 +43,13 @@ class _StudentShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: navigationShell,
       bottomNavigationBar: Padding(
         padding:
             const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.cardBg,
             borderRadius: BorderRadius.circular(AppSizes.radiusXl),
             boxShadow: [
               BoxShadow(
@@ -100,14 +103,13 @@ class _AcademyShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: navigationShell,
       bottomNavigationBar: Padding(
         padding:
             const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.cardBg,
             borderRadius: BorderRadius.circular(AppSizes.radiusXl),
             boxShadow: [
               BoxShadow(
@@ -138,11 +140,10 @@ class _PlaceholderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: Center(
         child: Text(
           title,
-          style: const TextStyle(color: Colors.white70, fontSize: 18),
+          style: TextStyle(color: context.textOnBg, fontSize: 18),
         ),
       ),
     );
@@ -211,6 +212,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/callback',
         builder: (_, _) => const _AuthCallbackPage(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.organizations,
+        builder: (_, _) => const OrganizationListView(),
+      ),
+      GoRoute(
+        path: AppRoutes.organizationsCreate,
+        builder: (_, _) => const OrganizationCreateView(),
+      ),
+      GoRoute(
+        path: AppRoutes.organizationsDetail,
+        builder: (_, _) => const OrganizationDetailView(),
       ),
 
       StatefulShellRoute.indexedStack(
@@ -287,7 +301,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
 
     errorBuilder: (_, state) => Scaffold(
-      backgroundColor: AppColors.background,
       body: Center(
         child: Text(
           'Ruta no encontrada: ${state.error}',
@@ -329,8 +342,7 @@ class _AuthCallbackPage extends ConsumerWidget {
       });
     });
 
-    return const Scaffold(
-      backgroundColor: AppColors.background,
+    return Scaffold(
       body: Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       ),
