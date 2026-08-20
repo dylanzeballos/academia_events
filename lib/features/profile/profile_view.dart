@@ -10,9 +10,10 @@ import '../../../core/utils/validators.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/theme_provider.dart';
+import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/error_banner.dart';
-import '../organization/views/organization_list_view.dart';
+import '../organization/views/my_invitations_view.dart';
 
 class ProfileView extends ConsumerStatefulWidget {
   const ProfileView({super.key});
@@ -114,6 +115,32 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     if (confirmed == true) {
       ref.read(authControllerProvider.notifier).signOut();
     }
+  }
+
+  Widget _buildRoleSection(BuildContext context, WidgetRef ref) {
+    final invitationsAsync = ref.watch(myInvitationsProvider);
+    final pendingCount = invitationsAsync.whenOrNull(
+      data: (invites) => invites.length,
+    ) ?? 0;
+
+    return Column(
+      children: [
+        AppButton(
+          label: pendingCount > 0
+              ? 'Invitaciones ($pendingCount pendientes)'
+              : 'Mis Invitaciones',
+          isOutlined: true,
+          icon: Icons.mail_outline,
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const MyInvitationsView(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
   }
 
   @override
@@ -318,17 +345,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   contentPadding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 8),
-                AppButton(
-                  label: 'Mis Organizaciones',
-                  isOutlined: true,
-                  icon: Icons.business_outlined,
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const OrganizationListView(),
-                    ),
-                  ),
-                ),
+                _buildRoleSection(context, ref),
                 const SizedBox(height: 12),
                 AppButton(
                   label: 'Cerrar sesión',

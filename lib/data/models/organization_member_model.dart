@@ -19,7 +19,6 @@ class OrganizationMemberModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  /// Campos de joined query (no están en la tabla)
   final String? userName;
   final String? userEmail;
 
@@ -66,20 +65,26 @@ class OrganizationMemberModel {
 enum MemberRole {
   owner,
   manager,
+  instructor,
+  staff,
   eventManager,
   checkInStaff;
 
   static MemberRole fromString(String value) => switch (value) {
         'owner' => MemberRole.owner,
         'manager' => MemberRole.manager,
+        'instructor' => MemberRole.instructor,
+        'staff' => MemberRole.staff,
         'event_manager' => MemberRole.eventManager,
         'check_in_staff' => MemberRole.checkInStaff,
-        _ => MemberRole.checkInStaff,
+        _ => MemberRole.staff,
       };
 
   String get value => switch (this) {
         MemberRole.owner => 'owner',
         MemberRole.manager => 'manager',
+        MemberRole.instructor => 'instructor',
+        MemberRole.staff => 'staff',
         MemberRole.eventManager => 'event_manager',
         MemberRole.checkInStaff => 'check_in_staff',
       };
@@ -87,6 +92,8 @@ enum MemberRole {
   String get displayName => switch (this) {
         MemberRole.owner => 'Propietario',
         MemberRole.manager => 'Gerente',
+        MemberRole.instructor => 'Instructor',
+        MemberRole.staff => 'Staff',
         MemberRole.eventManager => 'Gestor de Eventos',
         MemberRole.checkInStaff => 'Staff de Check-in',
       };
@@ -94,6 +101,18 @@ enum MemberRole {
   bool get canEditOrg => this == MemberRole.owner || this == MemberRole.manager;
   bool get canManageMembers =>
       this == MemberRole.owner || this == MemberRole.manager;
+  bool get canManageClasses =>
+      this == MemberRole.owner ||
+      this == MemberRole.manager ||
+      this == MemberRole.instructor;
+  bool get canManageSchedules =>
+      this == MemberRole.owner ||
+      this == MemberRole.manager ||
+      this == MemberRole.instructor;
+  bool get canCancelSession =>
+      this == MemberRole.owner ||
+      this == MemberRole.manager ||
+      this == MemberRole.instructor;
   bool get canChangeRoles => this == MemberRole.owner;
   bool get isOwner => this == MemberRole.owner;
 }

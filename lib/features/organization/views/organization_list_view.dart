@@ -86,7 +86,7 @@ class OrganizationListView extends ConsumerWidget {
   }
 }
 
-class _OrganizationCard extends StatelessWidget {
+class _OrganizationCard extends ConsumerWidget {
   const _OrganizationCard({
     required this.name,
     this.description,
@@ -104,7 +104,10 @@ class _OrganizationCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resolvedLogoAsync = ref.watch(orgLogoUrlProvider(logoUrl));
+    final resolvedLogo = resolvedLogoAsync.whenOrNull(data: (url) => url);
+
     return Card(
       color: context.cardBg,
       shape: RoundedRectangleBorder(
@@ -122,8 +125,8 @@ class _OrganizationCard extends StatelessWidget {
                 radius: 28,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 backgroundImage:
-                    logoUrl != null ? NetworkImage(logoUrl!) : null,
-                child: logoUrl == null
+                    resolvedLogo != null ? NetworkImage(resolvedLogo) : null,
+                child: resolvedLogo == null
                     ? Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
                         style: const TextStyle(

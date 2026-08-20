@@ -97,15 +97,19 @@ class OrganizationService {
   }
 
   /// Upload logo after organization creation and update the record.
+  /// Stores the storage path in logo_url (not signed URL).
   Future<void> uploadLogoForOrg({
     required String orgId,
     required Uint8List bytes,
     required String extension,
   }) async {
     final logoPath = await uploadLogo(orgId, bytes, extension: extension);
-    final signedUrl = await logoSignedUrl(logoPath);
-    await updateOrganization(orgId, {'logo_url': signedUrl});
+    await updateOrganization(orgId, {'logo_url': logoPath});
   }
+
+  /// Generate a fresh signed URL from a stored path.
+  Future<String?> logoSignedUrl(String? path) =>
+      _storage.signedUrl(path, bucket: 'organization-logos');
 
   Future<void> updateOrganization(
       String orgId, Map<String, dynamic> data) async {
@@ -178,6 +182,111 @@ class OrganizationService {
         .update({'is_active': false}).eq('id', memberId);
   }
 
+  // ─── Invitations ─────────────────────────────────
+
+  Future<void> sendInvitation({
+    required String orgId,
+    required String email,
+    required String role,
+  }) async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw const OrganizationException('No autenticado.');
+    }
+
+    try {
+      await supabase.from('organization_invitations').insert({
+        'organization_id': orgId,
+        'email': email.trim().toLowerCase(),
+        'role': role,
+        'invited_by': userId,
+      });
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') {
+        throw const OrganizationException(
+            'Ya existe una invitacion pendiente para ese email.');
+      }
+      throw OrganizationException(_friendlyPostgresError(e.message));
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchOrgInvitations(String orgId) async {
+    try {
+      return await supabase
+          .from('organization_invitations')
+          .select('*')
+          .eq('organization_id', orgId)
+          .order('created_at', ascending: false);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMyInvitations() async {
+    final email = supabase.auth.currentUser?.email;
+    if (email == null) return [];
+
+    try {
+      // Let RLS handle email matching (users_can_view_own_invitations policy)
+      final invitations = await supabase
+          .from('organization_invitations')
+          .select('*')
+          .eq('status', 'pending')
+          .gt('expires_at', DateTime.now().toIso8601String())
+          .order('created_at', ascending: false);
+
+      // Fetch org names separately to avoid RLS issues on organizations join
+      for (final inv in invitations) {
+        final orgId = inv['organization_id'] as String?;
+        if (orgId != null) {
+          try {
+            final org = await supabase
+                .from('organizations')
+                .select('name')
+                .eq('id', orgId)
+                .maybeSingle();
+            if (org != null) {
+              inv['org_name'] = org['name'] as String?;
+            }
+          } catch (_) {}
+        }
+      }
+
+      return invitations;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> acceptInvitation(String invitationId) async {
+    try {
+      final result = await supabase.rpc('accept_invitation', params: {
+        'invitation_id': invitationId,
+      });
+      return result as Map<String, dynamic>;
+    } on PostgrestException catch (e) {
+      throw OrganizationException(_friendlyPostgresError(e.message));
+    }
+  }
+
+  Future<Map<String, dynamic>> declineInvitation(String invitationId) async {
+    try {
+      final result = await supabase.rpc('decline_invitation', params: {
+        'invitation_id': invitationId,
+      });
+      return result as Map<String, dynamic>;
+    } on PostgrestException catch (e) {
+      throw OrganizationException(_friendlyPostgresError(e.message));
+    }
+  }
+
+  Future<void> cancelInvitation(String invitationId) async {
+    await supabase
+        .from('organization_invitations')
+        .delete()
+        .eq('id', invitationId);
+  }
+
   // ─── Logo Storage ──────────────────────────────────
 
   Future<String> uploadLogo(
@@ -200,9 +309,6 @@ class OrganizationService {
 
     return path;
   }
-
-  Future<String?> logoSignedUrl(String? path) =>
-      _storage.signedUrl(path, bucket: 'organization-logos');
 
   // ─── Helpers ───────────────────────────────────────
 

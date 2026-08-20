@@ -57,6 +57,11 @@ class AppRoutes {
   static const String organizations = '/organizations';
   static const String organizationsCreate = '/organizations/create';
   static const String organizationsDetail = '/organizations/detail';
+  static const String myInvitations = '/invitations';
+
+  static const String classList = '/classes';
+  static const String classCreate = '/classes/create';
+  static const String classDetail = '/classes/detail';
 }
 
 // ─────────────────────────────────────────────

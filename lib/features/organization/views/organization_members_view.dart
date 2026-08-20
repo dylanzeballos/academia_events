@@ -5,7 +5,6 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/organization_member_model.dart';
 import '../../../data/repositories/organization_repository.dart';
-import '../../../data/services/organization_service.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/error_banner.dart';
@@ -39,9 +38,9 @@ class OrganizationMembersView extends ConsumerWidget {
                   if (canManage) ...[
                     const SizedBox(height: 16),
                     AppButton(
-                      label: 'Agregar miembro',
+                      label: 'Invitar miembro',
                       icon: Icons.person_add,
-                      onPressed: () => _showAddMemberDialog(context, ref),
+                      onPressed: () => _showInviteDialog(context, ref),
                     ),
                   ],
                 ],
@@ -60,10 +59,10 @@ class OrganizationMembersView extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: AppButton(
-                      label: 'Agregar miembro',
+                      label: 'Invitar miembro',
                       icon: Icons.person_add,
                       isOutlined: true,
-                      onPressed: () => _showAddMemberDialog(context, ref),
+                      onPressed: () => _showInviteDialog(context, ref),
                     ),
                   ),
                 ...List.generate(members.length, (index) {
@@ -90,10 +89,12 @@ class OrganizationMembersView extends ConsumerWidget {
                               context: context,
                               builder: (_) => AlertDialog(
                                 title: Text('Eliminar miembro',
-                                    style: TextStyle(color: context.textOnBg)),
+                                    style:
+                                        TextStyle(color: context.textOnBg)),
                                 content: Text(
                                   '¿Eliminar a ${m.profileName}?',
-                                  style: const TextStyle(color: Colors.grey),
+                                  style:
+                                      const TextStyle(color: Colors.grey),
                                 ),
                                 actions: [
                                   TextButton(
@@ -115,7 +116,8 @@ class OrganizationMembersView extends ConsumerWidget {
                               final repo =
                                   ref.read(organizationRepositoryProvider);
                               await repo.removeMember(m.member.id);
-                              ref.invalidate(organizationMembersProvider);
+                              ref
+                                  .invalidate(organizationMembersProvider);
                             }
                           }
                         : null,
@@ -129,30 +131,28 @@ class OrganizationMembersView extends ConsumerWidget {
     );
   }
 
-  void _showAddMemberDialog(BuildContext context, WidgetRef ref) {
-    final userIdCtrl = TextEditingController();
+  void _showInviteDialog(BuildContext context, WidgetRef ref) {
+    final emailCtrl = TextEditingController();
     String selectedRole = 'check_in_staff';
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Agregar miembro',
+          backgroundColor: context.cardBg,
+          title: Text('Invitar miembro',
               style: TextStyle(color: context.textOnBg)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Ingresa el ID del usuario (UUID de auth.users)',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
               TextField(
-                controller: userIdCtrl,
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
                 style: TextStyle(color: context.textOnBg),
                 decoration: const InputDecoration(
-                  labelText: 'User ID',
-                  hintText: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+                  labelText: 'Email del invitado',
+                  hintText: 'correo@ejemplo.com',
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
               const SizedBox(height: 16),
@@ -162,6 +162,7 @@ class OrganizationMembersView extends ConsumerWidget {
                 style: TextStyle(color: context.textOnBg),
                 decoration: const InputDecoration(
                   labelText: 'Rol',
+                  prefixIcon: Icon(Icons.work_outline),
                 ),
                 items: MemberRole.values
                     .where((r) => !r.isOwner)
@@ -174,6 +175,11 @@ class OrganizationMembersView extends ConsumerWidget {
                   if (v != null) setDialogState(() => selectedRole = v);
                 },
               ),
+              const SizedBox(height: 8),
+              const Text(
+                'El usuario recibira la invitacion en la plataforma y podra aceptar o rechazar.',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
             ],
           ),
           actions: [
@@ -183,8 +189,14 @@ class OrganizationMembersView extends ConsumerWidget {
             ),
             TextButton(
               onPressed: () async {
-                final userId = userIdCtrl.text.trim();
-                if (userId.isEmpty) return;
+                final email = emailCtrl.text.trim();
+                if (email.isEmpty || !email.contains('@')) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                        content: Text('Ingresa un email valido')),
+                  );
+                  return;
+                }
 
                 final orgId =
                     ref.read(selectedOrganizationIdProvider);
@@ -192,29 +204,28 @@ class OrganizationMembersView extends ConsumerWidget {
 
                 final repo = ref.read(organizationRepositoryProvider);
                 try {
-                  await repo.addMember(
+                  await repo.sendInvitation(
                     orgId: orgId,
-                    userId: userId,
+                    email: email,
                     role: selectedRole,
                   );
-                  ref.invalidate(organizationMembersProvider);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                } on OrganizationException catch (e) {
+                  ref.invalidate(orgInvitationsProvider);
                   if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text(e.message)),
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('Invitacion enviada a $email')),
                     );
                   }
                 } catch (e) {
                   if (ctx.mounted) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(
-                          content: Text('Error al agregar miembro. Intenta de nuevo.')),
+                      SnackBar(content: Text('Error: $e')),
                     );
                   }
                 }
               },
-              child: const Text('Agregar',
+              child: const Text('Enviar invitacion',
                   style: TextStyle(color: AppColors.primary)),
             ),
           ],
@@ -296,7 +307,8 @@ class _MemberTile extends StatelessWidget {
                         child: Text(
                           member.member.role.displayName,
                           style: TextStyle(
-                            color: isOwner ? Colors.amber : AppColors.primary,
+                            color:
+                                isOwner ? Colors.amber : AppColors.primary,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -309,7 +321,8 @@ class _MemberTile extends StatelessWidget {
             ),
             if (isAdmin && !isOwner)
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
+                icon: const Icon(Icons.more_vert,
+                    color: Colors.grey, size: 20),
                 onSelected: onRoleChanged,
                 itemBuilder: (_) => [
                   for (final role in MemberRole.values)

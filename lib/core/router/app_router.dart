@@ -15,6 +15,14 @@ import '../../features/profile/profile_view.dart';
 import '../../features/organization/views/organization_list_view.dart';
 import '../../features/organization/views/organization_detail_view.dart';
 import '../../features/organization/views/organization_create_view.dart';
+import '../../features/organization/views/my_invitations_view.dart';
+import '../../features/academy/views/academy_dashboard_view.dart';
+import '../../features/academy/views/academy_events_view.dart';
+import '../../features/academy/views/academy_classes_view.dart';
+import '../../features/academy/views/academy_teachers_view.dart';
+import '../../features/classes/views/class_list_view.dart';
+import '../../features/classes/views/class_create_view.dart';
+import '../../features/classes/views/class_detail_view.dart';
 import '../../providers/auth_provider.dart';
 
 class _StudentShell extends StatelessWidget {
@@ -95,8 +103,8 @@ class _AcademyShell extends StatelessWidget {
       label: 'PROFES',
     ),
     NavigationDestination(
-      icon: Icon(Icons.confirmation_number_outlined),
-      label: 'TICKETS',
+      icon: Icon(Icons.person_outline),
+      label: 'PERFIL',
     ),
   ];
 
@@ -127,23 +135,6 @@ class _AcademyShell extends StatelessWidget {
               destinations: _destinations,
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderPage extends StatelessWidget {
-  const _PlaceholderPage({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Text(
-          title,
-          style: TextStyle(color: context.textOnBg, fontSize: 18),
         ),
       ),
     );
@@ -182,10 +173,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       if (onAuthRoute) {
         final roleAsync = ref.read(currentUserRoleProvider);
+        if (roleAsync.isLoading) return null;
         final role = roleAsync.valueOrNull ?? UserRole.student;
         return role == UserRole.academy
             ? AppRoutes.academyDashboard
             : AppRoutes.studentHome;
+      }
+
+      final roleAsync = ref.read(currentUserRoleProvider);
+      if (roleAsync.isLoading) return null;
+      final role = roleAsync.valueOrNull ?? UserRole.student;
+      final onStudentShell = state.matchedLocation.startsWith('/student');
+      final onAcademyShell = state.matchedLocation.startsWith('/academy');
+      if (role == UserRole.academy && onStudentShell) {
+        return AppRoutes.academyDashboard;
+      }
+      if (role != UserRole.academy && onAcademyShell) {
+        return AppRoutes.studentHome;
       }
 
       return null;
@@ -226,6 +230,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.organizationsDetail,
         builder: (_, _) => const OrganizationDetailView(),
       ),
+      GoRoute(
+        path: AppRoutes.myInvitations,
+        builder: (_, _) => const MyInvitationsView(),
+      ),
+
+      // Clases routes
+      GoRoute(
+        path: AppRoutes.classList,
+        builder: (_, _) => const ClassListView(),
+      ),
+      GoRoute(
+        path: AppRoutes.classCreate,
+        builder: (_, _) => const ClassCreateView(),
+      ),
+      GoRoute(
+        path: AppRoutes.classDetail,
+        builder: (_, _) => const ClassDetailView(),
+      ),
 
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => _StudentShell(navigationShell: shell),
@@ -239,15 +261,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/student/instructors',
-              builder: (_, _) =>
-                  const _PlaceholderPage(title: 'Instructores'),
+              builder: (_, _) => const _PlaceholderPage(title: 'Instructores'),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: AppRoutes.studentClasses,
-              builder: (_, _) =>
-                  const _PlaceholderPage(title: 'Mis Clases'),
+              builder: (_, _) => const _PlaceholderPage(title: 'Mis Clases'),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -265,35 +285,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: AppRoutes.academyDashboard,
-              builder: (_, _) =>
-                  const _PlaceholderPage(title: 'Dashboard Academia'),
+              builder: (_, _) => const AcademyDashboardView(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: AppRoutes.academyEvents,
-              builder: (_, _) =>
-                  const _PlaceholderPage(title: 'Eventos Academia'),
+              builder: (_, _) => const AcademyEventsView(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: AppRoutes.academyClasses,
-              builder: (_, _) =>
-                  const _PlaceholderPage(title: 'Clases Academia'),
+              builder: (_, _) => const AcademyClassesView(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: AppRoutes.academyTeachers,
-              builder: (_, _) =>
-                  const _PlaceholderPage(title: 'Profesores'),
+              builder: (_, _) => const AcademyTeachersView(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
-              path: AppRoutes.academyTickets,
-              builder: (_, _) => const _PlaceholderPage(title: 'Tickets'),
+              path: AppRoutes.academyProfile,
+              builder: (_, _) => const ProfileView(),
             ),
           ]),
         ],
@@ -311,8 +327,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
+class _PlaceholderPage extends StatelessWidget {
+  const _PlaceholderPage({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Text(
+          title,
+          style: TextStyle(color: context.textOnBg, fontSize: 18),
+        ),
+      ),
+    );
+  }
+}
+
 extension on AsyncValue<UserRole> {
-  Object? get valueOrNull => null;
+  UserRole? get valueOrNull => whenOrNull(data: (r) => r);
 }
 
 class _AuthStateNotifier extends ChangeNotifier {
@@ -327,8 +360,6 @@ class _AuthCallbackPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Supabase SDK en web maneja el intercambio de código automáticamente.
-    // Esta página solo muestra feedback mientras se procesa.
     ref.listen(authStateProvider, (prev, next) {
       next.whenData((state) {
         if (state.event == sb.AuthChangeEvent.signedIn ||

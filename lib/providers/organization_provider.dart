@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/organization_model.dart';
 import '../data/models/organization_member_model.dart';
+import '../data/models/organization_invitation_model.dart';
 import '../data/repositories/organization_repository.dart';
 import '../data/services/organization_service.dart';
 
@@ -141,4 +142,32 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
 final createOrgProvider =
     NotifierProvider<CreateOrgNotifier, CreateOrgState>(() {
   return CreateOrgNotifier();
+});
+
+// ─── Logo signed URL helper ─────────────────────────
+
+final orgLogoUrlProvider =
+    FutureProvider.family<String?, String?>((ref, String? logoPath) async {
+  if (logoPath == null || logoPath.trim().isEmpty) return null;
+  if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
+    return logoPath;
+  }
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.logoSignedUrl(logoPath);
+});
+
+// ─── Invitations ───────────────────────────────────
+
+final orgInvitationsProvider =
+    FutureProvider<List<OrganizationInvitationModel>>((ref) async {
+  final orgId = ref.watch(selectedOrganizationIdProvider);
+  if (orgId == null) return [];
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.fetchOrgInvitations(orgId);
+});
+
+final myInvitationsProvider =
+    FutureProvider<List<OrganizationInvitationModel>>((ref) async {
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.fetchMyInvitations();
 });

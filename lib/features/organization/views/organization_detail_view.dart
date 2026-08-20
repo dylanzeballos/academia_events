@@ -200,6 +200,8 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
   @override
   Widget build(BuildContext context) {
     final org = widget.organization;
+    final resolvedLogoAsync = ref.watch(orgLogoUrlProvider(org.logoUrl));
+    final resolvedLogo = resolvedLogoAsync.whenOrNull(data: (url) => url);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -218,10 +220,10 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                     backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                     backgroundImage: _logoBytes != null
                         ? MemoryImage(_logoBytes!)
-                        : org.logoUrl != null
-                            ? NetworkImage(org.logoUrl!)
+                        : resolvedLogo != null
+                            ? NetworkImage(resolvedLogo)
                             : null,
-                    child: (_logoBytes == null && org.logoUrl == null)
+                    child: (_logoBytes == null && resolvedLogo == null)
                         ? Text(
                             org.name.isNotEmpty ? org.name[0].toUpperCase() : '?',
                             style: const TextStyle(
