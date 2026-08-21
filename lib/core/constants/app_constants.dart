@@ -62,6 +62,10 @@ class AppRoutes {
   static const String classList = '/classes';
   static const String classCreate = '/classes/create';
   static const String classDetail = '/classes/detail';
+
+  static const String eventsList = '/events';
+  static const String eventCreate = '/events/create';
+  static const String eventDetail = '/events/detail';
 }
 
 // ─────────────────────────────────────────────

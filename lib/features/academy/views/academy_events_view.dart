@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
@@ -20,6 +21,8 @@ class AcademyEventsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventsAsync = ref.watch(orgEventsProvider);
+    final myRole = ref.watch(myOrgRoleProvider);
+    final canManage = myRole?.canManageClasses ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -38,7 +41,11 @@ class AcademyEventsView extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     'Sin eventos',
-                    style: TextStyle(color: context.textOnBg, fontSize: 18, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: context.textOnBg,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -55,7 +62,7 @@ class AcademyEventsView extends ConsumerWidget {
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: events.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final event = events[index];
                 return Card(
@@ -66,6 +73,8 @@ class AcademyEventsView extends ConsumerWidget {
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
+               
+                    onTap: () => context.push(AppRoutes.eventDetail, extra: event),
                     leading: CircleAvatar(
                       backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
                       child: const Icon(Icons.event, color: AppColors.secondary, size: 20),
@@ -102,6 +111,14 @@ class AcademyEventsView extends ConsumerWidget {
           );
         },
       ),
+
+      floatingActionButton: canManage
+          ? FloatingActionButton(
+              onPressed: () => context.push(AppRoutes.eventCreate),
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 }

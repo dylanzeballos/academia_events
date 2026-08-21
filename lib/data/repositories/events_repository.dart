@@ -1,17 +1,27 @@
-import '../../core/config/supabase_config.dart';
-import '../models/event_model.dart';
+import 'dart:typed_data';
+
 import '../models/class_model.dart';
+import '../models/event_model.dart';
+import '../services/events_service.dart';
 
 abstract interface class IEventsRepository {
   Future<List<EventModel>> fetchWeekEvents(DateTime weekReference);
   Future<List<EventModel>> fetchOrganizationEvents(String organizationId);
   Future<EventModel> createEvent(Map<String, dynamic> data);
+  Future<void> createFullEvent({
+    required Map<String, dynamic> eventData,
+    required Map<String, dynamic> locationData,
+    Uint8List? bannerBytes,
+    Uint8List? qrBytes,
+  });
   Future<void> updateEvent(String id, Map<String, dynamic> data);
   Future<void> deleteEvent(String id);
 }
 
 class EventsRepository implements IEventsRepository {
-  const EventsRepository();
+  const EventsRepository({this.service = const EventsService()});
+
+  final EventsService service;
 
   @override
   Future<List<EventModel>> fetchWeekEvents(DateTime weekReference) async {
@@ -20,25 +30,14 @@ class EventsRepository implements IEventsRepository {
     );
     final sunday = monday.add(const Duration(days: 6, hours: 23, minutes: 59));
 
-    final rows = await supabase
-        .from('events')
-        .select('''
-          id, title, organization_id, category_id,
-          description, cover_image_url,
-          start_at, end_at, timezone,
-          capacity, status, visibility,
-          requires_approval, published_at, created_at,
-          organizations!inner(name)
-        ''')
-        .gte('start_at', monday.toIso8601String())
-        .lte('start_at', sunday.toIso8601String())
-        .eq('status', 'published')
-        .order('start_at');
+    final rows = await service.fetchWeekEvents(
+      monday.toIso8601String(),
+      sunday.toIso8601String(),
+    );
 
     final events = rows.map((row) {
       final json = Map<String, dynamic>.from(row);
-      json['organization_name'] =
-          (row['organizations'] as Map?)?['name'] ?? '';
+      json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
       return EventModel.fromJson(json);
     }).toList();
 
@@ -47,18 +46,9 @@ class EventsRepository implements IEventsRepository {
 
   @override
   Future<List<EventModel>> fetchOrganizationEvents(
-      String organizationId) async {
-    final rows = await supabase
-        .from('events')
-        .select(
-          'id, title, organization_id, category_id, '
-          'description, cover_image_url, '
-          'start_at, end_at, timezone, '
-          'capacity, status, visibility, '
-          'requires_approval, published_at, created_at',
-        )
-        .eq('organization_id', organizationId)
-        .order('start_at');
+    String organizationId,
+  ) async {
+    final rows = await service.fetchOrganizationEvents(organizationId);
 
     return rows
         .map((row) => EventModel.fromJson({...row, 'organization_name': ''}))
@@ -67,22 +57,52 @@ class EventsRepository implements IEventsRepository {
 
   @override
   Future<EventModel> createEvent(Map<String, dynamic> data) async {
-    final row = await supabase
-        .from('events')
-        .insert(data)
-        .select()
-        .single();
+    final row = await service.insertEvent(data);
     return EventModel.fromJson({...row, 'organization_name': ''});
   }
 
   @override
+  Future<void> createFullEvent({
+    required Map<String, dynamic> eventData,
+    required Map<String, dynamic> locationData,
+    Uint8List? bannerBytes,
+    Uint8List? qrBytes,
+  }) async {
+    // 1. Subir afiche
+    if (bannerBytes != null) {
+      final imageUrl = await service.uploadImage('event-banners', bannerBytes);
+      eventData['cover_image_url'] = imageUrl;
+    }
+
+    // 2. Insertar evento
+    final eventRow = await service.insertEvent(eventData);
+    final eventId = eventRow['id'] as String;
+
+    // 3. Insertar ubicación
+    if ((locationData['location_name'] as String?)?.isNotEmpty == true ||
+        (locationData['address_line_1'] as String?)?.isNotEmpty == true ||
+        locationData['department_id'] != null) {
+      await service.insertLocation({
+        'event_id': eventId,
+        ...locationData, 
+      });
+    }
+
+    // 4. Subir QR e insertar
+    if (qrBytes != null) {
+      final qrUrl = await service.uploadImage('event-qrs', qrBytes);
+      await service.insertEventImage(eventId, qrUrl);
+    }
+  }
+
+  @override
   Future<void> updateEvent(String id, Map<String, dynamic> data) async {
-    await supabase.from('events').update(data).eq('id', id);
+    await service.updateEvent(id, data);
   }
 
   @override
   Future<void> deleteEvent(String id) async {
-    await supabase.from('events').delete().eq('id', id);
+    await service.deleteEvent(id);
   }
 
   List<EventModel> _assignColors(List<EventModel> events) {
@@ -104,6 +124,8 @@ class EventsRepository implements IEventsRepository {
   }
 }
 
+// ─── REPOSITORY DE CLASES (Refactorizado con EventsService) ───────
+
 abstract interface class IClassesRepository {
   Future<List<ClassModel>> fetchOrganizationClasses(String organizationId);
   Future<ClassModel> createClass(Map<String, dynamic> data);
@@ -113,46 +135,35 @@ abstract interface class IClassesRepository {
 }
 
 class ClassesRepository implements IClassesRepository {
-  const ClassesRepository();
+  const ClassesRepository({this.service = const EventsService()});
+
+  final EventsService service;
 
   @override
   Future<List<ClassModel>> fetchOrganizationClasses(
-      String organizationId) async {
-    final rows = await supabase
-        .from('dance_classes')
-        .select(
-          'id, title, organization_id, '
-          'description, cover_image_url, '
-          'status, capacity, price, currency, '
-          'start_at, end_at, timezone',
-        )
-        .eq('organization_id', organizationId)
-        .order('start_at');
+    String organizationId,
+  ) async {
+    final rows = await service.fetchOrganizationClasses(organizationId);
 
     return rows
-        .map((row) =>
-            ClassModel.fromJson({...row, 'organization_name': ''}))
+        .map((row) => ClassModel.fromJson({...row, 'organization_name': ''}))
         .toList();
   }
 
   @override
   Future<ClassModel> createClass(Map<String, dynamic> data) async {
-    final row = await supabase
-        .from('dance_classes')
-        .insert(data)
-        .select()
-        .single();
+    final row = await service.insertClass(data);
     return ClassModel.fromJson({...row, 'organization_name': ''});
   }
 
   @override
   Future<void> updateClass(String id, Map<String, dynamic> data) async {
-    await supabase.from('dance_classes').update(data).eq('id', id);
+    await service.updateClass(id, data);
   }
 
   @override
   Future<void> deleteClass(String id) async {
-    await supabase.from('dance_classes').delete().eq('id', id);
+    await service.deleteClass(id);
   }
 
   @override
@@ -162,24 +173,14 @@ class ClassesRepository implements IClassesRepository {
     );
     final sunday = monday.add(const Duration(days: 6, hours: 23, minutes: 59));
 
-    final rows = await supabase
-        .from('dance_classes')
-        .select('''
-          id, title, organization_id,
-          description, cover_image_url,
-          status, capacity, price, currency,
-          start_at, end_at, timezone,
-          organizations!inner(name)
-        ''')
-        .gte('start_at', monday.toIso8601String())
-        .lte('start_at', sunday.toIso8601String())
-        .eq('status', 'published')
-        .order('start_at');
+    final rows = await service.fetchWeekClasses(
+      monday.toIso8601String(),
+      sunday.toIso8601String(),
+    );
 
     final classes = rows.map((row) {
       final json = Map<String, dynamic>.from(row);
-      json['organization_name'] =
-          (row['organizations'] as Map?)?['name'] ?? '';
+      json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
       return ClassModel.fromJson(json);
     }).toList();
 

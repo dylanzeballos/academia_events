@@ -23,6 +23,14 @@ import '../../features/academy/views/academy_teachers_view.dart';
 import '../../features/classes/views/class_list_view.dart';
 import '../../features/classes/views/class_create_view.dart';
 import '../../features/classes/views/class_detail_view.dart';
+
+import '../../features/events/views/events_list_view.dart';
+import '../../features/events/views/event_create_view.dart';
+import '../../features/events/views/event_detail_view.dart';
+
+import '../../data/models/event_model.dart';
+
+
 import '../../providers/auth_provider.dart';
 
 class _StudentShell extends StatelessWidget {
@@ -248,6 +256,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.classDetail,
         builder: (_, _) => const ClassDetailView(),
       ),
+
+
+
+      // Eventos routes
+      GoRoute(
+        path: AppRoutes.eventsList,
+        builder: (_, _) => const EventsListView(),
+      ),
+      GoRoute(
+        path: AppRoutes.eventCreate,
+        builder: (_, _) => const EventCreateView(),
+      ),
+      GoRoute(
+        path: AppRoutes.eventDetail,
+        builder: (context, state) {
+          final event = state.extra as EventModel;
+          return EventDetailView(event: event);
+        },
+      ),
+
+
 
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => _StudentShell(navigationShell: shell),

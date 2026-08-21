@@ -1,3 +1,5 @@
+import 'event_location_model.dart';
+
 class EventModel {
   const EventModel({
     required this.id,
@@ -5,8 +7,11 @@ class EventModel {
     required this.organizationId,
     this.organizationName = '',
     this.categoryId,
+    this.categoryName,
     this.description,
     this.coverImageUrl,
+    this.qrImageUrl,
+    this.location, 
     required this.startTime,
     required this.endTime,
     this.timezone = 'America/La_Paz',
@@ -24,8 +29,11 @@ class EventModel {
   final String organizationId;
   final String organizationName;
   final String? categoryId;
+  final String? categoryName;
   final String? description;
   final String? coverImageUrl;
+  final String? qrImageUrl;
+  final EventLocationModel? location;
   final DateTime startTime;
   final DateTime endTime;
   final String timezone;
@@ -46,19 +54,89 @@ class EventModel {
   bool overlapsWith(EventModel other) =>
       startTime.isBefore(other.endTime) && endTime.isAfter(other.startTime);
 
+  EventModel copyWith({
+    String? id,
+    String? title,
+    String? organizationId,
+    String? organizationName,
+    String? categoryId,
+    String? categoryName,
+    String? description,
+    String? coverImageUrl,
+    String? qrImageUrl,
+    EventLocationModel? location,
+    DateTime? startTime,
+    DateTime? endTime,
+    String? timezone,
+    int? capacity,
+    String? status,
+    String? visibility,
+    bool? requiresApproval,
+    DateTime? publishedAt,
+    DateTime? createdAt,
+    int? colorIndex,
+  }) =>
+      EventModel(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        organizationId: organizationId ?? this.organizationId,
+        organizationName: organizationName ?? this.organizationName,
+        categoryId: categoryId ?? this.categoryId,
+        categoryName: categoryName ?? this.categoryName,
+        description: description ?? this.description,
+        coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+        qrImageUrl: qrImageUrl ?? this.qrImageUrl,
+        location: location ?? this.location,
+        startTime: startTime ?? this.startTime,
+        endTime: endTime ?? this.endTime,
+        timezone: timezone ?? this.timezone,
+        capacity: capacity ?? this.capacity,
+        status: status ?? this.status,
+        visibility: visibility ?? this.visibility,
+        requiresApproval: requiresApproval ?? this.requiresApproval,
+        publishedAt: publishedAt ?? this.publishedAt,
+        createdAt: createdAt ?? this.createdAt,
+        colorIndex: colorIndex ?? this.colorIndex,
+      );
+
   factory EventModel.fromJson(Map<String, dynamic> json) {
+    // 1. Manejo seguro de categorías
+    final categoryData = json['event_categories'] as Map<String, dynamic>?;
+
+    // 2. Manejo de ubicación vinculada
+    EventLocationModel? parsedLocation;
+    if (json['event_locations'] != null) {
+      if (json['event_locations'] is List && (json['event_locations'] as List).isNotEmpty) {
+        parsedLocation = EventLocationModel.fromJson(
+            (json['event_locations'] as List).first as Map<String, dynamic>);
+      } else if (json['event_locations'] is Map<String, dynamic>) {
+        parsedLocation = EventLocationModel.fromJson(json['event_locations'] as Map<String, dynamic>);
+      }
+    }
+
+    // 3. Manejo de imágenes vinculadas
+    final imagesData = json['event_images'] as List?;
+    String? qrUrl;
+    if (imagesData != null && imagesData.isNotEmpty) {
+      final firstImage = imagesData.first as Map<String, dynamic>?;
+      qrUrl = firstImage?['image_url'] as String?;
+    }
+
     return EventModel(
       id: json['id'] as String,
       title: json['title'] as String,
       organizationId: json['organization_id'] as String,
       organizationName: (json['organization_name'] as String?) ?? '',
       categoryId: json['category_id'] as String?,
+      categoryName: categoryData?['name'] as String? ?? (json['category_name'] as String?),
       description: json['description'] as String?,
       coverImageUrl: json['cover_image_url'] as String?,
+      qrImageUrl: qrUrl ?? (json['qr_image_url'] as String?),
+      location: parsedLocation,
       startTime: DateTime.parse(json['start_at'] as String),
       endTime: DateTime.parse(json['end_at'] as String),
       timezone: (json['timezone'] as String?) ?? 'America/La_Paz',
-      capacity: json['capacity'] as int?,
+      capacity: (json['capacity'] as num?)?.toInt(),
       status: (json['status'] as String?) ?? 'draft',
       visibility: (json['visibility'] as String?) ?? 'public',
       requiresApproval: (json['requires_approval'] as bool?) ?? true,
@@ -85,25 +163,6 @@ class EventModel {
         'status': status,
         'visibility': visibility,
         'requires_approval': requiresApproval,
+        if (location != null) 'event_locations': location!.toJson(),
       };
-
-  EventModel copyWith({int? colorIndex}) => EventModel(
-        id: id,
-        title: title,
-        organizationId: organizationId,
-        organizationName: organizationName,
-        categoryId: categoryId,
-        description: description,
-        coverImageUrl: coverImageUrl,
-        startTime: startTime,
-        endTime: endTime,
-        timezone: timezone,
-        capacity: capacity,
-        status: status,
-        visibility: visibility,
-        requiresApproval: requiresApproval,
-        publishedAt: publishedAt,
-        createdAt: createdAt,
-        colorIndex: colorIndex ?? this.colorIndex,
-      );
 }
