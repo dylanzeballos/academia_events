@@ -54,7 +54,7 @@ class ClassListView extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               itemCount: classes.length,
               separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) => _ClassTile(
+              itemBuilder: (context, index) => ClassTile(
                 danceClass: classes[index],
                 canManage: canManage,
                 onTap: () {
@@ -83,8 +83,9 @@ class ClassListView extends ConsumerWidget {
   }
 }
 
-class _ClassTile extends StatelessWidget {
-  const _ClassTile({
+class ClassTile extends StatelessWidget {
+  const ClassTile({
+    super.key,
     required this.danceClass,
     required this.canManage,
     required this.onTap,
