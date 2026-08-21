@@ -114,5 +114,19 @@ class AuthService {
   }) =>
       _storage.uploadAvatar(userId, bytes, extension: extension);
 
-  Future<String?> avatarSignedUrl(String? path) => _storage.signedUrl(path);
+  /// Resuelve el valor guardado en profile_image_url a una URL mostrable.
+  /// El bucket de avatares es público: los paths se convierten a URL pública
+  /// (permanente). Las URLs firmadas antiguas se reparan extrayendo su path.
+  String? resolveAvatarUrl(String? stored) {
+    if (stored == null || stored.trim().isEmpty) return null;
+
+    if (stored.startsWith('http://') || stored.startsWith('https://')) {
+      final path = StorageService.extractPathFromSignedUrl(stored);
+      // URL externa (p. ej. foto de Google): devolver tal cual.
+      return path != null ? _storage.publicUrl(path) : stored;
+    }
+
+    // Path relativo dentro del bucket.
+    return _storage.publicUrl(stored);
+  }
 }

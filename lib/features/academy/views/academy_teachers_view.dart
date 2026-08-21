@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 
@@ -56,7 +57,11 @@ class AcademyTeachersView extends ConsumerWidget {
                 final lastName = profile?['last_name'] as String? ?? '';
                 final fullName = '$firstName $lastName'.trim();
                 final phone = profile?['phone_number'] as String?;
-                final avatarUrl = profile?['profile_image_url'] as String?;
+                // Resolver a URL pública: en BD hay un path (o una URL
+                // firmada antigua ya expirada), no una URL mostrable.
+                final avatarUrl = ref
+                    .watch(authRepositoryProvider)
+                    .resolveAvatarUrl(profile?['profile_image_url'] as String?);
 
                 return Card(
                   color: context.cardBg,
