@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -9,6 +10,7 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/layout_mode_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -76,18 +78,18 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     final ext = image.path.split('.').last;
 
     final repo = ref.read(authRepositoryProvider);
+    // Guardar el PATH del bucket en BD, nunca una URL firmada: las URLs
+    // firmadas expiran (1 h) y rompen la imagen. La URL mostrable se
+    // resuelve en resolvedAvatarUrlProvider.
     final path = await repo.uploadAvatar(bytes, extension: ext);
-    final signedUrl = await repo.avatarSignedUrl(path);
 
-    if (signedUrl != null) {
-      await repo.updateProfile(
-        firstName: _firstNameCtrl.text,
-        lastName: _lastNameCtrl.text,
-        phone: _phoneCtrl.text,
-        avatarPath: signedUrl,
-      );
-      ref.invalidate(currentProfileProvider);
-    }
+    await repo.updateProfile(
+      firstName: _firstNameCtrl.text,
+      lastName: _lastNameCtrl.text,
+      phone: _phoneCtrl.text,
+      avatarPath: path,
+    );
+    ref.invalidate(currentProfileProvider);
   }
 
   Future<void> _signOut() async {
@@ -117,28 +119,170 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     }
   }
 
-  Widget _buildRoleSection(BuildContext context, WidgetRef ref) {
-    final invitationsAsync = ref.watch(myInvitationsProvider);
-    final pendingCount = invitationsAsync.whenOrNull(
-      data: (invites) => invites.length,
-    ) ?? 0;
+  void _onModeChanged(BuildContext context, WidgetRef ref, AppLayoutMode mode) {
+    if (mode == ref.read(effectiveLayoutModeProvider)) return;
 
-    return Column(
-      children: [
-        AppButton(
-          label: pendingCount > 0
-              ? 'Invitaciones ($pendingCount pendientes)'
-              : 'Mis Invitaciones',
-          isOutlined: true,
-          icon: Icons.mail_outline,
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const MyInvitationsView(),
+    // Capturar el router ANTES de cambiar el estado: si el redirect del
+    // router navega primero, este contexto se desmonta y usarlo lanzaría
+    // un GoException. Con la referencia directa al GoRouter es seguro
+    // navegar explícitamente y la UI se actualiza al instante.
+    final router = GoRouter.of(context);
+    ref.read(layoutModeProvider.notifier).set(mode);
+    router.go(mode == AppLayoutMode.academy
+        ? AppRoutes.academyDashboard
+        : AppRoutes.studentHome);
+  }
+
+  Widget _buildCreateOrgCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '¿Tienes una academia u organizas eventos?',
+            style: TextStyle(
+              color: context.textOnBg,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Crea tu organización y conviértete en su propietario para '
+            'administrar clases, eventos, profesores y entradas.',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          AppButton(
+            label: 'Crear mi organización',
+            icon: Icons.add_business_outlined,
+            onPressed: () => context.push(AppRoutes.organizationsCreate),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvitationsButton(BuildContext context, int pendingCount) {
+    return AppButton(
+      label: pendingCount > 0
+          ? 'Invitaciones ($pendingCount pendientes)'
+          : 'Mis Invitaciones',
+      isOutlined: true,
+      icon: Icons.mail_outline,
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const MyInvitationsView(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeSection(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(effectiveLayoutModeProvider);
+    final orgsAsync = ref.watch(myOrganizationsProvider);
+    final invitationsAsync = ref.watch(myInvitationsProvider);
+
+    final pendingCount =
+        invitationsAsync.whenOrNull(data: (invites) => invites.length) ?? 0;
+    final orgs = orgsAsync.whenOrNull(data: (orgs) => orgs);
+    final hasOrgs = orgs != null && orgs.isNotEmpty;
+
+    // ── Sin organizaciones: no mostrar el switch de modo ──────────
+    // Solo el CTA para crear su organización e invitaciones.
+    if (!hasOrgs) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Organización',
+            style: TextStyle(
+              color: context.textOnBg,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildCreateOrgCard(context),
+          const SizedBox(height: 12),
+          _buildInvitationsButton(context, pendingCount),
+        ],
+      );
+    }
+
+    // ── Con organizaciones: switch Usuario / Organización ─────────
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Modo de la app',
+          style: TextStyle(
+            color: context.textOnBg,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Cambia entre la vista de estudiante y el panel de tu organización.',
+          style: TextStyle(color: context.textMuted, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        SegmentedButton<AppLayoutMode>(
+          segments: const [
+            ButtonSegment(
+              value: AppLayoutMode.student,
+              icon: Icon(Icons.person_outline),
+              label: Text('Usuario'),
+            ),
+            ButtonSegment(
+              value: AppLayoutMode.academy,
+              icon: Icon(Icons.storefront_outlined),
+              label: Text('Organización'),
+            ),
+          ],
+          selected: {mode},
+          onSelectionChanged: (selection) =>
+              _onModeChanged(context, ref, selection.first),
+          showSelectedIcon: false,
+          style: ButtonStyle(
+            // Sin relleno: fondo transparente en claro y oscuro.
+            backgroundColor:
+                const WidgetStatePropertyAll(Colors.transparent),
+            overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+            side: WidgetStateProperty.resolveWith((states) {
+              final isSelected = states.contains(WidgetState.selected);
+              return BorderSide(
+                color: isSelected ? AppColors.primary : context.divider,
+                width: isSelected ? 1.4 : 1,
+              );
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              return states.contains(WidgetState.selected)
+                  ? AppColors.primary
+                  : context.textMuted;
+            }),
+            textStyle: WidgetStateProperty.resolveWith((states) {
+              return TextStyle(
+                fontSize: 14,
+                fontWeight: states.contains(WidgetState.selected)
+                    ? FontWeight.w600
+                    : FontWeight.w500,
+              );
+            }),
           ),
         ),
         const SizedBox(height: 12),
+        _buildInvitationsButton(context, pendingCount),
       ],
     );
   }
@@ -171,6 +315,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   }
 
   Widget _buildContent(ProfileModel profile) {
+    final avatarUrl = ref.watch(resolvedAvatarUrlProvider);
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
@@ -184,10 +329,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     CircleAvatar(
                       radius: 50,
                       backgroundColor: context.cardBg,
-                      backgroundImage: profile.profileImageUrl != null
-                          ? NetworkImage(profile.profileImageUrl!)
+                      backgroundImage: avatarUrl != null
+                          ? NetworkImage(avatarUrl)
                           : null,
-                      child: profile.profileImageUrl == null
+                      child: avatarUrl == null
                           ? Text(
                               profile.firstName.isNotEmpty
                                   ? profile.firstName[0].toUpperCase()
@@ -345,7 +490,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   contentPadding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 8),
-                _buildRoleSection(context, ref),
+                _buildModeSection(context, ref),
                 const SizedBox(height: 12),
                 AppButton(
                   label: 'Cerrar sesión',

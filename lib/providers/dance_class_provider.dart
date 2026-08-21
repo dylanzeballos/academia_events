@@ -4,6 +4,7 @@ import '../data/models/class_model.dart';
 import '../data/models/dance_class_schedule_model.dart';
 import '../data/models/dance_class_session_model.dart';
 import '../data/repositories/dance_class_repository.dart';
+import 'auth_provider.dart';
 import 'organization_provider.dart';
 
 final danceClassRepositoryProvider = Provider<IDanceClassRepository>((ref) {
@@ -24,7 +25,11 @@ final orgClassesProvider =
 
 class SelectedClassIdNotifier extends Notifier<String?> {
   @override
-  String? build() => null;
+  String? build() {
+    // Resetear la selección al cambiar de sesión.
+    ref.watch(authStateProvider);
+    return null;
+  }
 
   void select(String id) => state = id;
   void clear() => state = null;

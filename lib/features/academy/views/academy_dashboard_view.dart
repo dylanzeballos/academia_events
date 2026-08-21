@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
@@ -7,6 +8,7 @@ import '../../../data/models/organization_member_model.dart';
 import '../../../data/repositories/organization_repository.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
+import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../organization/views/organization_detail_view.dart';
 
@@ -44,11 +46,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
         error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
         data: (orgs) {
           if (orgs.isEmpty) {
-            return const Scaffold(
-              body: Center(
-                  child: Text('No tienes organizaciones',
-                      style: TextStyle(color: Colors.grey))),
-            );
+            return const Scaffold(body: Center(child: _EmptyOrgsCta()));
           }
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted &&
@@ -80,9 +78,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (orgs) {
           if (orgs.isEmpty) {
-            return const Center(
-                child: Text('Sin organizaciones',
-                    style: TextStyle(color: Colors.grey)));
+            return const _EmptyOrgsCta();
           }
 
           return RefreshIndicator(
@@ -607,6 +603,47 @@ class _UpcomingSessionsList extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _EmptyOrgsCta extends StatelessWidget {
+  const _EmptyOrgsCta();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.storefront_outlined,
+              size: 64, color: AppColors.primary.withValues(alpha: 0.6)),
+          const SizedBox(height: 16),
+          Text(
+            'Aún no perteneces a ninguna organización',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.textOnBg,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Crea la tuya para administrar clases, eventos, '
+            'profesores y entradas.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 24),
+          AppButton(
+            label: 'Crear mi organización',
+            icon: Icons.add_business_outlined,
+            onPressed: () => context.push(AppRoutes.organizationsCreate),
+          ),
+        ],
+      ),
     );
   }
 }

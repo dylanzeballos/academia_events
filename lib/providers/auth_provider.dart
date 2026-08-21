@@ -152,6 +152,14 @@ final currentProfileProvider = FutureProvider<ProfileModel?>((ref) async {
   return repo.fetchCurrentProfile();
 });
 
+/// URL mostrable del avatar actual: convierte paths del bucket (o URLs
+/// firmadas antiguas guardadas en BD) en una URL pública permanente.
+final resolvedAvatarUrlProvider = Provider<String?>((ref) {
+  final profile = ref.watch(currentProfileProvider).value;
+  final repo = ref.watch(authRepositoryProvider);
+  return repo.resolveAvatarUrl(profile?.profileImageUrl);
+});
+
 final currentUserRoleProvider = FutureProvider<UserRole>((ref) async {
   ref.watch(authStateProvider);
   final repo = ref.watch(authRepositoryProvider);

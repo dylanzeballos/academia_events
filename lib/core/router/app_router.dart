@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../constants/app_constants.dart';
 import '../utils/theme_extensions.dart';
-import '../../data/models/profile_model.dart';
 import '../../features/auth/views/forgot_password_view.dart';
 import '../../features/auth/views/login_view.dart';
 import '../../features/auth/views/register_view.dart';
@@ -29,6 +28,7 @@ import '../../features/events/views/event_create_view.dart';
 import '../../features/events/views/event_detail_view.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/layout_mode_provider.dart';
 
 class _StudentShell extends StatelessWidget {
   const _StudentShell({required this.navigationShell});
@@ -177,23 +177,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (onAuthRoute) {
-        final roleAsync = ref.read(currentUserRoleProvider);
-        if (roleAsync.isLoading) return null;
-        final role = roleAsync.valueOrNull ?? UserRole.student;
-        return role == UserRole.academy
+        final mode = ref.read(effectiveLayoutModeProvider);
+        return mode == AppLayoutMode.academy
             ? AppRoutes.academyDashboard
             : AppRoutes.studentHome;
       }
 
       final roleAsync = ref.read(currentUserRoleProvider);
       if (roleAsync.isLoading) return null;
-      final role = roleAsync.valueOrNull ?? UserRole.student;
+
+      final mode = ref.read(effectiveLayoutModeProvider);
       final onStudentShell = state.matchedLocation.startsWith('/student');
       final onAcademyShell = state.matchedLocation.startsWith('/academy');
-      if (role == UserRole.academy && onStudentShell) {
+      if (mode == AppLayoutMode.academy && onStudentShell) {
         return AppRoutes.academyDashboard;
       }
-      if (role != UserRole.academy && onAcademyShell) {
+      if (mode == AppLayoutMode.student && onAcademyShell) {
         return AppRoutes.studentHome;
       }
 
@@ -370,14 +369,11 @@ class _PlaceholderPage extends StatelessWidget {
   }
 }
 
-extension on AsyncValue<UserRole> {
-  UserRole? get valueOrNull => whenOrNull(data: (r) => r);
-}
-
 class _AuthStateNotifier extends ChangeNotifier {
   _AuthStateNotifier(Ref ref) {
     ref.listen(authStateProvider, (_, _) => notifyListeners());
     ref.listen(currentUserRoleProvider, (_, _) => notifyListeners());
+    ref.listen(layoutModeProvider, (_, _) => notifyListeners());
   }
 }
 
@@ -390,9 +386,8 @@ class _AuthCallbackPage extends ConsumerWidget {
       next.whenData((state) {
         if (state.event == sb.AuthChangeEvent.signedIn ||
             state.event == sb.AuthChangeEvent.tokenRefreshed) {
-          final roleAsync = ref.read(currentUserRoleProvider);
-          final role = roleAsync.valueOrNull ?? UserRole.student;
-          context.go(role == UserRole.academy
+          final mode = ref.read(effectiveLayoutModeProvider);
+          context.go(mode == AppLayoutMode.academy
               ? AppRoutes.academyDashboard
               : AppRoutes.studentHome);
         }
