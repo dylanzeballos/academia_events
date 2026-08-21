@@ -5,17 +5,29 @@ import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/event_model.dart';
 import 'event_card.dart';
+import 'event_preview_sheet.dart';
 
-/// Timeline vertical de un día.
+/// Resultado del layout: a qué columna pertenece cada evento y
+/// cuántas columnas tiene su grupo.
+class _EventLayout {
+  const _EventLayout(this.event, this.column, this.totalColumns);
+
+  final EventModel event;
+  final int column;
+  final int totalColumns;
+}
+
+/// Timeline vertical de un día (estilo Google Calendar).
 ///
-/// Algoritmo de solapamiento:
-/// 1. Se detectan grupos de eventos que se solapan entre sí.
-/// 2. Dentro de cada grupo, el ancho disponible se divide por igual
-///    entre todos los miembros.
-/// 3. Cada evento ocupa la columna correspondiente a su [colorIndex]
-///    módulo el tamaño del grupo.
-/// 4. El resultado es que dos eventos simultáneos se muestran lado a lado,
-///    nunca encima del otro.
+/// Algoritmo de solapamiento por clústeres:
+/// 1. Los eventos se ordenan por hora de inicio.
+/// 2. Se forman clústeres: eventos conectados transitoriamente por
+///    solapamiento (A solapa con B, B con C ⇒ A,B,C en el mismo clúster).
+/// 3. Dentro de cada clúster se asignan columnas reales: cada evento toma
+///    la primera columna libre (que no esté ocupada por un evento que lo
+///    solape). El ancho del clúster es el total de columnas usadas.
+/// 4. Resultado: los eventos simultáneos se muestran lado a lado y NUNCA
+///    se dibujan encima unos de otros.
 class WeekTimeline extends StatelessWidget {
   const WeekTimeline({
     super.key,
@@ -37,7 +49,7 @@ class WeekTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     if (events.isEmpty) return _EmptyDay(date: date);
 
-    final groupSizes = _computeGroupSizes(events);
+    final layouts = _layoutEvents(events);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 32),
@@ -95,11 +107,10 @@ class WeekTimeline extends StatelessWidget {
                   ),
 
                   // Eventos posicionados
-                  ...events.map((event) {
+                  ...layouts.map((layout) {
                     return _PositionedEvent(
-                      event: event,
+                      layout: layout,
                       startHour: startHour,
-                      groupSize: groupSizes[event.id] ?? 1,
                     );
                   }),
                 ],
@@ -113,16 +124,56 @@ class WeekTimeline extends StatelessWidget {
     );
   }
 
-  /// Para cada evento devuelve cuántos eventos se solapan con él
-  /// (incluido él mismo). Ese número es el ancho de columna que usa.
-  Map<String, int> _computeGroupSizes(List<EventModel> events) {
-    final result = <String, int>{};
-    for (final event in events) {
-      final overlapping =
-          events.where((e) => e.overlapsWith(event)).length;
-      result[event.id] = overlapping;
+  /// Asigna columna y total de columnas a cada evento del día.
+  static List<_EventLayout> _layoutEvents(List<EventModel> events) {
+    final sorted = [...events]
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    final layouts = <_EventLayout>[];
+    var cluster = <EventModel>[];
+    var clusterEnd = sorted.first.endTime;
+
+    void flushCluster() {
+      if (cluster.isEmpty) return;
+
+      // Hora de fin del último evento colocado en cada columna.
+      final columnEnds = <DateTime>[];
+      final columns = <String, int>{};
+
+      for (final e in cluster) {
+        var col = 0;
+        // La columna está ocupada si su último evento aún no termina
+        // cuando empieza este.
+        while (col < columnEnds.length &&
+            !columnEnds[col].isBefore(e.startTime)) {
+          col++;
+        }
+        if (col == columnEnds.length) {
+          columnEnds.add(e.endTime);
+        } else {
+          columnEnds[col] = e.endTime;
+        }
+        columns[e.id] = col;
+      }
+
+      for (final e in cluster) {
+        layouts.add(_EventLayout(e, columns[e.id]!, columnEnds.length));
+      }
+      cluster = [];
     }
-    return result;
+
+    for (final e in sorted) {
+      // Si empieza después de que termina TODO el clúster actual,
+      // cierra el clúster y abre uno nuevo.
+      if (cluster.isNotEmpty && !e.startTime.isBefore(clusterEnd)) {
+        flushCluster();
+      }
+      if (e.endTime.isAfter(clusterEnd)) clusterEnd = e.endTime;
+      cluster.add(e);
+    }
+    flushCluster();
+
+    return layouts;
   }
 }
 
@@ -131,17 +182,16 @@ class WeekTimeline extends StatelessWidget {
 // ─────────────────────────────────────────────
 class _PositionedEvent extends StatelessWidget {
   const _PositionedEvent({
-    required this.event,
+    required this.layout,
     required this.startHour,
-    required this.groupSize,
   });
 
-  final EventModel event;
+  final _EventLayout layout;
   final int startHour;
-  final int groupSize;
 
   @override
   Widget build(BuildContext context) {
+    final event = layout.event;
     final startMin = DateFormatter.minutesFromMidnight(event.startTime);
     final endMin = DateFormatter.minutesFromMidnight(event.endTime);
     final timelineOrigin = startHour * 60;
@@ -151,22 +201,22 @@ class _PositionedEvent extends StatelessWidget {
     final height = ((endMin - startMin) * AppSizes.calendarHourHeight / 60)
         .clamp(AppSizes.calendarHourHeight * 0.35, double.infinity);
 
-    // columna dentro del grupo
-    final colIndex = event.colorIndex % groupSize;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
-        final colWidth = totalWidth / groupSize;
+        final colWidth = totalWidth / layout.totalColumns;
 
         return Positioned(
           top: top,
-          left: colWidth * colIndex,
+          left: colWidth * layout.column,
           width: colWidth,
           height: height,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 1.5),
-            child: EventCard(event: event),
+            child: EventCard(
+              event: event,
+              onTap: () => EventPreviewSheet.show(context, event),
+            ),
           ),
         );
       },

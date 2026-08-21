@@ -4,6 +4,8 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/event_model.dart';
 
+/// Bloque de evento para el timeline: totalmente pintado con su color,
+/// texto blanco y altura completa del tramo horario que ocupa.
 class EventCard extends StatelessWidget {
   const EventCard({super.key, required this.event, this.onTap});
 
@@ -24,24 +26,30 @@ class EventCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        // Bloque sólido: pinta todo el tramo de tiempo que ocupa.
         decoration: BoxDecoration(
-          color: _color.withValues(alpha: 0.18),
+          color: _color,
           borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
-          border: Border(left: BorderSide(color: _color, width: 3)),
+          boxShadow: [
+            BoxShadow(
+              color: _color.withValues(alpha: 0.35),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         child: isShort
-            ? _ShortContent(event: event, color: _color)
-            : _FullContent(event: event, color: _color),
+            ? _ShortContent(event: event)
+            : _FullContent(event: event),
       ),
     );
   }
 }
 
 class _FullContent extends StatelessWidget {
-  const _FullContent({required this.event, required this.color});
+  const _FullContent({required this.event});
   final EventModel event;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +60,9 @@ class _FullContent extends StatelessWidget {
           event.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: color,
-            fontSize: 11,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11.5,
             fontWeight: FontWeight.bold,
             height: 1.2,
           ),
@@ -62,7 +70,7 @@ class _FullContent extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           DateFormatter.timeRange(event.startTime, event.endTime),
-          style: const TextStyle(color: Colors.white60, fontSize: 9),
+          style: const TextStyle(color: Colors.white, fontSize: 9.5),
         ),
         if (event.organizationName.isNotEmpty) ...[
           const SizedBox(height: 1),
@@ -70,7 +78,24 @@ class _FullContent extends StatelessWidget {
             event.organizationName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white54, fontSize: 9),
+            style: const TextStyle(color: Colors.white70, fontSize: 9),
+          ),
+        ],
+        if (event.location?.locationName != null) ...[
+          const SizedBox(height: 1),
+          Row(
+            children: [
+              const Icon(Icons.place, color: Colors.white70, size: 10),
+              const SizedBox(width: 2),
+              Expanded(
+                child: Text(
+                  event.location!.locationName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 9),
+                ),
+              ),
+            ],
           ),
         ],
       ],
@@ -79,20 +104,22 @@ class _FullContent extends StatelessWidget {
 }
 
 class _ShortContent extends StatelessWidget {
-  const _ShortContent({required this.event, required this.color});
+  const _ShortContent({required this.event});
   final EventModel event;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      '${event.title} · ${DateFormatter.hourMin(event.startTime)}',
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: color,
-        fontSize: 9,
-        fontWeight: FontWeight.bold,
+    return Center(
+      child: Text(
+        '${DateFormatter.hourMin(event.startTime)} ${event.title}',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          height: 1.15,
+        ),
       ),
     );
   }

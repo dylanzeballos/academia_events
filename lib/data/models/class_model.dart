@@ -15,6 +15,8 @@ class ClassModel {
     this.startTime,
     this.endTime,
     this.timezone = 'America/La_Paz',
+    this.instructorId,
+    this.instructorName,
   });
 
   final String id;
@@ -30,6 +32,8 @@ class ClassModel {
   final DateTime? startTime;
   final DateTime? endTime;
   final String timezone;
+  final String? instructorId;
+  final String? instructorName;
 
   bool get isPublished => status == 'published';
 
@@ -51,6 +55,11 @@ class ClassModel {
   }
 
   factory ClassModel.fromJson(Map<String, dynamic> json) {
+    final instructorProfile = json['profiles'] as Map<String, dynamic>?;
+    final firstName = instructorProfile?['first_name'] as String? ?? '';
+    final lastName = instructorProfile?['last_name'] as String? ?? '';
+    final fullName = '$firstName $lastName'.trim();
+
     return ClassModel(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -69,6 +78,8 @@ class ClassModel {
           ? DateTime.tryParse(json['end_at'] as String)
           : null,
       timezone: (json['timezone'] as String?) ?? 'America/La_Paz',
+      instructorId: json['instructor_id'] as String?,
+      instructorName: fullName.isNotEmpty ? fullName : null,
     );
   }
 
@@ -85,5 +96,6 @@ class ClassModel {
         'start_at': startTime?.toIso8601String(),
         'end_at': endTime?.toIso8601String(),
         'timezone': timezone,
+        'instructor_id': instructorId,
       };
 }

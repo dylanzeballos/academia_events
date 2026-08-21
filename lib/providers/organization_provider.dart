@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/organization_model.dart';
 import '../data/models/organization_member_model.dart';
+import '../data/models/organization_invitation_model.dart';
 import '../data/repositories/organization_repository.dart';
 import '../data/services/organization_service.dart';
+import 'auth_provider.dart';
+import 'layout_mode_provider.dart';
 
 final organizationRepositoryProvider = Provider<IOrganizationRepository>((ref) {
   return const OrganizationRepository();
@@ -15,6 +18,10 @@ final organizationRepositoryProvider = Provider<IOrganizationRepository>((ref) {
 
 final myOrganizationsProvider =
     FutureProvider<List<OrganizationWithRole>>((ref) async {
+  // Re-ejecutar en cada cambio de sesión (login/logout): sin esto, el
+  // resultado cacheado de una sesión anterior (o de estar deslogueado)
+  // persistía y la UI mostraba el panel sin datos.
+  ref.watch(authStateProvider);
   final repo = ref.watch(organizationRepositoryProvider);
   return repo.fetchMyOrganizations();
 });
@@ -23,7 +30,11 @@ final myOrganizationsProvider =
 
 class SelectedOrgIdNotifier extends Notifier<String?> {
   @override
-  String? build() => null;
+  String? build() {
+    // Resetear la selección al cambiar de sesión.
+    ref.watch(authStateProvider);
+    return null;
+  }
 
   void select(String id) => state = id;
   void clear() => state = null;
@@ -124,6 +135,8 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
       }
 
       ref.invalidate(myOrganizationsProvider);
+      // El creador pasa a ser propietario: activa el modo organización.
+      ref.read(layoutModeProvider.notifier).set(AppLayoutMode.academy);
       state = const CreateOrgState();
       return true;
     } on OrganizationException catch (e) {
@@ -141,4 +154,33 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
 final createOrgProvider =
     NotifierProvider<CreateOrgNotifier, CreateOrgState>(() {
   return CreateOrgNotifier();
+});
+
+// ─── Logo signed URL helper ─────────────────────────
+
+final orgLogoUrlProvider =
+    FutureProvider.family<String?, String?>((ref, String? logoPath) async {
+  if (logoPath == null || logoPath.trim().isEmpty) return null;
+  if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
+    return logoPath;
+  }
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.logoSignedUrl(logoPath);
+});
+
+// ─── Invitations ───────────────────────────────────
+
+final orgInvitationsProvider =
+    FutureProvider<List<OrganizationInvitationModel>>((ref) async {
+  final orgId = ref.watch(selectedOrganizationIdProvider);
+  if (orgId == null) return [];
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.fetchOrgInvitations(orgId);
+});
+
+final myInvitationsProvider =
+    FutureProvider<List<OrganizationInvitationModel>>((ref) async {
+  ref.watch(authStateProvider);
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.fetchMyInvitations();
 });

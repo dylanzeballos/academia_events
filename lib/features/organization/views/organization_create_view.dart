@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -92,8 +93,11 @@ class _OrganizationCreateViewState
         );
 
     if (success && mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      // El notifier ya activó el modo organización: navegar directo al
+      // panel para que la UI se actualice al instante.
+      final messenger = ScaffoldMessenger.of(context);
+      context.go(AppRoutes.academyDashboard);
+      messenger.showSnackBar(
         const SnackBar(content: Text('Organización creada')),
       );
     }

@@ -34,6 +34,10 @@ dependencies:
   # UI
   cupertino_icons: ^1.0.8
 
+  # Mapas
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
   # Backend
   supabase_flutter: ^2.17.1
   flutter_dotenv: ^6.0.1
@@ -52,6 +56,7 @@ dependencies:
   # Utilidades
   image_picker: ^1.2.0
   intl: ^0.20.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

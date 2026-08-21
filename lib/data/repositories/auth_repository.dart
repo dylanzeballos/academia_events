@@ -34,7 +34,7 @@ abstract interface class IAuthRepository {
     String? avatarPath,
   });
   Future<String> uploadAvatar(Uint8List bytes, {required String extension});
-  Future<String?> avatarSignedUrl(String? path);
+  String? resolveAvatarUrl(String? stored);
 }
 
 class AuthRepository implements IAuthRepository {
@@ -76,19 +76,11 @@ class AuthRepository implements IAuthRepository {
   }
 
   @override
-  Future<void> signIn({required String email, required String password}) async {
-    final response = await _auth.signIn(email: email, password: password);
-    final user = response.user;
-    if (user != null) {
-      final fullName = user.userMetadata?['full_name'] as String?;
-      final splitName = _splitName(fullName);
-      await _auth.upsertProfile({
-        'id': user.id,
-        'first_name': splitName.$1,
-        'last_name': splitName.$2,
-      });
-    }
-  }
+  Future<void> signIn({required String email, required String password}) =>
+      // NO sobrescribir el perfil al iniciar sesión: el nombre editado por
+      // el usuario vive en `profiles`, no en user_metadata. La creación del
+      // perfil (si no existe) la maneja fetchCurrentProfile().
+      _auth.signIn(email: email, password: password);
 
   @override
   Future<void> signInWithGoogle() => _auth.signInWithGoogle();
@@ -169,7 +161,7 @@ class AuthRepository implements IAuthRepository {
   }
 
   @override
-  Future<String?> avatarSignedUrl(String? path) => _auth.avatarSignedUrl(path);
+  String? resolveAvatarUrl(String? stored) => _auth.resolveAvatarUrl(stored);
 
   (String, String) _splitName(String? fullName) {
     final parts = (fullName ?? '')

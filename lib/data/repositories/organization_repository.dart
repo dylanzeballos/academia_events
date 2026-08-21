@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../models/organization_model.dart';
 import '../models/organization_member_model.dart';
+import '../models/organization_invitation_model.dart';
 import '../services/organization_service.dart';
 
 abstract interface class IOrganizationRepository {
@@ -30,6 +31,17 @@ abstract interface class IOrganizationRepository {
     required String newRole,
   });
   Future<void> removeMember(String memberId);
+
+  Future<void> sendInvitation({
+    required String orgId,
+    required String email,
+    required String role,
+  });
+  Future<List<OrganizationInvitationModel>> fetchOrgInvitations(String orgId);
+  Future<List<OrganizationInvitationModel>> fetchMyInvitations();
+  Future<Map<String, dynamic>> acceptInvitation(String invitationId);
+  Future<Map<String, dynamic>> declineInvitation(String invitationId);
+  Future<void> cancelInvitation(String invitationId);
 
   Future<String> uploadLogo(
     String orgId,
@@ -162,6 +174,43 @@ class OrganizationRepository implements IOrganizationRepository {
   @override
   Future<void> removeMember(String memberId) =>
       _service.removeMember(memberId);
+
+  @override
+  Future<void> sendInvitation({
+    required String orgId,
+    required String email,
+    required String role,
+  }) =>
+      _service.sendInvitation(orgId: orgId, email: email, role: role);
+
+  @override
+  Future<List<OrganizationInvitationModel>> fetchOrgInvitations(
+      String orgId) async {
+    final rows = await _service.fetchOrgInvitations(orgId);
+    return rows
+        .map((row) => OrganizationInvitationModel.fromJson(row))
+        .toList();
+  }
+
+  @override
+  Future<List<OrganizationInvitationModel>> fetchMyInvitations() async {
+    final rows = await _service.fetchMyInvitations();
+    return rows
+        .map((row) => OrganizationInvitationModel.fromJson(row))
+        .toList();
+  }
+
+  @override
+  Future<Map<String, dynamic>> acceptInvitation(String invitationId) =>
+      _service.acceptInvitation(invitationId);
+
+  @override
+  Future<Map<String, dynamic>> declineInvitation(String invitationId) =>
+      _service.declineInvitation(invitationId);
+
+  @override
+  Future<void> cancelInvitation(String invitationId) =>
+      _service.cancelInvitation(invitationId);
 
   @override
   Future<String> uploadLogo(

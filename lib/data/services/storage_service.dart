@@ -63,4 +63,30 @@ class StorageService {
         .from(bucket ?? _avatarBucket)
         .createSignedUrl(path, 60 * 60);
   }
+
+  /// URL pública permanente para buckets públicos.
+  String? publicUrl(String? path, {String? bucket}) {
+    if (path == null || path.trim().isEmpty) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+
+    return supabase.storage.from(bucket ?? _avatarBucket).getPublicUrl(path);
+  }
+
+  /// Extrae el path de una URL firmada antigua guardada en BD.
+  /// Ej: https://xxx.supabase.co/storage/v1/object/sign/bucket/a/b.jpg?token=...
+  /// devuelve "a/b.jpg". Devuelve null si no es una URL firmada.
+  static String? extractPathFromSignedUrl(String url) {
+    final marker = '/object/sign/';
+    final idx = url.indexOf(marker);
+    if (idx == -1) return null;
+
+    var rest = url.substring(idx + marker.length);
+    final queryIdx = rest.indexOf('?');
+    if (queryIdx != -1) rest = rest.substring(0, queryIdx);
+
+    // Descartar el primer segmento (nombre del bucket).
+    final segments = rest.split('/');
+    if (segments.length < 2) return null;
+    return segments.sublist(1).join('/');
+  }
 }
