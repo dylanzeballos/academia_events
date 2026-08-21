@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/event_model.dart';
 import '../data/repositories/events_repository.dart';
 import '../data/services/events_service.dart';
-import '../data/services/locations_service.dart'; 
+import '../data/services/locations_service.dart';
 import 'organization_provider.dart';
 
 // ─── SERVICES PROVIDERS ───
@@ -100,28 +100,55 @@ final orgEventsProvider = FutureProvider<List<EventModel>>((ref) async {
 // ─── LOCATION PROVIDERS (EN CASCADA) ───
 
 /// Carga todos los departamentos
-final departmentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final departmentsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final service = ref.watch(locationsServiceProvider);
   return service.fetchDepartments();
 });
 
 /// Carga las provincias según el ID del Departamento seleccionado
-final provincesProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, departmentId) async {
-  if (departmentId.isEmpty) return [];
-  final service = ref.watch(locationsServiceProvider);
-  return service.fetchProvinces(departmentId);
-});
+final provincesProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((
+      ref,
+      departmentId,
+    ) async {
+      if (departmentId.isEmpty) return [];
+      final service = ref.watch(locationsServiceProvider);
+      return service.fetchProvinces(departmentId);
+    });
 
 /// Carga los municipios según el ID de la Provincia seleccionada
-final municipalitiesProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, provinceId) async {
-  if (provinceId.isEmpty) return [];
-  final service = ref.watch(locationsServiceProvider);
-  return service.fetchMunicipalities(provinceId);
-});
+final municipalitiesProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((
+      ref,
+      provinceId,
+    ) async {
+      if (provinceId.isEmpty) return [];
+      final service = ref.watch(locationsServiceProvider);
+      return service.fetchMunicipalities(provinceId);
+    });
 
 /// Carga las ciudades según el ID del Municipio seleccionado
-final citiesProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, municipalityId) async {
-  if (municipalityId.isEmpty) return [];
-  final service = ref.watch(locationsServiceProvider);
-  return service.fetchCities(municipalityId);
+final citiesProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((
+      ref,
+      municipalityId,
+    ) async {
+      if (municipalityId.isEmpty) return [];
+      final service = ref.watch(locationsServiceProvider);
+      return service.fetchCities(municipalityId);
+    });
+
+final allEventsProvider = FutureProvider<List<EventModel>>((ref) async {
+  final repo = ref.watch(eventsRepositoryProvider);
+  return repo.fetchAllEvents();
+});
+
+final eventDetailProvider = FutureProvider.family<EventModel, String>((
+  ref,
+  eventId,
+) async {
+  final repo = ref.watch(eventsRepositoryProvider);
+  return repo.fetchEventById(eventId);
 });

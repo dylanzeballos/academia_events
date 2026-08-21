@@ -4,13 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
+import '../../../shared/widgets/loading_indicator.dart';
 
 class EventDetailView extends ConsumerWidget {
-  const EventDetailView({super.key, required this.event});
+  const EventDetailView({super.key, required this.eventId});
 
-  final EventModel event;
+  final String eventId;
 
-  Future<void> _deleteEvent(BuildContext context, WidgetRef ref) async {
+  Future<void> _deleteEvent(
+    BuildContext context,
+    WidgetRef ref,
+    EventModel event,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -33,6 +38,7 @@ class EventDetailView extends ConsumerWidget {
     if (confirm == true) {
       await ref.read(eventsRepositoryProvider).deleteEvent(event.id);
       ref.invalidate(orgEventsProvider);
+      ref.invalidate(allEventsProvider);
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context)
@@ -43,55 +49,68 @@ class EventDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final eventAsync = ref.watch(eventDetailProvider(eventId));
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(event.title),
+        title: eventAsync.when(
+          data: (event) => Text(event.title),
+          loading: () => const Text('Cargando...'),
+          error: (_, __) => const Text('Evento'),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
-            onPressed: () => _deleteEvent(context, ref),
+          eventAsync.maybeWhen(
+            data: (event) => IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: () => _deleteEvent(context, ref, event),
+            ),
+            orElse: () => const SizedBox.shrink(),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (event.categoryName != null)
-              Chip(
-                label: Text(event.categoryName!),
-                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+      body: eventAsync.when(
+        loading: () => const LoadingIndicator(),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (event) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (event.categoryName != null)
+                Chip(
+                  label: Text(event.categoryName!),
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                ),
+              const SizedBox(height: 16),
+              const Text(
+                'Descripción:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-            const SizedBox(height: 16),
-            const Text(
-              'Descripción:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              (event.description != null && event.description!.isNotEmpty)
-                  ? event.description!
-                  : 'Sin descripción.',
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text('Inicio: ${event.startTime.toString().split('.')[0]}'),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.event_busy, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text('Fin: ${event.endTime.toString().split('.')[0]}'),
-              ],
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                (event.description != null && event.description!.isNotEmpty)
+                    ? event.description!
+                    : 'Sin descripción.',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text('Inicio: ${event.startAt.toString().split('.')[0]}'),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.event_busy, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text('Fin: ${event.endAt.toString().split('.')[0]}'),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

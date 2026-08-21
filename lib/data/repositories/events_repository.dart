@@ -16,6 +16,9 @@ abstract interface class IEventsRepository {
   });
   Future<void> updateEvent(String id, Map<String, dynamic> data);
   Future<void> deleteEvent(String id);
+
+  Future<List<EventModel>> fetchAllEvents();
+  Future<EventModel> fetchEventById(String id);
 }
 
 class EventsRepository implements IEventsRepository {
@@ -61,6 +64,26 @@ class EventsRepository implements IEventsRepository {
     return EventModel.fromJson({...row, 'organization_name': ''});
   }
 
+  // En la implementación
+  @override
+  Future<List<EventModel>> fetchAllEvents() async {
+    final rows = await service.fetchAllEvents();
+    final events = rows.map((row) {
+      final json = Map<String, dynamic>.from(row);
+      json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
+      return EventModel.fromJson(json);
+    }).toList();
+    return _assignColors(events);
+  }
+
+  @override
+  Future<EventModel> fetchEventById(String id) async {
+    final row = await service.fetchEventById(id);
+    final json = Map<String, dynamic>.from(row);
+    json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
+    return EventModel.fromJson(json);
+  }
+
   @override
   Future<void> createFullEvent({
     required Map<String, dynamic> eventData,
@@ -82,10 +105,7 @@ class EventsRepository implements IEventsRepository {
     if ((locationData['location_name'] as String?)?.isNotEmpty == true ||
         (locationData['address_line_1'] as String?)?.isNotEmpty == true ||
         locationData['department_id'] != null) {
-      await service.insertLocation({
-        'event_id': eventId,
-        ...locationData, 
-      });
+      await service.insertLocation({'event_id': eventId, ...locationData});
     }
 
     // 4. Subir QR e insertar

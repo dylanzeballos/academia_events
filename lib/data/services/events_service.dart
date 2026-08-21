@@ -137,4 +137,43 @@ class EventsService {
 
     return List<Map<String, dynamic>>.from(response);
   }
+
+  Future<List<Map<String, dynamic>>> fetchAllEvents() async {
+  final response = await supabase
+      .from('events')
+      .select('''
+        id, title, organization_id, category_id,
+        description, cover_image_url,
+        start_at, end_at, timezone,
+        capacity, status, visibility,
+        requires_approval, published_at, created_at,
+        organizations!inner(name),
+        event_categories(name),
+        event_locations(*),
+        event_images(*)
+      ''')
+      .order('start_at');
+
+  return List<Map<String, dynamic>>.from(response);
+}
+
+Future<Map<String, dynamic>> fetchEventById(String id) async {
+  final response = await supabase
+      .from('events')
+      .select('''
+        id, title, organization_id, category_id,
+        description, cover_image_url,
+        start_at, end_at, timezone,
+        capacity, status, visibility,
+        requires_approval, published_at, created_at,
+        organizations!inner(name),
+        event_categories(name),
+        event_locations(*),
+        event_images(*)
+      ''')
+      .eq('id', id)
+      .single();
+
+  return Map<String, dynamic>.from(response);
+}
 }

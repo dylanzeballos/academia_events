@@ -63,8 +63,8 @@ class EventsListView extends ConsumerWidget {
                   event: event,
                   canManage: canManage,
                   onTap: () {
-                    // Navega usando GoRouter y envía el objeto event en extra
-                    context.push(AppRoutes.eventDetail, extra: event);
+                    // Navega usando GoRouter y envía el ID del evento en extra
+                    context.push(AppRoutes.eventDetail, extra: event.id);
                   },
                 );
               },
