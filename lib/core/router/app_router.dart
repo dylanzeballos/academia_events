@@ -28,9 +28,6 @@ import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
 import '../../features/events/views/event_detail_view.dart';
 
-import '../../data/models/event_model.dart';
-
-
 import '../../providers/auth_provider.dart';
 
 class _StudentShell extends StatelessWidget {
@@ -271,8 +268,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.eventDetail,
         builder: (context, state) {
-          final event = state.extra as EventModel;
-          return EventDetailView(event: event);
+          final eventId = state.extra as String;
+          return EventDetailView(eventId: eventId);
         },
       ),
 

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../core/config/supabase_config.dart';
 
 class EventsService {
@@ -66,12 +68,48 @@ class EventsService {
 
   // ─── STORAGE Y SUB-TABLAS ─────────────────────────────────────────
 
-  Future<String> uploadImage(String folder, Uint8List bytes) async {
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final path = '$folder/$fileName';
+  /// Sube [bytes] al [bucket] indicado (ej. 'event-banners', 'event-qrs').
+  /// [path] es la ruta sin extensión; se detecta el tipo real de la imagen
+  /// y se agrega la extensión correspondiente.
+  /// Devuelve la URL pública del archivo subido.
+  Future<String> uploadImage(String bucket, String path, Uint8List bytes) async {
+    final contentType = _detectImageContentType(bytes);
+    final ext = switch (contentType) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      _ => 'jpg',
+    };
+    final fullPath = '$path.$ext';
 
-    await supabase.storage.from('events').uploadBinary(path, bytes);
-    return supabase.storage.from('events').getPublicUrl(path);
+    await supabase.storage.from(bucket).uploadBinary(
+          fullPath,
+          bytes,
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: contentType,
+            cacheControl: '3600',
+          ),
+        );
+
+    return supabase.storage.from(bucket).getPublicUrl(fullPath);
+  }
+
+  String _detectImageContentType(Uint8List bytes) {
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
+      return 'image/png';
+    }
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45) {
+      return 'image/webp';
+    }
+    return 'image/jpeg';
   }
 
   Future<void> insertLocation(Map<String, dynamic> locationData) async {

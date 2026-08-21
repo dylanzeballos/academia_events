@@ -91,15 +91,16 @@ class EventsRepository implements IEventsRepository {
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
   }) async {
-    // 1. Subir afiche
-    if (bannerBytes != null) {
-      final imageUrl = await service.uploadImage('event-banners', bannerBytes);
-      eventData['cover_image_url'] = imageUrl;
-    }
-
-    // 2. Insertar evento
+    // 1. Insertar evento para obtener su id
     final eventRow = await service.insertEvent(eventData);
     final eventId = eventRow['id'] as String;
+
+    // 2. Subir afiche al bucket event-banners y vincularlo al evento
+    if (bannerBytes != null) {
+      final imageUrl =
+          await service.uploadImage('event-banners', '$eventId/banner', bannerBytes);
+      await service.updateEvent(eventId, {'cover_image_url': imageUrl});
+    }
 
     // 3. Insertar ubicación
     if ((locationData['location_name'] as String?)?.isNotEmpty == true ||
@@ -108,9 +109,9 @@ class EventsRepository implements IEventsRepository {
       await service.insertLocation({'event_id': eventId, ...locationData});
     }
 
-    // 4. Subir QR e insertar
+    // 4. Subir QR al bucket event-qrs e insertarlo en event_images
     if (qrBytes != null) {
-      final qrUrl = await service.uploadImage('event-qrs', qrBytes);
+      final qrUrl = await service.uploadImage('event-qrs', '$eventId/qr', qrBytes);
       await service.insertEventImage(eventId, qrUrl);
     }
   }

@@ -56,7 +56,7 @@ class EventDetailView extends ConsumerWidget {
         title: eventAsync.when(
           data: (event) => Text(event.title),
           loading: () => const Text('Cargando...'),
-          error: (_, __) => const Text('Evento'),
+          error: (_, _) => const Text('Evento'),
         ),
         actions: [
           eventAsync.maybeWhen(
@@ -98,7 +98,7 @@ class EventDetailView extends ConsumerWidget {
                 children: [
                   const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
                   const SizedBox(width: 8),
-                  Text('Inicio: ${event.startAt.toString().split('.')[0]}'),
+                  Text('Inicio: ${event.startTime.toString().split('.')[0]}'),
                 ],
               ),
               const SizedBox(height: 8),
@@ -106,7 +106,7 @@ class EventDetailView extends ConsumerWidget {
                 children: [
                   const Icon(Icons.event_busy, size: 18, color: Colors.grey),
                   const SizedBox(width: 8),
-                  Text('Fin: ${event.endAt.toString().split('.')[0]}'),
+                  Text('Fin: ${event.endTime.toString().split('.')[0]}'),
                 ],
               ),
             ],

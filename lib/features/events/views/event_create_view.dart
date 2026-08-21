@@ -270,7 +270,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               // Tipo / Categoría de Evento
               eventCategoriesAsync.when(
                 data: (categories) => DropdownButtonFormField<String>(
-                  value: _selectedCategoryId,
+                  initialValue: _selectedCategoryId,
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textOnBg),
                   decoration: const InputDecoration(labelText: 'Tipo de Evento *'),
@@ -281,7 +281,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                   validator: (v) => v == null ? 'Selecciona una categoría' : null,
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const SizedBox(),
+                error: (_, _) => const SizedBox(),
               ),
               const SizedBox(height: 16),
 
@@ -334,7 +334,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               // Desplegable Departamento
               departmentsAsync.when(
                 data: (deps) => DropdownButtonFormField<String>(
-                  value: _selectedDepartmentId,
+                  initialValue: _selectedDepartmentId,
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textOnBg),
                   decoration: const InputDecoration(labelText: 'Departamento'),
@@ -351,7 +351,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                   },
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const SizedBox(),
+                error: (_, _) => const SizedBox(),
               ),
               const SizedBox(height: 12),
 
@@ -359,7 +359,8 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               if (_selectedDepartmentId != null)
                 ref.watch(provincesProvider(_selectedDepartmentId!)).when(
                       data: (provinces) => DropdownButtonFormField<String>(
-                        value: _selectedProvinceId,
+                        key: ValueKey(_selectedDepartmentId),
+                        initialValue: _selectedProvinceId,
                         dropdownColor: context.cardBg,
                         style: TextStyle(color: context.textOnBg),
                         decoration: const InputDecoration(labelText: 'Provincia'),
@@ -375,7 +376,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                         },
                       ),
                       loading: () => const LinearProgressIndicator(),
-                      error: (_, __) => const SizedBox(),
+                      error: (_, _) => const SizedBox(),
                     ),
               if (_selectedDepartmentId != null) const SizedBox(height: 12),
 
@@ -383,7 +384,8 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               if (_selectedProvinceId != null)
                 ref.watch(municipalitiesProvider(_selectedProvinceId!)).when(
                       data: (munis) => DropdownButtonFormField<String>(
-                        value: _selectedMunicipalityId,
+                        key: ValueKey(_selectedProvinceId),
+                        initialValue: _selectedMunicipalityId,
                         dropdownColor: context.cardBg,
                         style: TextStyle(color: context.textOnBg),
                         decoration: const InputDecoration(labelText: 'Municipio'),
@@ -398,7 +400,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                         },
                       ),
                       loading: () => const LinearProgressIndicator(),
-                      error: (_, __) => const SizedBox(),
+                      error: (_, _) => const SizedBox(),
                     ),
               if (_selectedProvinceId != null) const SizedBox(height: 12),
 
@@ -406,7 +408,8 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               if (_selectedMunicipalityId != null)
                 ref.watch(citiesProvider(_selectedMunicipalityId!)).when(
                       data: (cities) => DropdownButtonFormField<String>(
-                        value: _selectedCityId,
+                        key: ValueKey(_selectedMunicipalityId),
+                        initialValue: _selectedCityId,
                         dropdownColor: context.cardBg,
                         style: TextStyle(color: context.textOnBg),
                         decoration: const InputDecoration(labelText: 'Ciudad'),
@@ -416,7 +419,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                         onChanged: (val) => setState(() => _selectedCityId = val),
                       ),
                       loading: () => const LinearProgressIndicator(),
-                      error: (_, __) => const SizedBox(),
+                      error: (_, _) => const SizedBox(),
                     ),
               const SizedBox(height: 16),
 
