@@ -4,8 +4,12 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/event_model.dart';
 
-/// Bloque de evento para el timeline: totalmente pintado con su color,
-/// texto blanco y altura completa del tramo horario que ocupa.
+/// Bloque de evento para el timeline.
+///
+/// Estilo Google Calendar: el tramo NO se pinta a todo color (eso producía
+/// un fondo "eléctrico"), sino con un tinte translúcido del color del evento,
+/// una franja de acento a la izquierda, textos grandes en blanco y la info
+/// organizada en columnas para que se lea mejor en pantallas pequeñas.
 class EventCard extends StatelessWidget {
   const EventCard({super.key, required this.event, this.onTap});
 
@@ -25,102 +29,166 @@ class EventCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        // Bloque sólido: pinta todo el tramo de tiempo que ocupa.
+        // Tinte translúcido sobre el fondo neutro: sin bloque de color sólido.
         decoration: BoxDecoration(
-          color: _color,
+          color: _color.withValues(alpha: 0.24),
           borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
-          boxShadow: [
-            BoxShadow(
-              color: _color.withValues(alpha: 0.35),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(
+            color: _color.withValues(alpha: 0.65),
+            width: 1.2,
+          ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        clipBehavior: Clip.antiAlias,
         child: isShort
-            ? _ShortContent(event: event)
-            : _FullContent(event: event),
+            ? _ShortContent(event: event, color: _color)
+            : _FullContent(event: event, color: _color),
       ),
     );
   }
 }
 
 class _FullContent extends StatelessWidget {
-  const _FullContent({required this.event});
+  const _FullContent({required this.event, required this.color});
+
   final EventModel event;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          event.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11.5,
-            fontWeight: FontWeight.bold,
-            height: 1.2,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          DateFormatter.timeRange(event.startTime, event.endTime),
-          style: const TextStyle(color: Colors.white, fontSize: 9.5),
-        ),
-        if (event.organizationName.isNotEmpty) ...[
-          const SizedBox(height: 1),
-          Text(
-            event.organizationName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white70, fontSize: 9),
-          ),
-        ],
-        if (event.location?.locationName != null) ...[
-          const SizedBox(height: 1),
-          Row(
-            children: [
-              const Icon(Icons.place, color: Colors.white70, size: 10),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Text(
-                  event.location!.locationName!,
-                  maxLines: 1,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 6, 8, 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Franja de acento vertical (identifica el color sin invadir).
+          Container(width: 4, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  event.title,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 9),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.schedule, size: 13, color: Colors.white70),
+                    const SizedBox(width: 4),
+                    Text(
+                      DateFormatter.timeRange(event.startTime, event.endTime),
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 13),
+                    ),
+                  ],
+                ),
+                if (event.organizationName.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(Icons.apartment, size: 13, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          event.organizationName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (event.location?.locationName != null) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(Icons.place, size: 13, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          event.location!.locationName!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
-      ],
+      ),
     );
   }
 }
 
 class _ShortContent extends StatelessWidget {
-  const _ShortContent({required this.event});
+  const _ShortContent({required this.event, required this.color});
+
   final EventModel event;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        '${DateFormatter.hourMin(event.startTime)} ${event.title}',
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          height: 1.15,
+    final durationMin =
+        DateFormatter.durationMinutes(event.startTime, event.endTime);
+    final isVeryShort = durationMin < 20;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(width: 4, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  DateFormatter.timeRange(event.startTime, event.endTime),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isVeryShort ? 11 : 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (!isVeryShort) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    event.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      height: 1.15,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
