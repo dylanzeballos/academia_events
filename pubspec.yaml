@@ -33,6 +33,7 @@ dependencies:
 
   # UI
   cupertino_icons: ^1.0.8
+  cached_network_image: ^3.4.1
 
   # Mapas
   flutter_map: ^6.1.0
@@ -45,6 +46,7 @@ dependencies:
   # Estado — Riverpod
   flutter_riverpod: ^3.4.2
   riverpod_annotation: ^4.0.6
+  equatable: ^2.0.5
 
   # Navegación
   go_router: ^17.5.0
