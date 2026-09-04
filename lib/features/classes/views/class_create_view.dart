@@ -6,6 +6,7 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../widgets/schedule_dialog.dart';
 
 class ClassCreateView extends ConsumerStatefulWidget {
   const ClassCreateView({super.key});
@@ -42,7 +43,9 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
       'day_of_week': s.dayOfWeek,
       'start_time': '${s.startHour.toString().padLeft(2, '0')}:${s.startMinute.toString().padLeft(2, '0')}:00',
       'end_time': '${s.endHour.toString().padLeft(2, '0')}:${s.endMinute.toString().padLeft(2, '0')}:00',
-      'instructor_id': _selectedInstructorId,
+      'instructor_id': s.instructorId ?? _selectedInstructorId,
+      'start_date': s.startDate?.toIso8601String().split('T')[0],
+      'end_date': s.endDate?.toIso8601String().split('T')[0],
     }).toList();
 
     final notifier = ref.read(createClassProvider.notifier);
@@ -224,9 +227,19 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                         s.dayName,
                         style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.w500),
                       ),
-                      subtitle: Text(
-                        '${s.startHour.toString().padLeft(2, '0')}:${s.startMinute.toString().padLeft(2, '0')} - ${s.endHour.toString().padLeft(2, '0')}:${s.endMinute.toString().padLeft(2, '0')}',
-                        style: const TextStyle(color: Colors.grey),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${s.startHour.toString().padLeft(2, '0')}:${s.startMinute.toString().padLeft(2, '0')} - ${s.endHour.toString().padLeft(2, '0')}:${s.endMinute.toString().padLeft(2, '0')}',
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                          if (s.startDate != null || s.endDate != null)
+                            Text(
+                              '${s.startDate != null ? '${s.startDate!.day.toString().padLeft(2, '0')}/${s.startDate!.month.toString().padLeft(2, '0')}/${s.startDate!.year}' : 'desde'} - ${s.endDate != null ? '${s.endDate!.day.toString().padLeft(2, '0')}/${s.endDate!.month.toString().padLeft(2, '0')}/${s.endDate!.year}' : 'sin fin'}',
+                              style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                        ],
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
@@ -259,141 +272,33 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
     );
   }
 
-  void _addSchedule(BuildContext context) {
-    int selectedDay = 1;
-    int startHour = 19;
-    int startMinute = 0;
-    int endHour = 20;
-    int endMinute = 30;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Agregar horario', style: TextStyle(color: context.textOnBg)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                initialValue: selectedDay,
-                dropdownColor: context.cardBg,
-                style: TextStyle(color: context.textOnBg),
-                decoration: const InputDecoration(labelText: 'Día'),
-                items: const [
-                  DropdownMenuItem(value: 1, child: Text('Lunes')),
-                  DropdownMenuItem(value: 2, child: Text('Martes')),
-                  DropdownMenuItem(value: 3, child: Text('Miércoles')),
-                  DropdownMenuItem(value: 4, child: Text('Jueves')),
-                  DropdownMenuItem(value: 5, child: Text('Viernes')),
-                  DropdownMenuItem(value: 6, child: Text('Sábado')),
-                  DropdownMenuItem(value: 0, child: Text('Domingo')),
-                ],
-                onChanged: (v) {
-                  if (v != null) setDialogState(() => selectedDay = v);
-                },
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: startHour,
-                      dropdownColor: context.cardBg,
-                      style: TextStyle(color: context.textOnBg),
-                      decoration: const InputDecoration(labelText: 'Hora inicio'),
-                      items: List.generate(24, (i) => DropdownMenuItem(
-                        value: i,
-                        child: Text(i.toString().padLeft(2, '0')),
-                      )),
-                      onChanged: (v) {
-                        if (v != null) setDialogState(() => startHour = v);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: startMinute,
-                      dropdownColor: context.cardBg,
-                      style: TextStyle(color: context.textOnBg),
-                      decoration: const InputDecoration(labelText: 'Min'),
-                      items: const [
-                        DropdownMenuItem(value: 0, child: Text('00')),
-                        DropdownMenuItem(value: 15, child: Text('15')),
-                        DropdownMenuItem(value: 30, child: Text('30')),
-                        DropdownMenuItem(value: 45, child: Text('45')),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setDialogState(() => startMinute = v);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: endHour,
-                      dropdownColor: context.cardBg,
-                      style: TextStyle(color: context.textOnBg),
-                      decoration: const InputDecoration(labelText: 'Hora fin'),
-                      items: List.generate(24, (i) => DropdownMenuItem(
-                        value: i,
-                        child: Text(i.toString().padLeft(2, '0')),
-                      )),
-                      onChanged: (v) {
-                        if (v != null) setDialogState(() => endHour = v);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: endMinute,
-                      dropdownColor: context.cardBg,
-                      style: TextStyle(color: context.textOnBg),
-                      decoration: const InputDecoration(labelText: 'Min'),
-                      items: const [
-                        DropdownMenuItem(value: 0, child: Text('00')),
-                        DropdownMenuItem(value: 15, child: Text('15')),
-                        DropdownMenuItem(value: 30, child: Text('30')),
-                        DropdownMenuItem(value: 45, child: Text('45')),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setDialogState(() => endMinute = v);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _schedules.add(_ScheduleEntry(
-                    dayOfWeek: selectedDay,
-                    startHour: startHour,
-                    startMinute: startMinute,
-                    endHour: endHour,
-                    endMinute: endMinute,
-                  ));
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text('Agregar', style: TextStyle(color: AppColors.primary)),
-            ),
-          ],
-        ),
-      ),
+  void _addSchedule(BuildContext context) async {
+    final result = await showScheduleDialog(
+      context,
+      classStart: _startAt,
+      classEnd: _endAt,
     );
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _schedules.add(_ScheduleEntry(
+        dayOfWeek: result.dayOfWeek,
+        startHour: _hourOf(result.startTime),
+        startMinute: _minuteOf(result.startTime),
+        endHour: _hourOf(result.endTime),
+        endMinute: _minuteOf(result.endTime),
+        instructorId: result.instructorId,
+        startDate: result.startDate,
+        endDate: result.endDate,
+      ));
+    });
+  }
+
+  static int _hourOf(String time) => int.parse(time.split(':')[0]);
+
+  static int _minuteOf(String time) {
+    final parts = time.split(':');
+    return parts.length > 1 ? int.parse(parts[1]) : 0;
   }
 }
 
@@ -403,6 +308,9 @@ class _ScheduleEntry {
   final int startMinute;
   final int endHour;
   final int endMinute;
+  final String? instructorId;
+  final DateTime? startDate;
+  final DateTime? endDate;
 
   _ScheduleEntry({
     required this.dayOfWeek,
@@ -410,6 +318,9 @@ class _ScheduleEntry {
     required this.startMinute,
     required this.endHour,
     required this.endMinute,
+    this.instructorId,
+    this.startDate,
+    this.endDate,
   });
 
   String get dayName => switch (dayOfWeek) {

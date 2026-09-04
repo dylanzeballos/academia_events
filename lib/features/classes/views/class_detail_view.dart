@@ -8,6 +8,7 @@ import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../widgets/schedule_dialog.dart';
 
 class ClassDetailView extends ConsumerStatefulWidget {
   const ClassDetailView({super.key});
@@ -206,18 +207,36 @@ class _SchedulesTab extends ConsumerWidget {
                   s.dayName,
                   style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.w600),
                 ),
-                subtitle: Text(
-                  '${s.startTime} - ${s.endTime}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${s.startTime} - ${s.endTime}',
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                    if (s.startDate != null || s.endDate != null)
+                      Text(
+                        '${s.startDate != null ? '${s.startDate!.day.toString().padLeft(2, '0')}/${s.startDate!.month.toString().padLeft(2, '0')}/${s.startDate!.year}' : 'desde'} - ${s.endDate != null ? '${s.endDate!.day.toString().padLeft(2, '0')}/${s.endDate!.month.toString().padLeft(2, '0')}/${s.endDate!.year}' : 'sin fin'}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    if (s.locationOverride != null)
+                      Text(
+                        'Ubicación: ${s.locationOverride!['location_name'] ?? 'asignada'}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                  ],
                 ),
                 trailing: canManage
                     ? PopupMenuButton<String>(
                         icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
                         onSelected: (value) async {
                           final repo = ref.read(danceClassRepositoryProvider);
-                          if (value == 'toggle') {
+                          if (value == 'edit') {
+                            await _editSchedule(context, ref, s);
+                          } else if (value == 'toggle') {
                             await repo.updateSchedule(s.id, {'is_active': !s.isActive});
                             ref.invalidate(classSchedulesProvider);
+                            ref.invalidate(classSessionsProvider);
                           } else if (value == 'delete') {
                             final confirm = await showDialog<bool>(
                               context: context,
@@ -236,10 +255,15 @@ class _SchedulesTab extends ConsumerWidget {
                             if (confirm == true) {
                               await repo.deleteSchedule(s.id);
                               ref.invalidate(classSchedulesProvider);
+                              ref.invalidate(classSessionsProvider);
                             }
                           }
                         },
                         itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Editar'),
+                          ),
                           PopupMenuItem(
                             value: 'toggle',
                             child: Text(s.isActive ? 'Desactivar' : 'Activar'),
@@ -256,6 +280,40 @@ class _SchedulesTab extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+
+  Future<void> _editSchedule(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic s,
+  ) async {
+    final result = await showScheduleDialog(
+      context,
+      existing: s,
+    );
+    if (result == null || !context.mounted) return;
+
+    final repo = ref.read(danceClassRepositoryProvider);
+    await repo.updateSchedule(s.id, result.toJson());
+
+    // Regenerar sesiones futuras del horario para reflejar el nuevo rango.
+    await repo.clearUpcomingSessionsForSchedule(s.id);
+    final danceClass = ref.read(selectedClassProvider).value;
+    final periodStart = danceClass?.startTime ?? DateTime.now();
+    final periodEnd =
+        danceClass?.endTime ?? periodStart.add(const Duration(days: 90));
+    await repo.generateSessions(
+      classId: s.danceClassId,
+      startDate: periodStart,
+      endDate: periodEnd,
+    );
+
+    if (!context.mounted) return;
+    ref.invalidate(classSchedulesProvider);
+    ref.invalidate(classSessionsProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Horario actualizado')),
     );
   }
 }

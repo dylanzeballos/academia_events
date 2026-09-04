@@ -198,6 +198,26 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _QuickActionCard(
+                            icon: Icons.fact_check_outlined,
+                            label: 'Registrar\nasistencia',
+                            onTap: () => context.push(AppRoutes.academyAttendance),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _QuickActionCard(
+                            icon: Icons.event_note_outlined,
+                            label: 'Gestionar\nclases',
+                            onTap: () => context.go(AppRoutes.academyClasses),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 24),
                   ],
 
