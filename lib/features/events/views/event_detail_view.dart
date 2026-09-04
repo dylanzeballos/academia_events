@@ -7,12 +7,12 @@ import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/layout_mode_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
-import '../widgets/event_detail_header.dart';
-import '../widgets/event_location_section.dart';
-import '../widgets/event_publish_action_bar.dart';
-import '../widgets/event_schedule_card.dart';
-import '../widgets/event_ticket_action_bar.dart';
-import '../widgets/event_tickets_section.dart';
+import '../widgets/detail/event_detail_header.dart';
+import '../widgets/detail/event_location_section.dart';
+import '../widgets/detail/event_publish_action_bar.dart';
+import '../widgets/detail/event_schedule_card.dart';
+import '../widgets/detail/event_ticket_action_bar.dart';
+import '../widgets/detail/event_tickets_section.dart';
 
 class EventDetailView extends ConsumerWidget {
   const EventDetailView({super.key, required this.eventId});

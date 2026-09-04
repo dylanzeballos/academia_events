@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 
-import '../../../data/models/event_model.dart';
-import '../../tickets/views/purchase_tickets_screen.dart';
+import '../../../../data/models/event_model.dart';
+import '../../../tickets/views/purchase_tickets_screen.dart';
 
 class EventTicketActionBar extends StatelessWidget {
   const EventTicketActionBar({

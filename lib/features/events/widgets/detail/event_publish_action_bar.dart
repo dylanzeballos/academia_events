@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../data/models/event_model.dart';
-import '../../../providers/events_provider.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../data/models/event_model.dart';
+import '../../../../providers/events_provider.dart';
 
 class EventPublishActionBar extends ConsumerStatefulWidget {
   const EventPublishActionBar({super.key, required this.event});
