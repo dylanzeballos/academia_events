@@ -24,61 +24,203 @@ import '../../features/academy/views/academy_teachers_view.dart';
 import '../../features/classes/views/class_list_view.dart';
 import '../../features/classes/views/class_create_view.dart';
 import '../../features/classes/views/class_detail_view.dart';
+import '../../features/enrollment/views/my_classes_view.dart';
+import '../../features/enrollment/views/attendance_management_view.dart';
 
 import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
 import '../../features/events/views/event_detail_view.dart';
+
+import '../../features/public/views/public_events_view.dart';
+import '../../features/public/views/public_event_detail_view.dart';
+import '../../features/public/views/public_calendar_view.dart';
+import '../../features/public/widgets/organization_carousel.dart';
 
 import '../../features/tickets/views/student_tickets_view.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/layout_mode_provider.dart';
 
-class _StudentShell extends StatelessWidget {
+class _StudentShell extends ConsumerStatefulWidget {
   const _StudentShell({required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
-  static const _destinations = [
-    NavigationDestination(icon: Icon(Icons.calendar_month), label: 'HORARIO'),
-    NavigationDestination(
-      icon: Icon(
-        Icons.confirmation_number_outlined,
-      ), 
-      label: 'TICKETS',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.collections_bookmark),
-      label: 'MIS CLASES',
-    ),
-    NavigationDestination(icon: Icon(Icons.person), label: 'PERFIL'),
+  @override
+  ConsumerState<_StudentShell> createState() => _StudentShellState();
+}
+
+class _StudentShellState extends ConsumerState<_StudentShell> {
+  bool _carouselCollapsed = false;
+
+  static const _activeIcons = [
+    Icons.calendar_month_rounded,
+    Icons.confirmation_number_rounded,
+    Icons.collections_bookmark_rounded,
+    Icons.person_rounded,
   ];
+  static const _inactiveIcons = [
+    Icons.calendar_month_outlined,
+    Icons.confirmation_number_outlined,
+    Icons.collections_bookmark_outlined,
+    Icons.person_outline_rounded,
+  ];
+  static const _labels = ['Horario', 'Tickets', 'Clases', 'Perfil'];
 
   @override
   Widget build(BuildContext context) {
+    final shell = widget.navigationShell;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedColor = AppColors.primary;
+    final unselectedColor = isDark ? Colors.grey.shade600 : Colors.grey.shade400;
+
     return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
-        child: Container(
-          decoration: BoxDecoration(
-            color: context.cardBg,
-            borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
+      body: Column(
+        children: [
+          Expanded(child: shell),
+          _carouselCollapsed
+              ? _CollapsedCarouselBar(
+                  onExpand: () =>
+                      setState(() => _carouselCollapsed = false),
+                )
+              : OrganizationCarousel(
+                  height: 80,
+                  autoPlayInterval: const Duration(seconds: 5),
+                  showTitle: false,
+                  onCollapse: () =>
+                      setState(() => _carouselCollapsed = true),
+                ),
+        ],
+      ),
+      bottomNavigationBar: _InstagramNavBar(
+        selectedIndex: shell.currentIndex,
+        onDestinationSelected: shell.goBranch,
+        activeIcons: _activeIcons,
+        inactiveIcons: _inactiveIcons,
+        labels: _labels,
+        selectedColor: selectedColor,
+        unselectedColor: unselectedColor,
+      ),
+    );
+  }
+}
+
+/// Bottom navigation bar estilo Instagram: sutil, sin labels grandes,
+/// íconos outlined/filled y una línea superior discreta.
+class _InstagramNavBar extends StatelessWidget {
+  const _InstagramNavBar({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+    required this.activeIcons,
+    required this.inactiveIcons,
+    required this.labels,
+    required this.selectedColor,
+    required this.unselectedColor,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+  final List<IconData> activeIcons;
+  final List<IconData> inactiveIcons;
+  final List<String> labels;
+  final Color selectedColor;
+  final Color unselectedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.background : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.08),
+            width: 0.5,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-            child: NavigationBar(
-              selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: navigationShell.goBranch,
-              destinations: _destinations,
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 56,
+          child: Row(
+            children: List.generate(activeIcons.length, (i) {
+              final isSelected = i == selectedIndex;
+              return Expanded(
+                child: InkWell(
+                  onTap: () => onDestinationSelected(i),
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isSelected ? activeIcons[i] : inactiveIcons[i],
+                        size: 24,
+                        color: isSelected ? selectedColor : unselectedColor,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        labels[i],
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color: isSelected ? selectedColor : unselectedColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Franja reducida que se muestra cuando el carrusel está colapsado.
+class _CollapsedCarouselBar extends StatelessWidget {
+  const _CollapsedCarouselBar({required this.onExpand});
+
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onExpand,
+      child: Container(
+        height: 32,
+        color: context.cardBg,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.expand_less,
+              size: 18,
+              color: context.textOnBg.withValues(alpha: 0.7),
             ),
-          ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                'Organizaciones',
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.textOnBg.withValues(alpha: 0.7),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -89,41 +231,38 @@ class _AcademyShell extends StatelessWidget {
   const _AcademyShell({required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
-  static const _destinations = [
-    NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'PANEL'),
-    NavigationDestination(icon: Icon(Icons.event_outlined), label: 'EVENTOS'),
-    NavigationDestination(icon: Icon(Icons.school_outlined), label: 'CLASES'),
-    NavigationDestination(icon: Icon(Icons.people_outline), label: 'PROFES'),
-    NavigationDestination(icon: Icon(Icons.person_outline), label: 'PERFIL'),
+  static const _activeIcons = [
+    Icons.dashboard_rounded,
+    Icons.event_rounded,
+    Icons.school_rounded,
+    Icons.people_rounded,
+    Icons.person_rounded,
   ];
+  static const _inactiveIcons = [
+    Icons.dashboard_outlined,
+    Icons.event_outlined,
+    Icons.school_outlined,
+    Icons.people_outline_rounded,
+    Icons.person_outline_rounded,
+  ];
+  static const _labels = ['Panel', 'Eventos', 'Clases', 'Profes', 'Perfil'];
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedColor = AppColors.primary;
+    final unselectedColor = isDark ? Colors.grey.shade600 : Colors.grey.shade400;
+
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
-        child: Container(
-          decoration: BoxDecoration(
-            color: context.cardBg,
-            borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppSizes.radiusXl),
-            child: NavigationBar(
-              selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: navigationShell.goBranch,
-              destinations: _destinations,
-            ),
-          ),
-        ),
+      bottomNavigationBar: _InstagramNavBar(
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: navigationShell.goBranch,
+        activeIcons: _activeIcons,
+        inactiveIcons: _inactiveIcons,
+        labels: _labels,
+        selectedColor: selectedColor,
+        unselectedColor: unselectedColor,
       ),
     );
   }
@@ -243,13 +382,37 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.eventCreate,
         builder: (_, _) => const EventCreateView(),
       ),
-      GoRoute(
+GoRoute(
         path: AppRoutes.eventDetail,
         builder: (context, state) {
           final eventId = state.extra as String;
           return EventDetailView(eventId: eventId);
         },
       ),
+
+      // Public event discovery routes
+      GoRoute(
+        path: AppRoutes.publicEvents,
+        builder: (_, _) => const PublicEventsView(),
+      ),
+      GoRoute(
+        path: AppRoutes.publicEventDetail,
+        builder: (context, state) {
+          final eventId = state.pathParameters['id'] ?? '';
+          return PublicEventDetailView(eventId: eventId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.publicCalendar,
+        builder: (_, _) => const PublicCalendarView(),
+      ),
+
+      // Asistencia (academia: owner / admin / instructor)
+      GoRoute(
+        path: AppRoutes.academyAttendance,
+        builder: (_, _) => const AttendanceManagementView(),
+      ),
+
 
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => _StudentShell(navigationShell: shell),

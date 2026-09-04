@@ -87,7 +87,9 @@ class DanceClassService {
           .select('''
             id, dance_class_id, day_of_week,
             start_time, end_time,
-            instructor_id, is_active,
+            instructor_id,
+            start_date, end_date,
+            location_override, is_active,
             created_at, updated_at,
             profiles!instructor_id(first_name, last_name)
           ''')
@@ -223,6 +225,12 @@ class DanceClassService {
 
   // ─── Sessions generation ─────────────────────────
 
+  /// Genera las sesiones de una clase dentro del rango [startDate]..[endDate].
+  ///
+  /// Cada horario activo respeta su PROPIO rango (start_date/end_date): si el
+  /// schedule define fechas, se acotan las sesiones a ese rango; si no, se usa
+  /// el rango de la llamada como fallback. La ubicación del schedule se hereda
+  /// a sus sesiones (location_override).
   Future<void> generateSessions({
     required String classId,
     required DateTime startDate,
@@ -242,6 +250,7 @@ class DanceClassService {
       final startTimeStr = schedule['start_time'] as String;
       final endTimeStr = schedule['end_time'] as String;
       final scheduleId = schedule['id'] as String;
+      final locationOverride = schedule['location_override'];
 
       final startParts = startTimeStr.split(':');
       final endParts = endTimeStr.split(':');
@@ -250,9 +259,25 @@ class DanceClassService {
       final endHour = int.parse(endParts[0]);
       final endMinute = int.parse(endParts[1]);
 
-      var current = startDate;
-      while (!current.isAfter(endDate)) {
-        if (current.weekday == dayOfWeek + 1) {
+      // Rango propio del schedule (si define fechas, se respeta).
+      DateTime rangeStart = startDate;
+      DateTime rangeEnd = endDate;
+      if (schedule['start_date'] != null) {
+        final s = parsedDate(schedule['start_date'] as String?);
+        if (s != null && s.isAfter(rangeStart)) rangeStart = s;
+      }
+      if (schedule['end_date'] != null) {
+        final e = parsedDate(schedule['end_date'] as String?);
+        if (e != null && e.isBefore(rangeEnd)) rangeEnd = e;
+      }
+      if (rangeStart.isAfter(rangeEnd)) continue;
+
+      var current = DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
+      final effectiveEnd = DateTime(rangeEnd.year, rangeEnd.month, rangeEnd.day);
+      while (!current.isAfter(effectiveEnd)) {
+        // day_of_week: 0=domingo, pero weekday: 1=lunes..7=domingo.
+        final scheduleWeekday = dayOfWeek == 0 ? 7 : dayOfWeek;
+        if (current.weekday == scheduleWeekday) {
           final sessionStart = DateTime(
             current.year,
             current.month,
@@ -275,6 +300,7 @@ class DanceClassService {
             'start_at': sessionStart.toIso8601String(),
             'end_at': sessionEnd.toIso8601String(),
             'status': 'scheduled',
+            'location_override': ?locationOverride,
           });
         }
         current = current.add(const Duration(days: 1));
@@ -284,6 +310,22 @@ class DanceClassService {
     if (sessions.isNotEmpty) {
       await createSessionsBatch(sessions);
     }
+  }
+
+  /// Vacía las sesiones futuras (>= hoy) de un horario, para poder regenerarlas
+  /// sin duplicados al editar el horario o su rango.
+  Future<void> clearUpcomingSessionsForSchedule(String scheduleId) async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    await supabase
+        .from('dance_class_sessions')
+        .delete()
+        .eq('schedule_id', scheduleId)
+        .gte('session_date', today);
+  }
+
+  static DateTime? parsedDate(String? value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value);
   }
 
   // ─── Org stats ───────────────────────────────────

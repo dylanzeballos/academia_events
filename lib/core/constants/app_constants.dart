@@ -45,6 +45,7 @@ class AppRoutes {
   static const String studentHome = '/student';
   static const String studentCalendar = '/student/calendar';
   static const String studentClasses = '/student/classes';
+  static const String academyAttendance = '/academy/attendance';
   static const String studentProfile = '/student/profile';
 
   static const String academyDashboard = '/academy';
@@ -66,6 +67,14 @@ class AppRoutes {
   static const String eventsList = '/events';
   static const String eventCreate = '/events/create';
   static const String eventDetail = '/events/detail';
+
+  // Public event discovery routes
+  static const String publicEvents = '/eventos';
+  // Patrón de ruta (usado por el router; `:id` es el parámetro).
+  static const String publicEventDetail = '/eventos/detalle/:id';
+  // Base para navegar (push) a la ruta de detalle.
+  static const String publicEventDetailBase = '/eventos/detalle';
+  static const String publicCalendar = '/calendario';
 }
 
 // ─────────────────────────────────────────────
@@ -82,7 +91,7 @@ class AppSizes {
   static const double radiusLarge = 20;
   static const double radiusXl = 30;
   static const double buttonHeight = 48;
-  static const double calendarHourHeight = 60.0;
+  static const double calendarHourHeight = 70.0;
   static const double calendarEventMinWidth = 100.0;
 }
 

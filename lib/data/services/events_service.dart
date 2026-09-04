@@ -201,23 +201,31 @@ class EventsService {
     await supabase.from('dance_classes').delete().eq('id', id);
   }
 
-  Future<List<Map<String, dynamic>>> fetchWeekClasses(
+  Future<List<Map<String, dynamic>>> fetchWeekSchedules(
     String startIso,
     String endIso,
   ) async {
     final response = await supabase
-        .from('dance_classes')
+        .from('dance_class_schedules')
         .select('''
-          id, title, organization_id,
-          description, cover_image_url,
-          status, capacity, price, currency,
-          start_at, end_at, timezone,
-          organizations!inner(name)
+          id, dance_class_id, day_of_week,
+          start_time, end_time,
+          instructor_id,
+          start_date, end_date,
+          location_override, is_active,
+          dance_classes!inner(
+            id, title, organization_id,
+            description, cover_image_url,
+            status, capacity, price, currency,
+            start_at, end_at, timezone,
+            organizations!inner(name),
+            profiles!instructor_id(first_name, last_name)
+          )
         ''')
-        .gte('start_at', startIso)
-        .lte('start_at', endIso)
-        .eq('status', 'published')
-        .order('start_at');
+        .eq('is_active', true)
+        .eq('dance_classes.status', 'published')
+        .order('dance_class_id')
+        .order('day_of_week');
 
     return List<Map<String, dynamic>>.from(response);
   }

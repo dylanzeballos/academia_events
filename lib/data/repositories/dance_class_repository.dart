@@ -22,6 +22,7 @@ abstract interface class IDanceClassRepository {
     required DateTime startDate,
     required DateTime endDate,
   });
+  Future<void> clearUpcomingSessionsForSchedule(String scheduleId);
   Future<void> cancelSession({required String sessionId, String? reason});
   Future<void> completeSession(String sessionId);
   Future<void> updateSessionLocation({
@@ -120,6 +121,10 @@ class DanceClassRepository implements IDanceClassRepository {
         startDate: startDate,
         endDate: endDate,
       );
+
+  @override
+  Future<void> clearUpcomingSessionsForSchedule(String scheduleId) =>
+      _service.clearUpcomingSessionsForSchedule(scheduleId);
 
   @override
   Future<void> cancelSession({required String sessionId, String? reason}) =>

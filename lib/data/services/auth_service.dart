@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config/supabase_config.dart';
@@ -43,12 +43,17 @@ class AuthService {
   }
 
   String get _oauthRedirectUrl {
-    if (kIsWeb) {
-      // En web, redirigir a la misma URL del navegador
-      return '${Uri.base.origin}/auth/callback';
+    final isNativeMobile = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+
+    if (isNativeMobile) {
+      // En móvil usamos el deep link para volver a la app.
+      return 'io.supabase.academia-events://login-callback/';
     }
-    // En móvil, usar deep link
-    return 'io.supabase.academia-events://login-callback/';
+
+    // En web, dejamos que la redirección vuelva a la misma origin del sitio.
+    return '${Uri.base.origin}/auth/callback';
   }
 
   Future<void> signInWithGoogle() {

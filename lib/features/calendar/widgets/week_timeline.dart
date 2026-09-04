@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/event_model.dart';
@@ -33,95 +32,138 @@ class WeekTimeline extends StatelessWidget {
     super.key,
     required this.events,
     required this.date,
-    this.startHour = 6,
-    this.endHour = 23,
   });
 
   final List<EventModel> events;
   final DateTime date;
-  final int startHour;
-  final int endHour;
-
-  double get _totalHeight =>
-      (endHour - startHour) * AppSizes.calendarHourHeight;
 
   @override
   Widget build(BuildContext context) {
     if (events.isEmpty) return _EmptyDay(date: date);
 
+    // Rango de horas: solo las horas con eventos (con un margen de 1h por
+    // cada lado). Así las horas vacías NO se muestran ni marcan, y los
+    // eventos quedan más grandes y legibles.
+    var startHour = 23;
+    var endHour = 0;
+    for (final e in events) {
+      final s = e.startTime.hour;
+      final e2 = (e.endTime.minute > 0 ? e.endTime.hour + 1 : e.endTime.hour);
+      if (s < startHour) startHour = s;
+      if (e2 > endHour) endHour = e2;
+    }
+    startHour = (startHour - 1).clamp(0, 23);
+    endHour = (endHour + 1).clamp(1, 24);
+    final totalHours = endHour - startHour;
+    if (totalHours <= 0) return _EmptyDay(date: date);
+
     final layouts = _layoutEvents(events);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 32),
-      child: SizedBox(
-        height: _totalHeight,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Columna de etiquetas de hora ──────────────────────
-            SizedBox(
-              width: 48,
-              child: Stack(
-                children: List.generate(endHour - startHour, (i) {
-                  final hour = startHour + i;
-                  return Positioned(
-                    top: i * AppSizes.calendarHourHeight - 7,
-                    left: 0,
-                    right: 4,
-                    child: Text(
-                      '${hour.toString().padLeft(2, '0')}:00',
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 10,
-                      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight;
+        if (availableHeight <= 0) return const SizedBox.shrink();
+
+        // Alto por hora para que TODO el rango quepa sin scroll.
+        final pixelPerHour = availableHeight / totalHours;
+
+        return Container(
+          color: context.scaffoldBg,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Columna de etiquetas de hora ──────────────────────
+              SizedBox(
+                width: 48,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ColoredBox(color: context.scaffoldBg),
                     ),
-                  );
-                }),
+                    ...List.generate(totalHours + 1, (i) {
+                      final minute = startHour * 60 + i * 60;
+                      return Positioned(
+                        top: i * pixelPerHour - 7,
+                        left: 0,
+                        right: 4,
+                        child: Text(
+                          _hourLabel(minute),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 10,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
-            ),
 
-            // ── Área de eventos + líneas de hora ─────────────────
-            Expanded(
-              child: Stack(
-                children: [
-                  // Líneas horizontales por hora
-                  ...List.generate(endHour - startHour, (i) {
-                    return Positioned(
-                      top: i * AppSizes.calendarHourHeight,
-                      left: 0,
-                      right: 0,
-                      child: Divider(
-                        height: 1,
-                        thickness: 0.5,
-                        color: context.divider,
-                      ),
-                    );
-                  }),
+              // ── Área de eventos + líneas de hora ─────────────────
+              Expanded(
+                child: Stack(
+                  children: [
+                    // Franjas de hora alternadas (muy sutiles, como Google
+                    // Calendar) + línea fina por hora: fondo neutro, no
+                    // "horas marcadas".
+                    ...List.generate(totalHours, (i) {
+                      return Positioned(
+                        top: i * pixelPerHour,
+                        left: 0,
+                        right: 0,
+                        height: pixelPerHour,
+                        child: i.isOdd
+                            ? ColoredBox(
+                                color: context.divider.withValues(alpha: 0.5),
+                              )
+                            : const SizedBox.shrink(),
+                      );
+                    }),
+                    ...List.generate(totalHours + 1, (i) {
+                      return Positioned(
+                        top: i * pixelPerHour,
+                        left: 0,
+                        right: 0,
+                        child: Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          color: context.divider.withValues(alpha: 0.5),
+                        ),
+                      );
+                    }),
 
-                  // Indicador de "ahora"
-                  _NowIndicator(
-                    startHour: startHour,
-                    endHour: endHour,
-                    date: date,
-                  ),
-
-                  // Eventos posicionados
-                  ...layouts.map((layout) {
-                    return _PositionedEvent(
-                      layout: layout,
+                    // Indicador de "ahora"
+                    _NowIndicator(
                       startHour: startHour,
-                    );
-                  }),
-                ],
-              ),
-            ),
+                      endHour: endHour,
+                      date: date,
+                      pixelPerHour: pixelPerHour,
+                    ),
 
-            const SizedBox(width: 4),
-          ],
-        ),
-      ),
+                    // Eventos posicionados
+                    ...layouts.map((layout) {
+                      return _PositionedEvent(
+                        layout: layout,
+                        startHour: startHour,
+                        pixelPerHour: pixelPerHour,
+                      );
+                    }),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 4),
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  static String _hourLabel(int minuteOfDay) {
+    final hour = minuteOfDay ~/ 60;
+    return '${hour.toString().padLeft(2, '0')}:00';
   }
 
   /// Asigna columna y total de columnas a cada evento del día.
@@ -142,10 +184,12 @@ class WeekTimeline extends StatelessWidget {
 
       for (final e in cluster) {
         var col = 0;
-        // La columna está ocupada si su último evento aún no termina
-        // cuando empieza este.
+        // La columna está ocupada si su último evento se solapa con este
+        // (termina DESPUÉS de que empieza este). Los eventos consecutivos
+        // que tocan borde (uno termina justo cuando empieza el otro) se
+        // apilan en la misma columna, como en Google Calendar.
         while (col < columnEnds.length &&
-            !columnEnds[col].isBefore(e.startTime)) {
+            columnEnds[col].isAfter(e.startTime)) {
           col++;
         }
         if (col == columnEnds.length) {
@@ -184,10 +228,12 @@ class _PositionedEvent extends StatelessWidget {
   const _PositionedEvent({
     required this.layout,
     required this.startHour,
+    required this.pixelPerHour,
   });
 
   final _EventLayout layout;
   final int startHour;
+  final double pixelPerHour;
 
   @override
   Widget build(BuildContext context) {
@@ -196,10 +242,8 @@ class _PositionedEvent extends StatelessWidget {
     final endMin = DateFormatter.minutesFromMidnight(event.endTime);
     final timelineOrigin = startHour * 60;
 
-    final top =
-        (startMin - timelineOrigin) * AppSizes.calendarHourHeight / 60;
-    final height = ((endMin - startMin) * AppSizes.calendarHourHeight / 60)
-        .clamp(AppSizes.calendarHourHeight * 0.35, double.infinity);
+    final top = (startMin - timelineOrigin) * pixelPerHour / 60;
+    final height = (endMin - startMin) * pixelPerHour / 60;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -232,11 +276,13 @@ class _NowIndicator extends StatelessWidget {
     required this.startHour,
     required this.endHour,
     required this.date,
+    required this.pixelPerHour,
   });
 
   final int startHour;
   final int endHour;
   final DateTime date;
+  final double pixelPerHour;
 
   @override
   Widget build(BuildContext context) {
@@ -256,8 +302,7 @@ class _NowIndicator extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final top =
-        (minutes - timelineStart) * AppSizes.calendarHourHeight / 60;
+    final top = (minutes - timelineStart) * pixelPerHour / 60;
 
     return Positioned(
       top: top,
