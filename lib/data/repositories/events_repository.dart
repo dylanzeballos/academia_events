@@ -194,19 +194,84 @@ class ClassesRepository implements IClassesRepository {
     );
     final sunday = monday.add(const Duration(days: 6, hours: 23, minutes: 59));
 
-    final rows = await service.fetchWeekClasses(
+    final rows = await service.fetchWeekSchedules(
       monday.toIso8601String(),
       sunday.toIso8601String(),
     );
 
-    final classes = rows.map((row) {
-      final json = Map<String, dynamic>.from(row);
-      json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
-      return ClassModel.fromJson(json);
-    }).toList();
+    final events = <EventModel>[];
+    for (final row in rows) {
+      final schedule = Map<String, dynamic>.from(row);
+      final classData = (schedule['dance_classes'] as Map?) ?? const {};
+      final orgName = (classData['organizations'] as Map?)?['name'] ?? '';
 
-    final events = classes.map((c) => c.toEventModel()).toList();
+      final startDate = _parseDate(schedule['start_date']);
+      final endDate = _parseDate(schedule['end_date']);
+
+      // day_of_week: 0=domingo..6=sábado. weekday: 1=lunes..7=domingo.
+      final scheduleWeekday = schedule['day_of_week'] == 0 ? 7 : schedule['day_of_week'];
+
+      var day = monday;
+      while (!day.isAfter(sunday)) {
+        final matchesRecurrence =
+            scheduleWeekday != null && day.weekday == scheduleWeekday;
+        final dayDate = DateTime(day.year, day.month, day.day);
+        final afterStart = startDate == null || !dayDate.isBefore(startDate);
+        final beforeEnd = endDate == null || !dayDate.isAfter(endDate);
+        final inRange = afterStart && beforeEnd;
+
+        if (matchesRecurrence && inRange) {
+          final startTimeStr = schedule['start_time'] as String;
+          final endTimeStr = schedule['end_time'] as String;
+          final startDateDay = DateTime(day.year, day.month, day.day);
+          events.add(
+            EventModel(
+              id: 'class-${classData['id']}-${dayDate.toIso8601String().split('T')[0]}',
+              title: classData['title'] as String? ?? '',
+              organizationId: classData['organization_id'] as String? ?? '',
+              organizationName: orgName,
+              description: classData['description'] as String?,
+              coverImageUrl: classData['cover_image_url'] as String?,
+              startTime: DateTime(
+                startDateDay.year,
+                startDateDay.month,
+                startDateDay.day,
+                _hourOf(startTimeStr),
+                _minuteOf(startTimeStr),
+              ),
+              endTime: DateTime(
+                startDateDay.year,
+                startDateDay.month,
+                startDateDay.day,
+                _hourOf(endTimeStr),
+                _minuteOf(endTimeStr),
+              ),
+              timezone: classData['timezone'] as String? ?? 'America/La_Paz',
+              status: 'published',
+              visibility: 'public',
+            ),
+          );
+        }
+        day = day.add(const Duration(days: 1));
+      }
+    }
+
     return _assignColors(events);
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value as String);
+  }
+
+  static int _hourOf(String time) {
+    final parts = time.split(':');
+    return int.parse(parts[0]);
+  }
+
+  static int _minuteOf(String time) {
+    final parts = time.split(':');
+    return parts.length > 1 ? int.parse(parts[1]) : 0;
   }
 
   List<EventModel> _assignColors(List<EventModel> events) {

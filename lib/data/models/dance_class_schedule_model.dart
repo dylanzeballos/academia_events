@@ -7,6 +7,9 @@ class DanceClassScheduleModel {
     required this.endTime,
     this.instructorId,
     this.instructorName,
+    this.startDate,
+    this.endDate,
+    this.locationOverride,
     this.isActive = true,
     this.createdAt,
     this.updatedAt,
@@ -19,6 +22,17 @@ class DanceClassScheduleModel {
   final String endTime;
   final String? instructorId;
   final String? instructorName;
+
+  /// Inicio de la recurrencia (opcional). Si es nulo, aplica desde el inicio
+  /// del período de la clase.
+  final DateTime? startDate;
+
+  /// Fin de la recurrencia (opcional). Si es nulo, no tiene fecha de fin.
+  final DateTime? endDate;
+
+  /// Ubicación propia del horario (heredada a sus sesiones).
+  final Map<String, dynamic>? locationOverride;
+
   final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -49,6 +63,13 @@ class DanceClassScheduleModel {
       instructorId: json['instructor_id'] as String?,
       instructorName: fullName.isNotEmpty ? fullName : null,
       isActive: (json['is_active'] as bool?) ?? true,
+      startDate: json['start_date'] != null
+          ? DateTime.tryParse(json['start_date'] as String)
+          : null,
+      endDate: json['end_date'] != null
+          ? DateTime.tryParse(json['end_date'] as String)
+          : null,
+      locationOverride: json['location_override'] as Map<String, dynamic>?,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
@@ -64,6 +85,9 @@ class DanceClassScheduleModel {
         'start_time': startTime,
         'end_time': endTime,
         'instructor_id': instructorId,
+        'start_date': startDate?.toIso8601String().split('T')[0],
+        'end_date': endDate?.toIso8601String().split('T')[0],
+        'location_override': locationOverride,
         'is_active': isActive,
       };
 }

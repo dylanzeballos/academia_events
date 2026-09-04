@@ -159,6 +159,15 @@ class CreateClassNotifier extends Notifier<CreateClassState> {
           schedule['dance_class_id'] = danceClass.id;
           await repo.createSchedule(schedule);
         }
+
+        // Generar sesiones automáticamente por rango de cada horario.
+        final periodStart = (startAt ?? DateTime.now());
+        final periodEnd = (endAt ?? periodStart.add(const Duration(days: 90)));
+        await repo.generateSessions(
+          classId: danceClass.id,
+          startDate: periodStart,
+          endDate: periodEnd,
+        );
       }
 
       ref.invalidate(orgClassesProvider);
