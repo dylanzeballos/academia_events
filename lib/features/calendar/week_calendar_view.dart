@@ -7,6 +7,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../providers/events_provider.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../public/widgets/active_filters_bar.dart';
 import 'widgets/week_day_header.dart';
 import 'widgets/week_timeline.dart';
 
@@ -37,6 +38,9 @@ class WeekCalendarView extends ConsumerWidget {
             ),
 
             Divider(height: 1, color: context.divider),
+
+            // ── Filtros visibles (público) ─────────────────────────
+            const ActiveFiltersBar(),
 
             // ── Timeline ───────────────────────────────────────────
             Expanded(

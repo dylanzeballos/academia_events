@@ -12,10 +12,10 @@ import 'providers/theme_provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load(fileName: '.env');
   await initializeDateFormatting();
   Intl.defaultLocale = 'es_bo';
 
-  await dotenv.load(fileName: '.env');
   await initSupabase();
 
   runApp(

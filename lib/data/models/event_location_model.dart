@@ -1,3 +1,5 @@
+import 'geographic_model.dart';
+
 class EventLocationModel {
   const EventLocationModel({
     this.id,
@@ -12,6 +14,10 @@ class EventLocationModel {
     this.postalCode,
     this.latitude,
     this.longitude,
+    this.department,
+    this.province,
+    this.municipality,
+    this.city,
   });
 
   final String? id;
@@ -26,8 +32,32 @@ class EventLocationModel {
   final String? postalCode;
   final double? latitude;
   final double? longitude;
+  final DepartmentModel? department;
+  final ProvinceModel? province;
+  final MunicipalityModel? municipality;
+  final CityModel? city;
 
   factory EventLocationModel.fromJson(Map<String, dynamic> json) {
+    DepartmentModel? department;
+    if (json['departments'] != null) {
+      department = DepartmentModel.fromJson(json['departments'] as Map<String, dynamic>);
+    }
+
+    ProvinceModel? province;
+    if (json['provinces'] != null) {
+      province = ProvinceModel.fromJson(json['provinces'] as Map<String, dynamic>);
+    }
+
+    MunicipalityModel? municipality;
+    if (json['municipalities'] != null) {
+      municipality = MunicipalityModel.fromJson(json['municipalities'] as Map<String, dynamic>);
+    }
+
+    CityModel? city;
+    if (json['cities'] != null) {
+      city = CityModel.fromJson(json['cities'] as Map<String, dynamic>);
+    }
+
     return EventLocationModel(
       id: json['id'] as String?,
       eventId: json['event_id'] as String?,
@@ -41,6 +71,10 @@ class EventLocationModel {
       postalCode: json['postal_code'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      department: department,
+      province: province,
+      municipality: municipality,
+      city: city,
     );
   }
 

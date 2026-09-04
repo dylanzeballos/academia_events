@@ -27,12 +27,20 @@ import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
 import '../../features/events/views/event_detail_view.dart';
 
+import '../../features/public/views/public_events_view.dart';
+import '../../features/public/views/public_event_detail_view.dart';
+import '../../features/public/views/public_calendar_view.dart';
+import '../../features/public/widgets/organization_carousel.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../providers/layout_mode_provider.dart';
 
-class _StudentShell extends StatelessWidget {
+class _StudentShell extends ConsumerStatefulWidget {
   const _StudentShell({required this.navigationShell});
   final StatefulNavigationShell navigationShell;
+
+  @override
+  ConsumerState<_StudentShell> createState() => _StudentShellState();
 
   static const _destinations = [
     NavigationDestination(
@@ -40,8 +48,8 @@ class _StudentShell extends StatelessWidget {
       label: 'HORARIO',
     ),
     NavigationDestination(
-      icon: Icon(Icons.groups),
-      label: 'INSTRUCTORES',
+      icon: Icon(Icons.confirmation_number_outlined),
+      label: 'TICKETS',
     ),
     NavigationDestination(
       icon: Icon(Icons.collections_bookmark),
@@ -52,11 +60,35 @@ class _StudentShell extends StatelessWidget {
       label: 'PERFIL',
     ),
   ];
+}
+
+class _StudentShellState extends ConsumerState<_StudentShell> {
+  bool _carouselCollapsed = false;
 
   @override
   Widget build(BuildContext context) {
+    final shell = widget.navigationShell;
+
     return Scaffold(
-      body: navigationShell,
+      body: Column(
+        children: [
+          Expanded(child: shell),
+          // Carrusel de organizaciones, colapsable para no robarle alto
+          // al horario (HORARIO). Colapsado queda una franja mínima.
+          _carouselCollapsed
+              ? _CollapsedCarouselBar(
+                  onExpand: () =>
+                      setState(() => _carouselCollapsed = false),
+                )
+              : OrganizationCarousel(
+                  height: 80,
+                  autoPlayInterval: const Duration(seconds: 5),
+                  showTitle: false,
+                  onCollapse: () =>
+                      setState(() => _carouselCollapsed = true),
+                ),
+        ],
+      ),
       bottomNavigationBar: Padding(
         padding:
             const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
@@ -75,11 +107,55 @@ class _StudentShell extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppSizes.radiusXl),
             child: NavigationBar(
-              selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: navigationShell.goBranch,
-              destinations: _destinations,
+              selectedIndex: shell.currentIndex,
+              onDestinationSelected: shell.goBranch,
+              destinations: _StudentShell._destinations,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Franja reducida que se muestra cuando el carrusel está colapsado.
+class _CollapsedCarouselBar extends StatelessWidget {
+  const _CollapsedCarouselBar({required this.onExpand});
+
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onExpand,
+      child: Container(
+        height: 32,
+        color: context.cardBg,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.expand_less,
+              size: 18,
+              color: context.textOnBg.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                'Organizaciones',
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.textOnBg.withValues(alpha: 0.7),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -264,7 +340,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.eventCreate,
         builder: (_, _) => const EventCreateView(),
       ),
-      GoRoute(
+GoRoute(
         path: AppRoutes.eventDetail,
         builder: (context, state) {
           final eventId = state.extra as String;
@@ -272,6 +348,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // Public event discovery routes
+      GoRoute(
+        path: AppRoutes.publicEvents,
+        builder: (_, _) => const PublicEventsView(),
+      ),
+      GoRoute(
+        path: AppRoutes.publicEventDetail,
+        builder: (context, state) {
+          final eventId = state.pathParameters['id'] ?? '';
+          return PublicEventDetailView(eventId: eventId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.publicCalendar,
+        builder: (_, _) => const PublicCalendarView(),
+      ),
 
 
       StatefulShellRoute.indexedStack(
@@ -285,8 +377,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
-              path: '/student/instructors',
-              builder: (_, _) => const _PlaceholderPage(title: 'Instructores'),
+              path: '/student/tickets',
+              builder: (_, _) => const _PlaceholderPage(title: 'Tickets'),
             ),
           ]),
           StatefulShellBranch(routes: [
