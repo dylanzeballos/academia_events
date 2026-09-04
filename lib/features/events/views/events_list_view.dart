@@ -46,6 +46,18 @@ class EventsListView extends ConsumerWidget {
                     'Organiza y publica tu primer evento.',
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
+                  if (canManage) ...[
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: () async {
+                        await context.push(AppRoutes.eventCreate);
+                        ref.invalidate(orgEventsProvider);
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Crear evento'),
+                      style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                    ),
+                  ],
                 ],
               ),
             );
@@ -62,9 +74,9 @@ class EventsListView extends ConsumerWidget {
                 return _EventTile(
                   event: event,
                   canManage: canManage,
-                  onTap: () {
-                    // Navega usando GoRouter y envía el ID del evento en extra
-                    context.push(AppRoutes.eventDetail, extra: event.id);
+                  onTap: () async {
+                    await context.push(AppRoutes.eventDetail, extra: event.id);
+                    ref.invalidate(orgEventsProvider);
                   },
                 );
               },
@@ -74,7 +86,12 @@ class EventsListView extends ConsumerWidget {
       ),
       floatingActionButton: canManage
           ? FloatingActionButton(
-              onPressed: () => context.push(AppRoutes.eventCreate),
+              onPressed: () async {
+                // Espera a que termine la creación del evento
+                await context.push(AppRoutes.eventCreate);
+                // Refresca la lista de inmediato al regresar
+                ref.invalidate(orgEventsProvider);
+              },
               backgroundColor: AppColors.primary,
               child: const Icon(Icons.add, color: Colors.white),
             )

@@ -213,7 +213,10 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         qrBytes: _qrBytes,
       );
 
+      // ─── INVALIDACIONES DE PROVIDERS ───
       ref.invalidate(orgEventsProvider);
+      ref.invalidate(weekEventsProvider);
+      ref.invalidate(allEventsProvider);
 
       if (mounted) {
         context.pop();
@@ -281,7 +284,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                   validator: (v) => v == null ? 'Selecciona una categoría' : null,
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const SizedBox(),
+                error: (_, __) => const SizedBox(),
               ),
               const SizedBox(height: 16),
 
@@ -351,7 +354,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                   },
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const SizedBox(),
+                error: (_, __) => const SizedBox(),
               ),
               const SizedBox(height: 12),
 
@@ -376,7 +379,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                         },
                       ),
                       loading: () => const LinearProgressIndicator(),
-                      error: (_, _) => const SizedBox(),
+                      error: (_, __) => const SizedBox(),
                     ),
               if (_selectedDepartmentId != null) const SizedBox(height: 12),
 
@@ -400,7 +403,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                         },
                       ),
                       loading: () => const LinearProgressIndicator(),
-                      error: (_, _) => const SizedBox(),
+                      error: (_, __) => const SizedBox(),
                     ),
               if (_selectedProvinceId != null) const SizedBox(height: 12),
 
@@ -419,7 +422,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                         onChanged: (val) => setState(() => _selectedCityId = val),
                       ),
                       loading: () => const LinearProgressIndicator(),
-                      error: (_, _) => const SizedBox(),
+                      error: (_, __) => const SizedBox(),
                     ),
               const SizedBox(height: 16),
 

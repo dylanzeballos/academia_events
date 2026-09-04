@@ -15,10 +15,12 @@ import '../../features/organization/views/organization_list_view.dart';
 import '../../features/organization/views/organization_detail_view.dart';
 import '../../features/organization/views/organization_create_view.dart';
 import '../../features/organization/views/my_invitations_view.dart';
+
 import '../../features/academy/views/academy_dashboard_view.dart';
 import '../../features/academy/views/academy_events_view.dart';
 import '../../features/academy/views/academy_classes_view.dart';
 import '../../features/academy/views/academy_teachers_view.dart';
+
 import '../../features/classes/views/class_list_view.dart';
 import '../../features/classes/views/class_create_view.dart';
 import '../../features/classes/views/class_detail_view.dart';
@@ -26,6 +28,8 @@ import '../../features/classes/views/class_detail_view.dart';
 import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
 import '../../features/events/views/event_detail_view.dart';
+
+import '../../features/tickets/views/student_tickets_view.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/layout_mode_provider.dart';
@@ -35,22 +39,18 @@ class _StudentShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   static const _destinations = [
+    NavigationDestination(icon: Icon(Icons.calendar_month), label: 'HORARIO'),
     NavigationDestination(
-      icon: Icon(Icons.calendar_month),
-      label: 'HORARIO',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.groups),
-      label: 'INSTRUCTORES',
+      icon: Icon(
+        Icons.confirmation_number_outlined,
+      ), 
+      label: 'TICKETS',
     ),
     NavigationDestination(
       icon: Icon(Icons.collections_bookmark),
       label: 'MIS CLASES',
     ),
-    NavigationDestination(
-      icon: Icon(Icons.person),
-      label: 'PERFIL',
-    ),
+    NavigationDestination(icon: Icon(Icons.person), label: 'PERFIL'),
   ];
 
   @override
@@ -58,8 +58,7 @@ class _StudentShell extends StatelessWidget {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: Padding(
-        padding:
-            const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
+        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
         child: Container(
           decoration: BoxDecoration(
             color: context.cardBg,
@@ -91,26 +90,11 @@ class _AcademyShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   static const _destinations = [
-    NavigationDestination(
-      icon: Icon(Icons.dashboard_outlined),
-      label: 'PANEL',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.event_outlined),
-      label: 'EVENTOS',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.school_outlined),
-      label: 'CLASES',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.people_outline),
-      label: 'PROFES',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.person_outline),
-      label: 'PERFIL',
-    ),
+    NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'PANEL'),
+    NavigationDestination(icon: Icon(Icons.event_outlined), label: 'EVENTOS'),
+    NavigationDestination(icon: Icon(Icons.school_outlined), label: 'CLASES'),
+    NavigationDestination(icon: Icon(Icons.people_outline), label: 'PROFES'),
+    NavigationDestination(icon: Icon(Icons.person_outline), label: 'PERFIL'),
   ];
 
   @override
@@ -118,8 +102,7 @@ class _AcademyShell extends StatelessWidget {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: Padding(
-        padding:
-            const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
+        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20, top: 8),
         child: Container(
           decoration: BoxDecoration(
             color: context.cardBg,
@@ -162,7 +145,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isPasswordRecovery =
           authState.value?.event == sb.AuthChangeEvent.passwordRecovery;
 
-      final onAuthRoute = state.matchedLocation.startsWith('/login') ||
+      final onAuthRoute =
+          state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/register') ||
           state.matchedLocation.startsWith('/forgot-password');
 
@@ -199,10 +183,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: AppRoutes.login,
-        builder: (_, _) => const LoginView(),
-      ),
+      GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginView()),
       GoRoute(
         path: AppRoutes.register,
         builder: (_, _) => const RegisterView(),
@@ -253,8 +234,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ClassDetailView(),
       ),
 
-
-
       // Eventos routes
       GoRoute(
         path: AppRoutes.eventsList,
@@ -272,71 +251,88 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-
-
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => _StudentShell(navigationShell: shell),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.studentHome,
-              builder: (_, _) => const WeekCalendarView(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/student/instructors',
-              builder: (_, _) => const _PlaceholderPage(title: 'Instructores'),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.studentClasses,
-              builder: (_, _) => const _PlaceholderPage(title: 'Mis Clases'),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.studentProfile,
-              builder: (_, _) => const ProfileView(),
-            ),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.studentHome,
+                builder: (_, _) => const WeekCalendarView(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/student/tickets',
+                builder: (_, _) =>
+                    const StudentTicketsView(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.studentClasses,
+                builder: (_, _) => const _PlaceholderPage(title: 'Mis Clases'),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.studentProfile,
+                builder: (_, _) => const ProfileView(),
+              ),
+            ],
+          ),
         ],
       ),
 
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => _AcademyShell(navigationShell: shell),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.academyDashboard,
-              builder: (_, _) => const AcademyDashboardView(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.academyEvents,
-              builder: (_, _) => const AcademyEventsView(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.academyClasses,
-              builder: (_, _) => const AcademyClassesView(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.academyTeachers,
-              builder: (_, _) => const AcademyTeachersView(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.academyProfile,
-              builder: (_, _) => const ProfileView(),
-            ),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.academyDashboard,
+                builder: (_, _) => const AcademyDashboardView(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.academyEvents,
+                builder: (_, _) => const AcademyEventsView(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.academyClasses,
+                builder: (_, _) => const AcademyClassesView(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.academyTeachers,
+                builder: (_, _) => const AcademyTeachersView(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.academyProfile,
+                builder: (_, _) => const ProfileView(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
@@ -387,17 +383,17 @@ class _AuthCallbackPage extends ConsumerWidget {
         if (state.event == sb.AuthChangeEvent.signedIn ||
             state.event == sb.AuthChangeEvent.tokenRefreshed) {
           final mode = ref.read(effectiveLayoutModeProvider);
-          context.go(mode == AppLayoutMode.academy
-              ? AppRoutes.academyDashboard
-              : AppRoutes.studentHome);
+          context.go(
+            mode == AppLayoutMode.academy
+                ? AppRoutes.academyDashboard
+                : AppRoutes.studentHome,
+          );
         }
       });
     });
 
     return Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
+      body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
     );
   }
 }
