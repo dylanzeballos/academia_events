@@ -11,6 +11,7 @@ abstract interface class IEventsRepository {
   Future<void> createFullEvent({
     required Map<String, dynamic> eventData,
     required Map<String, dynamic> locationData,
+    List<Map<String, dynamic>>? ticketTypesData,
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
   });
@@ -38,12 +39,7 @@ class EventsRepository implements IEventsRepository {
       sunday.toIso8601String(),
     );
 
-    final events = rows.map((row) {
-      final json = Map<String, dynamic>.from(row);
-      json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
-      return EventModel.fromJson(json);
-    }).toList();
-
+    final events = rows.map((row) => EventModel.fromJson(row)).toList();
     return _assignColors(events);
   }
 
@@ -52,50 +48,41 @@ class EventsRepository implements IEventsRepository {
     String organizationId,
   ) async {
     final rows = await service.fetchOrganizationEvents(organizationId);
-
-    return rows
-        .map((row) => EventModel.fromJson({...row, 'organization_name': ''}))
-        .toList();
+    return rows.map((row) => EventModel.fromJson(row)).toList();
   }
 
   @override
   Future<EventModel> createEvent(Map<String, dynamic> data) async {
     final row = await service.insertEvent(data);
-    return EventModel.fromJson({...row, 'organization_name': ''});
+    return EventModel.fromJson(row);
   }
 
-  // En la implementación
   @override
   Future<List<EventModel>> fetchAllEvents() async {
     final rows = await service.fetchAllEvents();
-    final events = rows.map((row) {
-      final json = Map<String, dynamic>.from(row);
-      json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
-      return EventModel.fromJson(json);
-    }).toList();
+    final events = rows.map((row) => EventModel.fromJson(row)).toList();
     return _assignColors(events);
   }
 
   @override
   Future<EventModel> fetchEventById(String id) async {
     final row = await service.fetchEventById(id);
-    final json = Map<String, dynamic>.from(row);
-    json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
-    return EventModel.fromJson(json);
+    return EventModel.fromJson(row);
   }
 
   @override
   Future<void> createFullEvent({
     required Map<String, dynamic> eventData,
     required Map<String, dynamic> locationData,
+    List<Map<String, dynamic>>? ticketTypesData,
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
   }) async {
-    // 1. Insertar evento para obtener su id
+    // 1. Insertar evento base para generar su id
     final eventRow = await service.insertEvent(eventData);
     final eventId = eventRow['id'] as String;
 
-    // 2. Subir afiche al bucket event-banners y vincularlo al evento
+    // 2. Subir banner a Storage y actualizar cover_image_url
     if (bannerBytes != null) {
       final imageUrl =
           await service.uploadImage('event-banners', '$eventId/banner', bannerBytes);
@@ -109,10 +96,21 @@ class EventsRepository implements IEventsRepository {
       await service.insertLocation({'event_id': eventId, ...locationData});
     }
 
-    // 4. Subir QR al bucket event-qrs e insertarlo en event_images
+    // 4. Subir QR a Storage e insertarlo en event_images
     if (qrBytes != null) {
       final qrUrl = await service.uploadImage('event-qrs', '$eventId/qr', qrBytes);
       await service.insertEventImage(eventId, qrUrl);
+    }
+
+    // 5. Insertar tipos de entradas (ticket_types) vinculados a este evento
+    if (ticketTypesData != null && ticketTypesData.isNotEmpty) {
+      final ticketsWithEventId = ticketTypesData.map((t) {
+        return {
+          ...t,
+          'event_id': eventId,
+        };
+      }).toList();
+      await service.insertTicketTypes(ticketsWithEventId);
     }
   }
 
@@ -145,7 +143,7 @@ class EventsRepository implements IEventsRepository {
   }
 }
 
-// ─── REPOSITORY DE CLASES (Refactorizado con EventsService) ───────
+// ─── REPOSITORY DE CLASES ──────────────────────────────────────────
 
 abstract interface class IClassesRepository {
   Future<List<ClassModel>> fetchOrganizationClasses(String organizationId);
@@ -165,7 +163,6 @@ class ClassesRepository implements IClassesRepository {
     String organizationId,
   ) async {
     final rows = await service.fetchOrganizationClasses(organizationId);
-
     return rows
         .map((row) => ClassModel.fromJson({...row, 'organization_name': ''}))
         .toList();

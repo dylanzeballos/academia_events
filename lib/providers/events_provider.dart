@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/event_model.dart';
@@ -99,7 +101,6 @@ final orgEventsProvider = FutureProvider<List<EventModel>>((ref) async {
 
 // ─── LOCATION PROVIDERS (EN CASCADA) ───
 
-/// Carga todos los departamentos
 final departmentsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
@@ -107,7 +108,6 @@ final departmentsProvider = FutureProvider<List<Map<String, dynamic>>>((
   return service.fetchDepartments();
 });
 
-/// Carga las provincias según el ID del Departamento seleccionado
 final provincesProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((
       ref,
@@ -118,7 +118,6 @@ final provincesProvider =
       return service.fetchProvinces(departmentId);
     });
 
-/// Carga los municipios según el ID de la Provincia seleccionada
 final municipalitiesProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((
       ref,
@@ -129,7 +128,6 @@ final municipalitiesProvider =
       return service.fetchMunicipalities(provinceId);
     });
 
-/// Carga las ciudades según el ID del Municipio seleccionado
 final citiesProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((
       ref,
@@ -151,4 +149,61 @@ final eventDetailProvider = FutureProvider.family<EventModel, String>((
 ) async {
   final repo = ref.watch(eventsRepositoryProvider);
   return repo.fetchEventById(eventId);
+});
+
+// ─── CREACIÓN DE EVENTO (CON TICKETS) ───
+
+class CreateEventState {
+  const CreateEventState({this.isLoading = false, this.error});
+  final bool isLoading;
+  final String? error;
+
+  CreateEventState copyWith({bool? isLoading, String? error}) {
+    return CreateEventState(
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+    );
+  }
+}
+
+class CreateEventNotifier extends Notifier<CreateEventState> {
+  @override
+  CreateEventState build() => const CreateEventState();
+
+  Future<bool> createFullEvent({
+    required Map<String, dynamic> eventData,
+    required Map<String, dynamic> locationData,
+    List<Map<String, dynamic>>? ticketTypesData,
+    Uint8List? bannerBytes,
+    Uint8List? qrBytes,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final repo = ref.read(eventsRepositoryProvider);
+      await repo.createFullEvent(
+        eventData: eventData,
+        locationData: locationData,
+        ticketTypesData: ticketTypesData,
+        bannerBytes: bannerBytes,
+        qrBytes: qrBytes,
+      );
+
+      ref.invalidate(allEventsProvider);
+      ref.invalidate(weekEventsProvider);
+      ref.invalidate(orgEventsProvider);
+
+      state = const CreateEventState();
+      return true;
+    } catch (e) {
+      state = CreateEventState(error: e.toString());
+      return false;
+    }
+  }
+
+  void clearError() => state = state.copyWith();
+}
+
+final createEventProvider =
+    NotifierProvider<CreateEventNotifier, CreateEventState>(() {
+  return CreateEventNotifier();
 });

@@ -1,8 +1,10 @@
+// lib/features/events/widgets/event_detail_header.dart
+
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/event_model.dart';
-import '../../../shared/widgets/fullscreen_image_viewer.dart';
+import '../../../../core/utils/theme_extensions.dart';
+import '../../../../data/models/event_model.dart';
+import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 
 class EventDetailHeader extends StatelessWidget {
   const EventDetailHeader({
@@ -73,14 +75,30 @@ class EventDetailHeader extends StatelessWidget {
                 ),
               ),
               if (event.organizationName.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.storefront_outlined, size: 15, color: Colors.grey),
-                    const SizedBox(width: 6),
-                    Text(
-                      event.organizationName,
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    if (event.organizationLogoUrl != null &&
+                        event.organizationLogoUrl!.isNotEmpty) ...[
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.grey.shade300,
+                        backgroundImage: NetworkImage(event.organizationLogoUrl!),
+                      ),
+                      const SizedBox(width: 8),
+                    ] else ...[
+                      const Icon(Icons.storefront_outlined, size: 16, color: Colors.grey),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: Text(
+                        event.organizationName,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ],
                 ),

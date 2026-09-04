@@ -21,9 +21,11 @@ class EventsService {
           start_at, end_at, timezone,
           capacity, status, visibility,
           requires_approval, published_at, created_at,
-          organizations!inner(name),
+          organizations(name, logo_url),
+          event_categories(name),
           event_locations(*),
-          event_images(*)
+          event_images(*),
+          ticket_types(*)
         ''')
         .gte('start_at', startIso)
         .lte('start_at', endIso)
@@ -44,14 +46,57 @@ class EventsService {
           start_at, end_at, timezone,
           capacity, status, visibility,
           requires_approval, published_at, created_at,
+          organizations(name, logo_url),
           event_categories(name),
           event_locations(*),
-          event_images(*)
+          event_images(*),
+          ticket_types(*)
         ''')
         .eq('organization_id', organizationId)
         .order('start_at');
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAllEvents() async {
+    final response = await supabase
+        .from('events')
+        .select('''
+          id, title, organization_id, category_id,
+          description, cover_image_url,
+          start_at, end_at, timezone,
+          capacity, status, visibility,
+          requires_approval, published_at, created_at,
+          organizations(name, logo_url),
+          event_categories(name),
+          event_locations(*),
+          event_images(*),
+          ticket_types(*)
+        ''')
+        .order('start_at');
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<Map<String, dynamic>> fetchEventById(String id) async {
+    final response = await supabase
+        .from('events')
+        .select('''
+          id, title, organization_id, category_id,
+          description, cover_image_url,
+          start_at, end_at, timezone,
+          capacity, status, visibility,
+          requires_approval, published_at, created_at,
+          organizations(name, logo_url),
+          event_categories(name),
+          event_locations(*),
+          event_images(*),
+          ticket_types(*)
+        ''')
+        .eq('id', id)
+        .single();
+
+    return Map<String, dynamic>.from(response);
   }
 
   Future<Map<String, dynamic>> insertEvent(Map<String, dynamic> data) async {
@@ -66,12 +111,25 @@ class EventsService {
     await supabase.from('events').delete().eq('id', id);
   }
 
-  // ─── STORAGE Y SUB-TABLAS ─────────────────────────────────────────
+  // ─── TICKETS, STORAGE Y SUB-TABLAS ────────────────────────────────
 
-  /// Sube [bytes] al [bucket] indicado (ej. 'event-banners', 'event-qrs').
-  /// [path] es la ruta sin extensión; se detecta el tipo real de la imagen
-  /// y se agrega la extensión correspondiente.
-  /// Devuelve la URL pública del archivo subido.
+  Future<void> insertTicketTypes(List<Map<String, dynamic>> ticketsData) async {
+    if (ticketsData.isEmpty) return;
+    await supabase.from('ticket_types').insert(ticketsData);
+  }
+
+  Future<void> insertLocation(Map<String, dynamic> locationData) async {
+    await supabase.from('event_locations').insert(locationData);
+  }
+
+  Future<void> insertEventImage(String eventId, String imageUrl) async {
+    await supabase.from('event_images').insert({
+      'event_id': eventId,
+      'image_url': imageUrl,
+      'sort_order': 1,
+    });
+  }
+
   Future<String> uploadImage(String bucket, String path, Uint8List bytes) async {
     final contentType = _detectImageContentType(bytes);
     final ext = switch (contentType) {
@@ -97,9 +155,9 @@ class EventsService {
   String _detectImageContentType(Uint8List bytes) {
     if (bytes.length >= 4 &&
         bytes[0] == 0x89 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x4E &&
-        bytes[3] == 0x47) {
+        bytes[1] == 0x4E &&
+        bytes[2] == 0x47 &&
+        bytes[3] == 0x0D) {
       return 'image/png';
     }
     if (bytes.length >= 12 &&
@@ -110,18 +168,6 @@ class EventsService {
       return 'image/webp';
     }
     return 'image/jpeg';
-  }
-
-  Future<void> insertLocation(Map<String, dynamic> locationData) async {
-    await supabase.from('event_locations').insert(locationData);
-  }
-
-  Future<void> insertEventImage(String eventId, String imageUrl) async {
-    await supabase.from('event_images').insert({
-      'event_id': eventId,
-      'image_url': imageUrl,
-      'sort_order': 1,
-    });
   }
 
   // ─── CONSULTAS DE CLASES ──────────────────────────────────────────
@@ -175,43 +221,4 @@ class EventsService {
 
     return List<Map<String, dynamic>>.from(response);
   }
-
-  Future<List<Map<String, dynamic>>> fetchAllEvents() async {
-  final response = await supabase
-      .from('events')
-      .select('''
-        id, title, organization_id, category_id,
-        description, cover_image_url,
-        start_at, end_at, timezone,
-        capacity, status, visibility,
-        requires_approval, published_at, created_at,
-        organizations!inner(name),
-        event_categories(name),
-        event_locations(*),
-        event_images(*)
-      ''')
-      .order('start_at');
-
-  return List<Map<String, dynamic>>.from(response);
-}
-
-Future<Map<String, dynamic>> fetchEventById(String id) async {
-  final response = await supabase
-      .from('events')
-      .select('''
-        id, title, organization_id, category_id,
-        description, cover_image_url,
-        start_at, end_at, timezone,
-        capacity, status, visibility,
-        requires_approval, published_at, created_at,
-        organizations!inner(name),
-        event_categories(name),
-        event_locations(*),
-        event_images(*)
-      ''')
-      .eq('id', id)
-      .single();
-
-  return Map<String, dynamic>.from(response);
-}
 }

@@ -3,10 +3,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/event_model.dart';
-import 'map_view_screen.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/theme_extensions.dart';
+import '../../../../data/models/event_model.dart';
+import '../map_view_screen.dart';
 
 class EventLocationSection extends StatelessWidget {
   const EventLocationSection({

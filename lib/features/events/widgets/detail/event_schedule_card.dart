@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/date_formatter.dart';
-import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/event_model.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/theme_extensions.dart';
+import '../../../../data/models/event_model.dart';
 
 class EventScheduleCard extends StatelessWidget {
   const EventScheduleCard({

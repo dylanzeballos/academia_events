@@ -12,6 +12,26 @@ import '../../../shared/widgets/loading_indicator.dart';
 class EventsListView extends ConsumerWidget {
   const EventsListView({super.key});
 
+  Future<void> _navigateToCreate(BuildContext context, WidgetRef ref) async {
+    final result = await context.push<bool>(AppRoutes.eventCreate);
+    // Si se creó exitosamente o se regresó de la pantalla, forzamos recarga inmediata
+    if (result == true || context.mounted) {
+      ref.refresh(orgEventsProvider);
+    }
+  }
+
+  Future<void> _navigateToDetail(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId,
+  ) async {
+    final result = await context.push<bool>(AppRoutes.eventDetail, extra: eventId);
+    // Si se publicó, editó o eliminó el evento, forzamos recarga inmediata
+    if (result == true || context.mounted) {
+      ref.refresh(orgEventsProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventsAsync = ref.watch(orgEventsProvider);
@@ -21,10 +41,28 @@ class EventsListView extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Eventos'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.refresh(orgEventsProvider),
+          ),
+        ],
       ),
       body: eventsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Error: $e'),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => ref.refresh(orgEventsProvider),
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
         data: (events) {
           if (events.isEmpty) {
             return Center(
@@ -49,13 +87,12 @@ class EventsListView extends ConsumerWidget {
                   if (canManage) ...[
                     const SizedBox(height: 24),
                     FilledButton.icon(
-                      onPressed: () async {
-                        await context.push(AppRoutes.eventCreate);
-                        ref.invalidate(orgEventsProvider);
-                      },
+                      onPressed: () => _navigateToCreate(context, ref),
                       icon: const Icon(Icons.add),
                       label: const Text('Crear evento'),
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                      ),
                     ),
                   ],
                 ],
@@ -64,7 +101,7 @@ class EventsListView extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(orgEventsProvider),
+            onRefresh: () async => ref.refresh(orgEventsProvider),
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: events.length,
@@ -74,10 +111,7 @@ class EventsListView extends ConsumerWidget {
                 return _EventTile(
                   event: event,
                   canManage: canManage,
-                  onTap: () async {
-                    await context.push(AppRoutes.eventDetail, extra: event.id);
-                    ref.invalidate(orgEventsProvider);
-                  },
+                  onTap: () => _navigateToDetail(context, ref, event.id),
                 );
               },
             ),
@@ -86,12 +120,7 @@ class EventsListView extends ConsumerWidget {
       ),
       floatingActionButton: canManage
           ? FloatingActionButton(
-              onPressed: () async {
-                // Espera a que termine la creación del evento
-                await context.push(AppRoutes.eventCreate);
-                // Refresca la lista de inmediato al regresar
-                ref.invalidate(orgEventsProvider);
-              },
+              onPressed: () => _navigateToCreate(context, ref),
               backgroundColor: AppColors.primary,
               child: const Icon(Icons.add, color: Colors.white),
             )
@@ -155,20 +184,24 @@ class _EventTile extends StatelessWidget {
                     Row(
                       children: [
                         if (event.categoryName != null) ...[
-                          Icon(Icons.category_outlined, size: 12, color: Colors.grey[500]),
+                          Icon(Icons.category_outlined,
+                              size: 12, color: Colors.grey[500]),
                           const SizedBox(width: 4),
                           Text(
                             event.categoryName!,
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 12),
                           ),
                           const SizedBox(width: 8),
                         ],
                         if (event.capacity != null) ...[
-                          Icon(Icons.people_outline, size: 12, color: Colors.grey[500]),
+                          Icon(Icons.people_outline,
+                              size: 12, color: Colors.grey[500]),
                           const SizedBox(width: 4),
                           Text(
                             '${event.capacity} pers.',
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 12),
                           ),
                         ],
                       ],

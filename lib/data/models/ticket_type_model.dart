@@ -26,7 +26,9 @@ class TicketTypeModel {
   final bool isActive;
 
   int get availableQuantity => quantity - soldQuantity;
+  int get available => availableQuantity;
   bool get isSoldOut => availableQuantity <= 0;
+  bool get hasStock => available > 0 && !isSoldOut;
 
   factory TicketTypeModel.fromJson(Map<String, dynamic> json) => TicketTypeModel(
         id: json['id'] as String,

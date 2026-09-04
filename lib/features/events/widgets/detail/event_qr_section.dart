@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/event_model.dart';
-import '../../../shared/widgets/fullscreen_image_viewer.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/theme_extensions.dart';
+import '../../../../data/models/event_model.dart';
+import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 
 class EventQrSection extends StatelessWidget {
   const EventQrSection({super.key, required this.event});
