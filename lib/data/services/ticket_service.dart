@@ -5,6 +5,7 @@ import '../../core/config/supabase_config.dart';
 class TicketException implements Exception {
   const TicketException(this.message);
   final String message;
+
   @override
   String toString() => message;
 }
@@ -66,19 +67,36 @@ class TicketService {
       final rows = await supabase
           .from('tickets')
           .select('''
-            id, ticket_number, status, qr_data, created_at,
-            ticket_types!inner(name, events!inner(title, cover_image_url, start_at))
+            id, ticket_number, status, created_at,
+            ticket_types!inner(
+              name,
+              events!inner(id, title, cover_image_url, start_at)
+            ),
+            ticket_qr_codes(token_hash)
           ''')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return List<Map<String, dynamic>>.from(rows as List);
+      return (rows as List).map((row) {
+        final map = Map<String, dynamic>.from(row as Map);
+
+        // Extraemos token_hash admitiendo Map directo o Lista
+        final qrData = map['ticket_qr_codes'];
+        String? token;
+        if (qrData is Map) {
+          token = qrData['token_hash'] as String?;
+        } else if (qrData is List && qrData.isNotEmpty) {
+          token = (qrData.first as Map)['token_hash'] as String?;
+        }
+
+        map['qr_data'] = token ?? map['ticket_number'];
+        return map;
+      }).toList();
     } on PostgrestException catch (e) {
       throw TicketException(e.message);
     }
   }
 
-  // ─── NUEVO MÉTODO PARA OBTENER EL RESULTADO CON EL TÍTULO DEL EVENTO ───
   Future<Map<String, dynamic>> fetchOrderPurchaseResult(String orderId) async {
     try {
       final row = await supabase
@@ -97,8 +115,15 @@ class TicketService {
           .single();
 
       final ticketsList = (row['tickets'] as List? ?? []).map((t) {
-        final qrCodes = t['ticket_qr_codes'] as List? ?? [];
-        final token = qrCodes.isNotEmpty ? qrCodes.first['token_hash'] : '';
+        final qrData = t['ticket_qr_codes'];
+        String token = '';
+
+        if (qrData is Map) {
+          token = (qrData['token_hash'] as String?) ?? '';
+        } else if (qrData is List && qrData.isNotEmpty) {
+          token = ((qrData.first as Map)['token_hash'] as String?) ?? '';
+        }
+
         return {
           'ticket_id': t['id'],
           'qr_token': token,

@@ -25,6 +25,9 @@ abstract interface class ITicketRepository {
   });
 
   Future<List<EventTicketModel>> fetchUserEventTickets();
+
+  /// Obtiene los datos crudos con los tokens QR incluidos para agrupar en el Provider
+  Future<List<Map<String, dynamic>>> fetchRawUserEventTickets();
 }
 
 class TicketRepository implements ITicketRepository {
@@ -78,5 +81,10 @@ class TicketRepository implements ITicketRepository {
   Future<List<EventTicketModel>> fetchUserEventTickets() async {
     final rows = await _service.fetchUserEventTickets();
     return rows.map((row) => EventTicketModel.fromJson(row)).toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchRawUserEventTickets() {
+    return _service.fetchUserEventTickets();
   }
 }
