@@ -1,116 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
+import '../../../data/models/event_ticket_group.dart';
 import '../../../providers/ticket_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
-import '../../../data/models/event_ticket_group.dart';
+import 'event_orders_detail_screen.dart';
 
 class EventTicketsTab extends ConsumerWidget {
   const EventTicketsTab({super.key});
 
-  void _showQrsModal(BuildContext context, EventTicketGroup group) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: context.cardBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[600],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  group.eventTitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${group.ticketTypeName} · ${group.totalTickets} ${group.totalTickets == 1 ? "entrada" : "entradas"}',
-                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 20),
-
-                // Carrusel horizontal para ver cada uno de los QRs comprados
-                SizedBox(
-                  height: 320,
-                  child: PageView.builder(
-                    itemCount: group.tickets.length,
-                    itemBuilder: (context, i) {
-                      final item = group.tickets[i];
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: const [
-                                BoxShadow(color: Colors.black26, blurRadius: 8),
-                              ],
-                            ),
-                            child: QrImageView(
-                              data: item.qrToken,
-                              size: 200,
-                              version: QrVersions.auto,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            item.ticketNumber,
-                            style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Entrada ${i + 1} de ${group.totalTickets}',
-                            style: const TextStyle(color: Colors.grey, fontSize: 13),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (group.totalTickets > 1)
-                  const Text(
-                    '← Desliza para ver la siguiente entrada →',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  String _formatDateTime(DateTime? dt) {
+    if (dt == null) return 'Fecha por confirmar';
+    return DateFormat("EEE d 'de' MMM, y · HH:mm", 'es').format(dt);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ticketsAsync = ref.watch(userGroupedTicketsProvider);
+    final eventsAsync = ref.watch(userGroupedTicketsProvider);
 
-    return ticketsAsync.when(
+    return eventsAsync.when(
       loading: () => const LoadingIndicator(),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (groups) {
-        if (groups.isEmpty) {
+      data: (eventGroups) {
+        if (eventGroups.isEmpty) {
           return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -135,46 +50,91 @@ class EventTicketsTab extends ConsumerWidget {
           onRefresh: () async => ref.invalidate(userGroupedTicketsProvider),
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemCount: groups.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            itemCount: eventGroups.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
-              final group = groups[index];
-              return Card(
-                color: context.cardBg,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  leading: const CircleAvatar(
-                    backgroundColor: AppColors.primary,
-                    child: Icon(Icons.event, color: Colors.white),
+              final item = eventGroups[index];
+
+              return InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EventOrdersDetailScreen(eventGroup: item),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: context.cardBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white10),
                   ),
-                  title: Text(
-                    group.eventTitle,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  subtitle: Text(
-                    '${group.ticketTypeName} · ${group.totalTickets} ${group.totalTickets == 1 ? "ticket" : "tickets"}',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${group.totalTickets} QRs',
-                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.eventTitle,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${item.totalEventTickets} QRs',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.qr_code_2, color: AppColors.primary, size: 28),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: Colors.white12),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_month_outlined, size: 16, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Evento: ${_formatDateTime(item.eventStartAt)}',
+                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.receipt_long_outlined, size: 16, color: Colors.grey),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${item.orders.length} ${item.orders.length == 1 ? "compra registrada" : "compras en horarios distintos"}',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                        ],
+                      ),
                     ],
                   ),
-                  onTap: () => _showQrsModal(context, group),
                 ),
               );
             },

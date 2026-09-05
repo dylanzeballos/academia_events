@@ -62,6 +62,9 @@ dependencies:
   image_picker: ^1.2.0
   intl: ^0.20.2
   url_launcher: ^6.3.2
+  share_plus: ^13.3.0
+  screenshot: ^3.0.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

@@ -67,7 +67,7 @@ class TicketService {
       final rows = await supabase
           .from('tickets')
           .select('''
-            id, ticket_number, status, created_at,
+            id, order_id, ticket_number, status, created_at,
             ticket_types!inner(
               name,
               events!inner(id, title, cover_image_url, start_at)
@@ -80,7 +80,6 @@ class TicketService {
       return (rows as List).map((row) {
         final map = Map<String, dynamic>.from(row as Map);
 
-        // Extraemos token_hash admitiendo Map directo o Lista
         final qrData = map['ticket_qr_codes'];
         String? token;
         if (qrData is Map) {
