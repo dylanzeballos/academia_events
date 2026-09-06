@@ -1,82 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../providers/events_provider.dart';
-import '../../../../data/models/event_model.dart';
-import 'event_preview_sheet.dart';
+import '../../../../data/models/public_event_model.dart';
+import '../../../../providers/public_events_provider.dart';
 
-/// Constructor de la tarjeta que dibuja un evento dentro de su columna.
+/// Vista de semana en columnas (estilo Google Calendar) para el calendario
+/// público.
 ///
-/// Permite que la vista de semana use su [Píldora compacta]_WeekEventTile
-/// mientras la vista de día reutiliza la MISMA geometría (misma columna,
-/// mismo posicionamiento por hora) con una tarjeta más grande.
-typedef WeekEventTileBuilder =
-    Widget Function(BuildContext context, EventModel event, VoidCallback onTap);
-
-/// Vista de semana compacta (los 7 días visibles a la vez, estilo Google
-/// Calendar con columnas). Cada día es una columna; los eventos se posicionan
-/// por hora dentro de un canvas de alto fijo.
+/// Los 7 días de la semana se muestran a la vez, cada uno como una columna;
+/// los eventos se posicionan por hora dentro de un canvas de alto fijo igual
+/// que en el calendario horario del estudiante. Así se ven a la vez los
+/// eventos/clases de todos los días de la semana — los pasados y los próximos.
 ///
 /// Soporta:
 /// - Scroll vertical por horas.
 /// - Pinch-to-zoom para ampliar/reducir el alto por hora.
 /// - Deslizar horizontalmente para cambiar de semana.
-/// - Tocar una columna para abrir la vista de día.
-class WeekColumns extends ConsumerStatefulWidget {
-  const WeekColumns({
+/// - Tocar un evento para abrir su detalle, o una columna para ver el día.
+class PublicWeekColumns extends ConsumerStatefulWidget {
+  const PublicWeekColumns({
     super.key,
     required this.weekDays,
     required this.events,
     required this.selectedDay,
-    required this.heightPerHour,
     required this.onDaySelected,
-    this.onSwipeLeft,
-    this.onSwipeRight,
-    this.autoScrollToEarliest = false,
-    this.showNowLine = false,
-    this.tileBuilder,
-    this.startHour = 0,
-    this.endHour = 24,
   });
 
   final List<DateTime> weekDays;
-  final List<EventModel> events;
+  final List<PublicEventModel> events;
   final DateTime selectedDay;
-  final double heightPerHour;
   final ValueChanged<DateTime> onDaySelected;
 
-  /// Callbacks opcionales para el gesto de deslizar. Si no se proveen, se
-  /// cambia la semana usando [selectedWeekProvider].
-  final VoidCallback? onSwipeLeft;
-  final VoidCallback? onSwipeRight;
-
-  /// Si es `true`, al montar o al cambiar el primer día de [weekDays], la
-  /// vista se desplaza automáticamente al primer evento del día (margen de
-  /// 1 h) para que los eventos nocturnos (19:00, etc.) no queden fuera de
-  /// pantalla. La vista de semana lo deja en `false`.
-  final bool autoScrollToEarliest;
-
-  /// Muestra la línea roja de "ahora" en las columnas (solo vista de día).
-  final bool showNowLine;
-
-  /// Estilo de tarjeta de evento. Por defecto usa la píldora compacta de la
-  /// semana ([_WeekEventTile]).
-  final WeekEventTileBuilder? tileBuilder;
-
-  /// Hora inicial del timeline. Por defecto 0 (toda las 24 h).
-  final int startHour;
-
-  /// Hora final (exclusiva) del timeline. Por defecto 24 (máximo).
-  final int endHour;
-
   @override
-  ConsumerState<WeekColumns> createState() => _WeekColumnsState();
+  ConsumerState<PublicWeekColumns> createState() => _PublicWeekColumnsState();
 }
 
-class _WeekColumnsState extends ConsumerState<WeekColumns> {
+class _PublicWeekColumnsState extends ConsumerState<PublicWeekColumns> {
   final ScrollController _scrollController = ScrollController();
 
   /// Alto por hora actual (modificable con pinch-to-zoom).
@@ -136,84 +99,10 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.autoScrollToEarliest) {
-      // Re-aplica tras un retraso: durante la transición de ruta la primera
-      // pasada puede calcular un maxScrollExtent aún no definitivo.
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEarliest());
-      Future.delayed(const Duration(milliseconds: 350), () {
-        if (mounted && widget.autoScrollToEarliest) _scrollToEarliest();
-      });
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant WeekColumns oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!widget.autoScrollToEarliest) return;
-    if (oldWidget.weekDays.isEmpty || widget.weekDays.isEmpty) return;
-    final dayChanged =
-        !_isSameDay(oldWidget.weekDays.first, widget.weekDays.first);
-    if (dayChanged) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _scrollToEarliest());
-    }
-  }
-
-  /// Posiciona la vista en el inicio del primer evento del día (con 1 h de
-  /// margen). Si no hay eventos, vuelve a la medianoche.
-  void _scrollToEarliest() {
-    if (!_scrollController.hasClients) return;
-    final day = widget.weekDays.first;
-
-    final dayEvents = widget.events
-        .where(
-          (e) => DateFormatter.rangeCoversDay(
-            e.startTime,
-            e.endTime,
-            day,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => a.startTime.compareTo(b.startTime));
-
-    if (dayEvents.isEmpty) {
-      _scrollController.jumpTo(0);
-      return;
-    }
-
-    final first = dayEvents.first;
-    final range = DateFormatter.clampRangeToDayMinutes(
-      first.startTime,
-      first.endTime,
-      day,
-    );
-    final startMin = range?.$1 ??
-        DateFormatter.minutesFromMidnight(first.startTime);
-
-    final target = ((startMin - 60) * _heightPerHour / 60)
-        .clamp(0.0, _scrollController.position.maxScrollExtent);
-    _scrollController.jumpTo(target);
-  }
-
-  List<EventModel> get events => widget.events;
-  DateTime get selectedDay => widget.selectedDay;
-  List<DateTime> get weekDays => widget.weekDays;
-  double get heightPerHour => _heightPerHour;
-  ValueChanged<DateTime> get onDaySelected => widget.onDaySelected;
-
-  void _enterDayView(DateTime day) {
-    if (Navigator.of(context).mounted) {
-      onDaySelected(day);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final dayEvents = <int, List<EventModel>>{};
-    for (final day in weekDays) {
-      dayEvents[day.weekday] = events
+    final dayEvents = <int, List<PublicEventModel>>{};
+    for (final day in widget.weekDays) {
+      dayEvents[day.weekday] = widget.events
           .where(
             (e) => DateFormatter.rangeCoversDay(
               e.startTime,
@@ -224,13 +113,14 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
           .toList();
     }
 
-    // Rango de horas del timeline: semana y día usan 0-24 por defecto.
-    final startHour = widget.startHour.clamp(0, 23);
-    final endHour = widget.endHour.clamp(startHour + 1, 24);
+    // Rango de horas global: de 0 a 24 siempre (para que las columnas se
+    // alineen). El canvas interno usa un contenedor con alto fijo y scroll.
+    const startHour = 0;
+    const endHour = 24;
     final totalHours = endHour - startHour;
     final canvasHeight = totalHours * _heightPerHour;
 
-    // Ancho de la columna de etiquetas de hora (más estrecha que en día)
+    // Ancho de la columna de etiquetas de hora.
     const labelWidth = 44.0;
 
     return Column(
@@ -240,9 +130,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final availableWidth = constraints.maxWidth;
-              final timeColumnWidth = labelWidth;
-              final gridWidth = availableWidth - timeColumnWidth;
-              final colWidth = gridWidth / weekDays.length;
+              final gridWidth = availableWidth - labelWidth;
+              final colWidth = gridWidth / widget.weekDays.length;
 
               // Listener: captura el pinch-to-zoom SIN entrar al arena de
               // gestos (no bloquea el scroll de 1 dedo ni la rueda).
@@ -253,21 +142,15 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                 onPointerCancel: _onPointerCancel,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  // Deslizar horizontal para cambiar de semana
+                  // Deslizar horizontal para cambiar de semana.
                   onHorizontalDragEnd: (details) {
                     final v = details.primaryVelocity ?? 0;
                     if (v < -200) {
-                      if (widget.onSwipeLeft != null) {
-                        widget.onSwipeLeft!();
-                      } else {
-                        ref.read(selectedWeekProvider.notifier).nextWeek();
-                      }
+                      ref.read(publicSelectedWeekProvider.notifier).nextWeek();
                     } else if (v > 200) {
-                      if (widget.onSwipeRight != null) {
-                        widget.onSwipeRight!();
-                      } else {
-                        ref.read(selectedWeekProvider.notifier).previousWeek();
-                      }
+                      ref
+                          .read(publicSelectedWeekProvider.notifier)
+                          .previousWeek();
                     }
                   },
                   // UN único scroll vertical: etiquetas de hora + grid de días
@@ -283,8 +166,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                         children: [
                           // ── Etiquetas de hora ─────────────────────────
                           SizedBox(
-                            width: timeColumnWidth,
-                            child: _TimeLabels(
+                            width: labelWidth,
+                            child: _PublicTimeLabels(
                               startHour: startHour,
                               totalHours: totalHours,
                               heightPerHour: _heightPerHour,
@@ -295,14 +178,14 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                             child: SizedBox(
                               width: gridWidth,
                               child: Row(
-                                children: weekDays.map((day) {
+                                children: widget.weekDays.map((day) {
                                   final isSelected = _isSameDay(
                                     day,
-                                    selectedDay,
+                                    widget.selectedDay,
                                   );
                                   return SizedBox(
                                     width: colWidth,
-                                    child: _DayColumnBody(
+                                    child: _PublicDayColumnBody(
                                       day: day,
                                       isSelected: isSelected,
                                       events:
@@ -310,9 +193,7 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                                       startHour: startHour,
                                       totalHours: totalHours,
                                       heightPerHour: _heightPerHour,
-                                      tileBuilder: widget.tileBuilder,
-                                      showNowLine: widget.showNowLine,
-                                      onTap: () => _enterDayView(day),
+                                      onTap: () => widget.onDaySelected(day),
                                     ),
                                   );
                                 }).toList(),
@@ -339,8 +220,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
 // ─────────────────────────────────────────────
 // Etiquetas de hora de la columna izquierda
 // ─────────────────────────────────────────────
-class _TimeLabels extends StatelessWidget {
-  const _TimeLabels({
+class _PublicTimeLabels extends StatelessWidget {
+  const _PublicTimeLabels({
     required this.startHour,
     required this.totalHours,
     required this.heightPerHour,
@@ -376,8 +257,8 @@ class _TimeLabels extends StatelessWidget {
 // ─────────────────────────────────────────────
 // Cuerpo de una columna de día
 // ─────────────────────────────────────────────
-class _DayColumnBody extends StatelessWidget {
-  const _DayColumnBody({
+class _PublicDayColumnBody extends StatelessWidget {
+  const _PublicDayColumnBody({
     required this.day,
     required this.isSelected,
     required this.events,
@@ -385,27 +266,19 @@ class _DayColumnBody extends StatelessWidget {
     required this.totalHours,
     required this.heightPerHour,
     required this.onTap,
-    this.tileBuilder,
-    this.showNowLine = false,
   });
 
   final DateTime day;
   final bool isSelected;
-  final List<EventModel> events;
+  final List<PublicEventModel> events;
   final int startHour;
   final int totalHours;
   final double heightPerHour;
   final VoidCallback onTap;
-  final WeekEventTileBuilder? tileBuilder;
-  final bool showNowLine;
-
-  WeekEventTileBuilder get _effectiveTileBuilder =>
-      tileBuilder ??
-      (context, event, onTap) => _WeekEventTile(event: event, onTap: onTap);
 
   @override
   Widget build(BuildContext context) {
-    final layouts = WeekTimelineLayout.layout(events);
+    final layouts = PublicWeekTimelineLayout.layout(events);
 
     return GestureDetector(
       onTap: onTap,
@@ -433,14 +306,6 @@ class _DayColumnBody extends StatelessWidget {
                 ),
               );
             }),
-            // Línea roja de "ahora" (solo vista de día)
-            if (showNowLine)
-              _NowIndicator(
-                startHour: startHour,
-                endHour: totalHours,
-                day: day,
-                heightPerHour: heightPerHour,
-              ),
             // Eventos (ancho proporcional al número de columnas del clúster)
             Positioned(
               top: 0,
@@ -475,12 +340,12 @@ class _DayColumnBody extends StatelessWidget {
                           width: itemWidth,
                           height: height,
                           child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 1),
-                            child: _effectiveTileBuilder(
-                              context,
-                              event,
-                              () => EventPreviewSheet.show(context, event),
+                            padding: const EdgeInsets.symmetric(horizontal: 1),
+                            child: _PublicWeekEventTile(
+                              event: event,
+                              onTap: () => context.push(
+                                '${AppRoutes.publicEventDetailBase}/${event.id}',
+                              ),
                             ),
                           ),
                         );
@@ -497,72 +362,20 @@ class _DayColumnBody extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Línea roja de "hora actual" (solo vista de día)
-// ─────────────────────────────────────────────
-class _NowIndicator extends StatelessWidget {
-  const _NowIndicator({
-    required this.startHour,
-    required this.endHour,
-    required this.day,
-    required this.heightPerHour,
-  });
-
-  final int startHour;
-  final int endHour;
-  final DateTime day;
-  final double heightPerHour;
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    if (now.year != day.year || now.month != day.month || now.day != day.day) {
-      return const SizedBox.shrink();
-    }
-
-    final minutes = DateFormatter.minutesFromMidnight(now);
-    final timelineStart = startHour * 60;
-    final timelineEnd = endHour * 60;
-
-    if (minutes < timelineStart || minutes > timelineEnd) {
-      return const SizedBox.shrink();
-    }
-
-    final top = (minutes - timelineStart) * heightPerHour / 60;
-
-    return Positioned(
-      top: top,
-      left: 0,
-      right: 0,
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.red,
-            ),
-          ),
-          Expanded(child: Container(height: 1.5, color: Colors.red)),
-        ],
-      ),
-    );
-  }
-}
-
-/// Reutiliza el algoritmo de layout por clústeres del timeline de día,
-/// expuesto de forma pública para la vista de semana.
-class WeekTimelineLayout {
-  static List<WeekTimelineSlot> layout(List<EventModel> events) {
+/// Resultado del layout por clústeres para eventos públicos: a qué columna
+/// pertenece cada evento y cuántas columnas tiene su grupo.
+class PublicWeekTimelineLayout {
+  static List<PublicWeekTimelineSlot> layout(
+    List<PublicEventModel> events,
+  ) {
     final sorted = [...events]
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
-    final slots = <WeekTimelineSlot>[];
+    final slots = <PublicWeekTimelineSlot>[];
 
     if (sorted.isEmpty) return slots;
 
-    var cluster = <EventModel>[];
+    var cluster = <PublicEventModel>[];
     var clusterEnd = sorted.first.endTime;
 
     void flushCluster() {
@@ -586,7 +399,7 @@ class WeekTimelineLayout {
 
       for (final e in cluster) {
         slots.add(
-          WeekTimelineSlot(
+          PublicWeekTimelineSlot(
             event: e,
             column: columns[e.id]!,
             totalColumns: columnEnds.length,
@@ -609,29 +422,27 @@ class WeekTimelineLayout {
   }
 }
 
-class WeekTimelineSlot {
-  const WeekTimelineSlot({
+class PublicWeekTimelineSlot {
+  const PublicWeekTimelineSlot({
     required this.event,
     required this.column,
     required this.totalColumns,
   });
 
-  final EventModel event;
+  final PublicEventModel event;
   final int column;
   final int totalColumns;
 }
 
 /// Bloque compacto de evento para la vista de semana.
 ///
-/// A diferencia de la tarjeta usada en la vista de día, este tile está
-/// pensado para columnas muy estrechas y tramos cortos: no muestra filas fijas
-/// que desborden el alto disponible, sino una pastilla de color con el título
-/// (solo si hay margen) y acento lateral. Envuelto en [FittedBox]/recorte para
-/// que NUNCA genere errores de overflow y nunca se dibuje encima del vecino.
-class _WeekEventTile extends StatelessWidget {
-  const _WeekEventTile({required this.event, this.onTap});
+/// Pastilla de color con el título (solo si hay margen) y acento lateral,
+/// recortada para que NUNCA genere errores de overflow ni se dibuje encima
+/// del vecino.
+class _PublicWeekEventTile extends StatelessWidget {
+  const _PublicWeekEventTile({required this.event, this.onTap});
 
-  final EventModel event;
+  final PublicEventModel event;
   final VoidCallback? onTap;
 
   Color get _color {

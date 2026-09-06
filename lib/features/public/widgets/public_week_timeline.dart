@@ -33,15 +33,24 @@ class PublicWeekTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (events.isEmpty) return _EmptyDay(date: date);
+    // Rangos recortados al día (los eventos multi-día se muestran solo en el
+    // tramo que les corresponde en este día).
+    final ranges = <(int, int)>[];
+    for (final e in events) {
+      final r = DateFormatter.clampRangeToDayMinutes(
+        e.startTime,
+        e.endTime,
+        date,
+      );
+      if (r != null) ranges.add(r);
+    }
+    if (ranges.isEmpty) return _EmptyDay(date: date);
 
     // Rango de horas: solo las horas con eventos (margen de 1h por lado).
     // Las horas vacías NO se muestran ni marcan; los eventos quedan grandes.
     int startMin = 23 * 60 + 59;
     int endMin = 0;
-    for (final e in events) {
-      final s = DateFormatter.minutesFromMidnight(e.startTime);
-      final e2 = DateFormatter.minutesFromMidnight(e.endTime);
+    for (final (s, e2) in ranges) {
       if (s < startMin) startMin = s;
       if (e2 > endMin) endMin = e2;
     }
@@ -135,6 +144,7 @@ class PublicWeekTimeline extends StatelessWidget {
                     ...layouts.map((layout) {
                       return _PositionedEvent(
                         layout: layout,
+                        date: date,
                         startMin: startMin,
                         pixelPerMinute: pixelPerMinute,
                       );
@@ -213,19 +223,26 @@ class PublicWeekTimeline extends StatelessWidget {
 class _PositionedEvent extends StatelessWidget {
   const _PositionedEvent({
     required this.layout,
+    required this.date,
     required this.startMin,
     required this.pixelPerMinute,
   });
 
   final _EventLayout layout;
+  final DateTime date;
   final int startMin;
   final double pixelPerMinute;
 
   @override
   Widget build(BuildContext context) {
     final event = layout.event;
-    final startMinOfDay = DateFormatter.minutesFromMidnight(event.startTime);
-    final endMinOfDay = DateFormatter.minutesFromMidnight(event.endTime);
+    final range = DateFormatter.clampRangeToDayMinutes(
+      event.startTime,
+      event.endTime,
+      date,
+    );
+    if (range == null) return const SizedBox.shrink();
+    final (startMinOfDay, endMinOfDay) = range;
 
     final top = (startMinOfDay - startMin) * pixelPerMinute;
     final height = (endMinOfDay - startMinOfDay) * pixelPerMinute;

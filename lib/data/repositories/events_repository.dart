@@ -29,14 +29,19 @@ class EventsRepository implements IEventsRepository {
 
   @override
   Future<List<EventModel>> fetchWeekEvents(DateTime weekReference) async {
-    final monday = weekReference.subtract(
-      Duration(days: weekReference.weekday - 1),
+    // La referencia es el INICIO de la ventana (hoy o el día seleccionado):
+    // se consulta desde ese día hasta 7 días después para que siempre se vean
+    // los eventos próximos, no anclados a la semana natural lun-dom.
+    final start = DateTime(
+      weekReference.year,
+      weekReference.month,
+      weekReference.day,
     );
-    final sunday = monday.add(const Duration(days: 6, hours: 23, minutes: 59));
+    final end = start.add(const Duration(days: 7));
 
     final rows = await service.fetchWeekEvents(
-      monday.toIso8601String(),
-      sunday.toIso8601String(),
+      start.toUtc().toIso8601String(),
+      end.toUtc().toIso8601String(),
     );
 
     final events = rows.map((row) => EventModel.fromJson(row)).toList();
@@ -186,14 +191,17 @@ class ClassesRepository implements IClassesRepository {
 
   @override
   Future<List<EventModel>> fetchWeekClasses(DateTime weekReference) async {
-    final monday = weekReference.subtract(
-      Duration(days: weekReference.weekday - 1),
+    // Igual que en eventos: la referencia es el inicio de la ventana móvil.
+    final start = DateTime(
+      weekReference.year,
+      weekReference.month,
+      weekReference.day,
     );
-    final sunday = monday.add(const Duration(days: 6, hours: 23, minutes: 59));
+    final endExclusive = start.add(const Duration(days: 7));
 
     final rows = await service.fetchWeekSchedules(
-      monday.toIso8601String(),
-      sunday.toIso8601String(),
+      start.toIso8601String(),
+      endExclusive.toIso8601String(),
     );
 
     final events = <EventModel>[];
@@ -208,8 +216,8 @@ class ClassesRepository implements IClassesRepository {
       // day_of_week: 0=domingo..6=sábado. weekday: 1=lunes..7=domingo.
       final scheduleWeekday = schedule['day_of_week'] == 0 ? 7 : schedule['day_of_week'];
 
-      var day = monday;
-      while (!day.isAfter(sunday)) {
+      var day = start;
+      while (day.isBefore(endExclusive)) {
         final matchesRecurrence =
             scheduleWeekday != null && day.weekday == scheduleWeekday;
         final dayDate = DateTime(day.year, day.month, day.day);

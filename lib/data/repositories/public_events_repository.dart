@@ -8,7 +8,10 @@ import '../models/dance_category_model.dart';
 import '../services/public_events_service.dart';
 
 abstract interface class IPublicEventsRepository {
-  Future<PaginatedResult<PublicEventModel>> searchEvents(EventFilterState filter);
+  Future<PaginatedResult<PublicEventModel>> searchEvents(
+    EventFilterState filter, {
+    String? organizationId,
+  });
   Future<PublicEventModel?> getEventById(String eventId);
   Future<List<OrganizationWithEventCount>> getOrganizationsWithEvents({int limit = 10});
   Future<List<EventCategoryModel>> getEventCategories();
@@ -25,11 +28,15 @@ class PublicEventsRepository implements IPublicEventsRepository {
   final PublicEventsService _service;
 
   @override
-  Future<PaginatedResult<PublicEventModel>> searchEvents(EventFilterState filter) async {
+  Future<PaginatedResult<PublicEventModel>> searchEvents(
+    EventFilterState filter, {
+    String? organizationId,
+  }) async {
     final result = await _service.searchEvents(
       searchQuery: filter.searchQuery.isEmpty ? null : filter.searchQuery,
       categoryIds: filter.categoryIds.isEmpty ? null : filter.categoryIds,
       danceCategoryIds: filter.danceCategoryIds.isEmpty ? null : filter.danceCategoryIds,
+      organizationId: organizationId,
       departmentId: filter.departmentId,
       provinceId: filter.provinceId,
       municipalityId: filter.municipalityId,

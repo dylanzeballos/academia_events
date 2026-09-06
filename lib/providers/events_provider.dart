@@ -2,11 +2,13 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/models/event_filter_state.dart';
 import '../data/models/event_model.dart';
 import '../data/repositories/events_repository.dart';
 import '../data/services/events_service.dart';
 import '../data/services/locations_service.dart';
 import 'organization_provider.dart';
+import 'public_events_provider.dart' show eventFiltersProvider;
 
 // ─── SERVICES PROVIDERS ───
 final eventsServiceProvider = Provider<EventsService>((ref) {
@@ -33,10 +35,11 @@ class SelectedWeekNotifier extends Notifier<DateTime> {
   @override
   DateTime build() {
     final now = DateTime.now();
-    return now.subtract(Duration(days: now.weekday - 1));
+    return DateTime(now.year, now.month, now.day);
   }
 
-  void setWeek(DateTime week) => state = week;
+  void setWeek(DateTime week) =>
+      state = DateTime(week.year, week.month, week.day);
   void nextWeek() => state = state.add(const Duration(days: 7));
   void previousWeek() => state = state.subtract(const Duration(days: 7));
 }
@@ -57,19 +60,63 @@ final selectedDayProvider = NotifierProvider<SelectedDayNotifier, DateTime>(
 );
 
 // ─── FUTURE / COMPUTED PROVIDERS ───
+
+/// Los eventos del calendario respetan los filtros activos de la barra
+/// (`eventFiltersProvider`): categorías, categorías de baile, rango de fechas
+/// y precio se aplican a los eventos; las clases solo se filtran por fecha.
 final weekEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   final week = ref.watch(selectedWeekProvider);
+  final filter = ref.watch(eventFiltersProvider);
   final eventsRepo = ref.watch(eventsRepositoryProvider);
   final classesRepo = ref.watch(classesRepositoryProvider);
 
   final events = await eventsRepo.fetchWeekEvents(week);
   final classes = await classesRepo.fetchWeekClasses(week);
 
-  final all = [...events, ...classes];
+  final filteredEvents = events
+      .where((e) => _scheduleEventMatches(e, filter, isClass: false))
+      .toList();
+  final filteredClasses = classes
+      .where((e) => _scheduleEventMatches(e, filter, isClass: true))
+      .toList();
+
+  final all = [...filteredEvents, ...filteredClasses];
   all.sort((a, b) => a.startTime.compareTo(b.startTime));
 
   return all;
 });
+
+/// ¿El evento/la clase satisface los filtros activos de la barra?
+///
+/// Los filtros de categoría y precio se aplican solo a eventos (las clases
+/// no tienen categorías ni precios por sesión). El rango de fechas aplica a
+/// ambos.
+bool _scheduleEventMatches(EventModel e, EventFilterState f,
+    {required bool isClass}) {
+  if (!isClass) {
+    if (f.categoryIds.isNotEmpty &&
+        (e.categoryId == null || !f.categoryIds.contains(e.categoryId))) {
+      return false;
+    }
+    if (f.danceCategoryIds.isNotEmpty &&
+        !e.danceCategoryIds.any(f.danceCategoryIds.contains)) {
+      return false;
+    }
+    final price = e.startingPrice;
+    if (f.priceMin != null || f.priceMax != null) {
+      if (price == null) return false;
+      if (f.priceMin != null && price < f.priceMin!) return false;
+      if (f.priceMax != null && price > f.priceMax!) return false;
+    }
+  }
+
+  final from = f.dateFrom;
+  if (from != null && e.endTime.isBefore(from)) return false;
+  final to = f.dateTo;
+  if (to != null && e.startTime.isAfter(to)) return false;
+
+  return true;
+}
 
 final dayEventsProvider = Provider<List<EventModel>>((ref) {
   final events = ref.watch(weekEventsProvider).value ?? [];
@@ -98,6 +145,33 @@ final orgEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   final repo = ref.watch(eventsRepositoryProvider);
   return repo.fetchOrganizationEvents(orgId);
 });
+
+/// Clases próximas (desde ahora, próximos 7 días) de una organización.
+///
+/// Toma la semana actual y la siguiente para que las clases que caen a
+/// principios de la semana que viene (cuando hoy es casi fin de semana) no se
+/// pierdan.
+final organizationUpcomingClassesProvider =
+    FutureProvider.family<List<EventModel>, String>((ref, organizationId) async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final horizon = today.add(const Duration(days: 7));
+
+      final repo = ref.watch(classesRepositoryProvider);
+      final candidates = <EventModel>[
+        ...await repo.fetchWeekClasses(now),
+        ...await repo.fetchWeekClasses(now.add(const Duration(days: 7))),
+      ];
+
+      final upcoming = candidates
+          .where((e) =>
+              e.organizationId == organizationId &&
+              !e.endTime.isBefore(today) &&
+              !e.startTime.isAfter(horizon))
+          .toList()
+        ..sort((a, b) => a.startTime.compareTo(b.startTime));
+      return upcoming;
+    });
 
 // ─── LOCATION PROVIDERS (EN CASCADA) ───
 

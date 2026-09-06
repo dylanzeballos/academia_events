@@ -12,7 +12,6 @@ import '../widgets/public_event_card.dart';
 import '../widgets/event_search_bar.dart';
 import '../widgets/event_filter_drawer.dart';
 import '../widgets/pagination_controls.dart';
-import '../widgets/organization_carousel.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/error_banner.dart';
 
@@ -48,14 +47,6 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
       drawer: isDesktop ? null : const EventFilterDrawer(),
       body: Column(
         children: [
-          // Organization Carousel
-          const OrganizationCarousel(
-            height: 80,
-            autoPlayInterval: Duration(seconds: 5),
-            showTitle: true,
-          ),
-          const Divider(height: 1),
-
           // Search & Filter Bar
           _buildSearchFilterBar(context, isDesktop, filter),
 

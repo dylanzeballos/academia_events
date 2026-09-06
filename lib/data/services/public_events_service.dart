@@ -23,6 +23,7 @@ class PublicEventsService {
     String? searchQuery,
     List<String>? categoryIds,
     List<String>? danceCategoryIds,
+    String? organizationId,
     String? departmentId,
     String? provinceId,
     String? municipalityId,
@@ -54,7 +55,7 @@ class PublicEventsService {
         .eq('status', 'published')
         .eq('visibility', 'public');
 
-    query = _applyFilters(query, searchQuery, categoryIds, danceCategoryIds, departmentId, provinceId, municipalityId, cityId, dateFrom, dateTo, priceMin, priceMax);
+    query = _applyFilters(query, searchQuery, categoryIds, danceCategoryIds, organizationId, departmentId, provinceId, municipalityId, cityId, dateFrom, dateTo, priceMin, priceMax);
 
     _applySorting(query, sortBy, searchQuery);
 
@@ -66,7 +67,7 @@ class PublicEventsService {
     int totalItems = 0;
     try {
       totalItems = await _getTotalCount(
-        searchQuery, categoryIds, danceCategoryIds,
+        searchQuery, categoryIds, danceCategoryIds, organizationId,
         departmentId, provinceId, municipalityId, cityId,
         dateFrom, dateTo, priceMin, priceMax,
       );
@@ -91,6 +92,7 @@ class PublicEventsService {
     String? searchQuery,
     List<String>? categoryIds,
     List<String>? danceCategoryIds,
+    String? organizationId,
     String? departmentId,
     String? provinceId,
     String? municipalityId,
@@ -102,6 +104,10 @@ class PublicEventsService {
   ) {
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
       query = query.or('title.ilike.%${searchQuery.trim()}%,description.ilike.%${searchQuery.trim()}%');
+    }
+
+    if (organizationId != null && organizationId.trim().isNotEmpty) {
+      query = query.eq('organization_id', organizationId);
     }
 
     if (categoryIds != null && categoryIds.isNotEmpty) {
@@ -168,6 +174,7 @@ class PublicEventsService {
     String? searchQuery,
     List<String>? categoryIds,
     List<String>? danceCategoryIds,
+    String? organizationId,
     String? departmentId,
     String? provinceId,
     String? municipalityId,
@@ -184,7 +191,7 @@ class PublicEventsService {
           .eq('status', 'published')
           .eq('visibility', 'public');
 
-      query = _applyFilters(query, searchQuery, categoryIds, danceCategoryIds, departmentId, provinceId, municipalityId, cityId, dateFrom, dateTo, priceMin, priceMax);
+      query = _applyFilters(query, searchQuery, categoryIds, danceCategoryIds, organizationId, departmentId, provinceId, municipalityId, cityId, dateFrom, dateTo, priceMin, priceMax);
 
       final result = await query;
       return (result as List).length;

@@ -38,10 +38,56 @@ class DateFormatter {
     return List.generate(7, (i) => monday.add(Duration(days: i)));
   }
 
+  /// Devuelve [count] días consecutivos comenzando en [start].
+  ///
+  /// Usado por el calendario del estudiante: la ventana visible arranca en
+  /// el día de referencia (hoy o el día seleccionado) en vez de anclarse al
+  /// lunes, de modo que siempre se ven los eventos/clases próximos.
+  static List<DateTime> consecutiveDays(DateTime start, int count) =>
+      List.generate(count, (i) => start.add(Duration(days: i)));
+
   /// Tiempo en minutos desde la medianoche.
   static int minutesFromMidnight(DateTime dt) => dt.hour * 60 + dt.minute;
 
   /// Duración en minutos entre dos DateTime.
   static int durationMinutes(DateTime start, DateTime end) =>
       end.difference(start).inMinutes;
+
+  /// ¿El tramo [start]–[end] toca el día [day] (inclusive si cruza la
+  /// medianoche o dura varios días)?
+  static bool rangeCoversDay(DateTime start, DateTime end, DateTime day) {
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final nextDay = dayStart.add(const Duration(days: 1));
+    return start.isBefore(nextDay) && end.isAfter(dayStart);
+  }
+
+  /// Recorta el tramo [start]–[end] al día [day] y devuelve los minutos desde
+  /// la medianoche del inicio y del fin (el fin puede ser 1440 para "00:00 del
+  /// día siguiente"). Devuelve `null` si el tramo no toca ese día.
+  ///
+  /// Permite dibujar eventos multi-día correctamente: el día de inicio se
+  /// muestra desde la hora real hasta fin de día, y los días posteriores
+  /// desde 00:00 hasta la hora real de fin.
+  static (int, int)? clampRangeToDayMinutes(
+    DateTime start,
+    DateTime end,
+    DateTime day,
+  ) {
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final nextDay = dayStart.add(const Duration(days: 1));
+
+    if (!start.isBefore(nextDay)) return null;
+    if (!end.isAfter(dayStart)) return null;
+
+    final clampedStart = start.isBefore(dayStart) ? dayStart : start;
+    final clampedEnd = end.isAfter(nextDay) ? nextDay : end;
+    final isEndOfDay = !clampedEnd.isBefore(nextDay);
+
+    if (!clampedStart.isBefore(clampedEnd)) return null;
+
+    return (
+      minutesFromMidnight(clampedStart),
+      isEndOfDay ? 24 * 60 : minutesFromMidnight(clampedEnd),
+    );
+  }
 }

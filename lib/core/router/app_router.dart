@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../constants/app_constants.dart';
-import '../utils/theme_extensions.dart';
 import '../../features/auth/views/forgot_password_view.dart';
 import '../../features/auth/views/login_view.dart';
 import '../../features/auth/views/register_view.dart';
@@ -51,8 +50,6 @@ class _StudentShell extends ConsumerStatefulWidget {
 }
 
 class _StudentShellState extends ConsumerState<_StudentShell> {
-  bool _carouselCollapsed = false;
-
   static const _activeIcons = [
     Icons.calendar_month_rounded,
     Icons.confirmation_number_rounded,
@@ -75,31 +72,30 @@ class _StudentShellState extends ConsumerState<_StudentShell> {
     final unselectedColor = isDark ? Colors.grey.shade600 : Colors.grey.shade400;
 
     return Scaffold(
-      body: Column(
+      body: shell,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(child: shell),
-          _carouselCollapsed
-              ? _CollapsedCarouselBar(
-                  onExpand: () =>
-                      setState(() => _carouselCollapsed = false),
-                )
-              : OrganizationCarousel(
-                  height: 80,
-                  autoPlayInterval: const Duration(seconds: 5),
-                  showTitle: false,
-                  onCollapse: () =>
-                      setState(() => _carouselCollapsed = true),
-                ),
+          // Carrusel de organizaciones: solo en la pestaña Horario, justo
+          // encima de la barra de navegación.
+          if (shell.currentIndex == 0)
+            Container(
+              color: isDark ? AppColors.background : Colors.white,
+              child: const OrganizationCarousel(
+                height: 96,
+                autoPlayInterval: Duration(seconds: 4),
+              ),
+            ),
+          _InstagramNavBar(
+            selectedIndex: shell.currentIndex,
+            onDestinationSelected: shell.goBranch,
+            activeIcons: _activeIcons,
+            inactiveIcons: _inactiveIcons,
+            labels: _labels,
+            selectedColor: selectedColor,
+            unselectedColor: unselectedColor,
+          ),
         ],
-      ),
-      bottomNavigationBar: _InstagramNavBar(
-        selectedIndex: shell.currentIndex,
-        onDestinationSelected: shell.goBranch,
-        activeIcons: _activeIcons,
-        inactiveIcons: _inactiveIcons,
-        labels: _labels,
-        selectedColor: selectedColor,
-        unselectedColor: unselectedColor,
       ),
     );
   }
@@ -178,50 +174,6 @@ class _InstagramNavBar extends StatelessWidget {
               );
             }),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Franja reducida que se muestra cuando el carrusel está colapsado.
-class _CollapsedCarouselBar extends StatelessWidget {
-  const _CollapsedCarouselBar({required this.onExpand});
-
-  final VoidCallback onExpand;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onExpand,
-      child: Container(
-        height: 32,
-        color: context.cardBg,
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.expand_less,
-              size: 18,
-              color: context.textOnBg.withValues(alpha: 0.7),
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                'Organizaciones',
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: context.textOnBg.withValues(alpha: 0.7),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

@@ -11,8 +11,9 @@ import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/error_banner.dart';
 import '../widgets/event_search_bar.dart';
 import '../widgets/event_filter_bottom_sheet.dart';
-import '../widgets/public_week_timeline.dart';
+import '../widgets/public_week_columns.dart';
 import '../widgets/active_filters_bar.dart';
+import 'public_day_view.dart';
 
 class PublicCalendarView extends ConsumerStatefulWidget {
   const PublicCalendarView({super.key});
@@ -165,7 +166,7 @@ class _PublicCalendarViewState extends ConsumerState<PublicCalendarView> {
                     child: WeekDayHeader(
                       day: day,
                       isSelected: isSelected,
-                      onTap: () => ref.read(publicSelectedDayProvider.notifier).setDay(day),
+                      onTap: () => _openDayView(day),
                     ),
                   );
                 }).toList(),
@@ -194,20 +195,14 @@ class _PublicCalendarViewState extends ConsumerState<PublicCalendarView> {
               ),
             ),
             data: (allEvents) {
-              final dayEvents = allEvents
-                  .where((e) =>
-                      e.startTime.year == selectedDay.year &&
-                      e.startTime.month == selectedDay.month &&
-                      e.startTime.day == selectedDay.day)
-                  .toList();
-
-              if (dayEvents.isEmpty) {
-                return _EmptyDay(date: selectedDay);
-              }
-
-              return PublicWeekTimeline(
-                events: dayEvents,
-                date: selectedDay,
+              // Muestra TODOS los días de la semana a la vez (incluidos los
+              // que ya pasaron), igual que el calendario horario del
+              // estudiante. Tocar un día abre su vista de día.
+              return PublicWeekColumns(
+                weekDays: weekDays,
+                events: allEvents,
+                selectedDay: selectedDay,
+                onDaySelected: _openDayView,
               );
             },
           ),
@@ -238,34 +233,19 @@ class _PublicCalendarViewState extends ConsumerState<PublicCalendarView> {
       ),
     );
   }
-}
 
-class _EmptyDay extends StatelessWidget {
-  const _EmptyDay({required this.date});
-  final DateTime date;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.calendar_today_outlined,
-            size: 56,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Sin eventos el ${DateFormatter.fullDate(date)}',
-            style: TextStyle(color: Colors.grey[500], fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+  /// Selecciona el día y abre la vista de día completa del calendario.
+  void _openDayView(DateTime day) {
+    ref.read(publicSelectedDayProvider.notifier).setDay(day);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const PublicDayView()),
     );
   }
 }
+
+// ─────────────────────────────────────────────
+// Selector de semana y vista en columnas (todos los días a la vez)
+// ─────────────────────────────────────────────
 
 class _MonthPickerSheet extends StatelessWidget {
   const _MonthPickerSheet({required this.onMonthSelected});
@@ -355,12 +335,20 @@ class _MonthCalendarView extends ConsumerWidget {
         ),
       ),
       data: (allEvents) {
-        // Group events by day
+        // Group events by day (los multi-día aparecen en todos los días
+        // que cubren dentro del mes).
         final eventsByDay = <int, List<PublicEventModel>>{};
-        for (final event in allEvents) {
-          final eventDate = DateTime(event.startTime.year, event.startTime.month, event.startTime.day);
-          final dayKey = eventDate.day;
-          eventsByDay.putIfAbsent(dayKey, () => []).add(event);
+        for (var day = 1; day <= daysInMonth; day++) {
+          final dayDate = DateTime(selectedWeek.year, selectedWeek.month, day);
+          for (final event in allEvents) {
+            if (DateFormatter.rangeCoversDay(
+              event.startTime,
+              event.endTime,
+              dayDate,
+            )) {
+              eventsByDay.putIfAbsent(day, () => []).add(event);
+            }
+          }
         }
 
         return SingleChildScrollView(

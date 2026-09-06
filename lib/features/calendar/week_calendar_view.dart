@@ -32,7 +32,9 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
     final selectedDay = ref.watch(selectedDayProvider);
     final selectedWeek = ref.watch(selectedWeekProvider);
     final eventsAsync = ref.watch(weekEventsProvider);
-    final weekDays = DateFormatter.weekDays(selectedWeek);
+    // Ventana móvil: comienza en el día de referencia (hoy por defecto) y
+    // muestra los próximos 6 días, así siempre se ven clases/eventos futuros.
+    final weekDays = DateFormatter.consecutiveDays(selectedWeek, 7);
 
     return Scaffold(
       body: SafeArea(
@@ -84,6 +86,10 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
                       ref.read(selectedDayProvider.notifier).setDay(day);
                       _enterDayView(context);
                     },
+                    onSwipeLeft: () =>
+                        ref.read(selectedWeekProvider.notifier).nextWeek(),
+                    onSwipeRight: () =>
+                        ref.read(selectedWeekProvider.notifier).previousWeek(),
                   );
                 },
               ),
@@ -95,6 +101,10 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
   }
 
   void _enterDayView(BuildContext context) {
+    // Ancla la ventana de datos al día seleccionado para que la vista de día
+    // (que es multi-día) siempre tenga el rango completo cargado.
+    final day = ref.read(selectedDayProvider);
+    ref.read(selectedWeekProvider.notifier).setWeek(day);
     Navigator.of(context).push(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 300),
@@ -127,6 +137,19 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
 class _DayViewWrapper extends ConsumerWidget {
   const _DayViewWrapper();
 
+  void _changeDay(WidgetRef ref, int days) {
+    final current = ref.read(selectedDayProvider);
+    final newDay = current.add(Duration(days: days));
+    _setDay(ref, newDay);
+  }
+
+  void _setDay(WidgetRef ref, DateTime day) {
+    ref.read(selectedDayProvider.notifier).setDay(day);
+    // Con la ventana móvil, el inicio de la ventana SIEMPRE sigue al día
+    // seleccionado para que los próximos eventos se carguen correctamente.
+    ref.read(selectedWeekProvider.notifier).setWeek(day);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedDay = ref.watch(selectedDayProvider);
@@ -142,6 +165,8 @@ class _DayViewWrapper extends ConsumerWidget {
           events: allEvents,
           selectedDay: selectedDay,
           onBack: () => Navigator.of(context).pop(),
+          onPreviousDay: () => _changeDay(ref, -1),
+          onNextDay: () => _changeDay(ref, 1),
         );
       },
     );

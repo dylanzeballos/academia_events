@@ -151,6 +151,27 @@ final publicEventDetailProvider = FutureProvider.family<PublicEventModel?, Strin
   return repo.getEventById(eventId);
 });
 
+/// Eventos de una organización desde hoy (desde las 00:00 de hoy, para que
+/// los eventos vespertinos del día de hoy se sigan mostrando como próximos).
+final publicOrganizationEventsProvider =
+    FutureProvider.family<List<PublicEventModel>, String>((
+      ref,
+      organizationId,
+    ) async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final repo = ref.watch(publicEventsRepositoryProvider);
+      final result = await repo.searchEvents(
+        const EventFilterState().copyWith(
+          dateFrom: today,
+          sortBy: EventSortBy.dateAsc,
+          pageSize: 50,
+        ),
+        organizationId: organizationId,
+      );
+      return result.items;
+    });
+
 final organizationsWithEventsProvider = FutureProvider<List<OrganizationWithEventCount>>((ref) async {
   final repo = ref.watch(publicEventsRepositoryProvider);
   return repo.getOrganizationsWithEvents(limit: 10);

@@ -10,6 +10,7 @@ class EventModel {
     this.organizationLogoUrl,
     this.categoryId,
     this.categoryName,
+    this.danceCategoryIds = const [],
     this.description,
     this.coverImageUrl,
     this.qrImageUrl,
@@ -34,6 +35,7 @@ class EventModel {
   final String? organizationLogoUrl;
   final String? categoryId;
   final String? categoryName;
+  final List<String> danceCategoryIds;
   final String? description;
   final String? coverImageUrl;
   final String? qrImageUrl;
@@ -73,6 +75,7 @@ class EventModel {
     String? organizationLogoUrl,
     String? categoryId,
     String? categoryName,
+    List<String>? danceCategoryIds,
     String? description,
     String? coverImageUrl,
     String? qrImageUrl,
@@ -97,6 +100,7 @@ class EventModel {
         organizationLogoUrl: organizationLogoUrl ?? this.organizationLogoUrl,
         categoryId: categoryId ?? this.categoryId,
         categoryName: categoryName ?? this.categoryName,
+        danceCategoryIds: danceCategoryIds ?? this.danceCategoryIds,
         description: description ?? this.description,
         coverImageUrl: coverImageUrl ?? this.coverImageUrl,
         qrImageUrl: qrImageUrl ?? this.qrImageUrl,
@@ -159,6 +163,13 @@ class EventModel {
       organizationLogoUrl: parsedOrgLogo,
       categoryId: json['category_id'] as String?,
       categoryName: categoryData?['name'] as String? ?? (json['category_name'] as String?),
+      danceCategoryIds: (json['event_dance_categories'] as List?)
+              ?.map((c) =>
+                  (c as Map)['dance_category_id'] as String? ??
+                  '')
+              .where((id) => id.isNotEmpty)
+              .toList() ??
+          const [],
       description: json['description'] as String?,
       coverImageUrl: json['cover_image_url'] as String?,
       qrImageUrl: qrUrl ?? (json['qr_image_url'] as String?),
