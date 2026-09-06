@@ -5,9 +5,12 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/attendance_model.dart';
 import '../../../data/models/class_enrollment_model.dart';
+import '../../../data/models/class_pass_model.dart';
 import '../../../data/models/dance_class_session_model.dart';
+import '../../../providers/checkin_provider.dart';
 import '../../../providers/class_enrollment_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../tickets/widgets/class_pass_purchase_sheet.dart';
 
 /// Detalle de una clase a la que el estudiante está inscrito: muestra sus
 /// sesiones y la asistencia registrada, y permite cancelar la inscripción.
@@ -33,6 +36,8 @@ class MyClassDetailView extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               _Header(enrollment: enrollment),
+              const SizedBox(height: 16),
+              _PassSection(enrollment: enrollment),
               const SizedBox(height: 24),
               _SectionTitle(
                 icon: Icons.event_available,
@@ -132,6 +137,108 @@ class _Header extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _PassSection extends ConsumerWidget {
+  const _PassSection({required this.enrollment});
+
+  final ClassEnrollmentModel enrollment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!enrollment.isActive) return const SizedBox.shrink();
+
+    final passesAsync = ref.watch(myClassPassesProvider);
+    return passesAsync.when(
+      loading: () => const SizedBox(
+        height: 80,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (passes) {
+        final activePass = passes
+            .where((p) =>
+                p.enrollmentId == enrollment.id && p.isActive)
+            .firstOrNull;
+
+        if (activePass != null) {
+          return _ActivePassCard(pass: activePass);
+        }
+        return FilledButton.tonalIcon(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            foregroundColor: AppColors.primary,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+          onPressed: () => showModalBottomSheet(
+            context: context,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            isScrollControlled: true,
+            builder: (_) =>
+                ClassPassPurchaseSheet(enrollment: enrollment),
+          ),
+          icon: const Icon(Icons.add_card),
+          label: const Text('Comprar pase'),
+        );
+      },
+    );
+  }
+}
+
+class _ActivePassCard extends StatelessWidget {
+  const _ActivePassCard({required this.pass});
+
+  final ClassPassModel pass;
+
+  @override
+  Widget build(BuildContext context) {
+    final daysLeft = pass.endsAt.difference(DateTime.now()).inDays;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.verified_outlined, color: AppColors.success, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Pase activo',
+                style: TextStyle(
+                  color: AppColors.success,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Vence el ${_formatDate(pass.endsAt)} · quedan $daysLeft días.',
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          if (pass.sessionCount > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Incluye ${pass.sessionCount} sesiones.',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _formatDate(DateTime d) {
+    final local = d.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(local.day)}/${two(local.month)}/${local.year}';
   }
 }
 

@@ -307,8 +307,22 @@ class DanceClassService {
       }
     }
 
-    if (sessions.isNotEmpty) {
-      await createSessionsBatch(sessions);
+    if (sessions.isEmpty) return;
+
+    // Evitar duplicados: no reintentar (schedule_id, session_date) ya presentes.
+    final existingRows = await supabase
+        .from('dance_class_sessions')
+        .select('schedule_id, session_date')
+        .eq('dance_class_id', classId);
+    final existingKeys = <String>{
+      for (final row in existingRows) '${row['schedule_id']}|${row['session_date']}',
+    };
+    final toInsert = sessions
+        .where((s) => !existingKeys.contains('${s['schedule_id']}|${s['session_date']}'))
+        .toList();
+
+    if (toInsert.isNotEmpty) {
+      await createSessionsBatch(toInsert);
     }
   }
 

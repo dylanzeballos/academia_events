@@ -65,8 +65,7 @@ class ClassEnrollmentService {
           .select('''
             id, dance_class_id, user_id, status,
             enrolled_at, cancelled_at, created_at, updated_at,
-            dance_classes(id, title, cover_image_url),
-            organizations(id, name)
+            dance_classes(id, title, cover_image_url, organizations(id, name))
           ''')
           .order('enrolled_at', ascending: false);
     } catch (e) {

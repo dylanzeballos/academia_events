@@ -65,6 +65,7 @@ dependencies:
   share_plus: ^13.3.0
   screenshot: ^3.0.0
   path_provider: ^2.1.6
+  mobile_scanner: 7.1.1
 
 dev_dependencies:
   flutter_test:

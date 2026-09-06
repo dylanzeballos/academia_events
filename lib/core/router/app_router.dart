@@ -37,6 +37,7 @@ import '../../features/public/views/public_calendar_view.dart';
 import '../../features/public/widgets/organization_carousel.dart';
 
 import '../../features/tickets/views/student_tickets_view.dart';
+import '../../features/checkin/views/checkin_screen.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/layout_mode_provider.dart';
@@ -413,6 +414,12 @@ GoRoute(
         builder: (_, _) => const AttendanceManagementView(),
       ),
 
+      // Check-in con QR (academia: staff autorizado)
+      GoRoute(
+        path: AppRoutes.academyCheckin,
+        builder: (_, _) => const CheckinScreen(),
+      ),
+
 
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => _StudentShell(navigationShell: shell),
@@ -438,7 +445,7 @@ GoRoute(
             routes: [
               GoRoute(
                 path: AppRoutes.studentClasses,
-                builder: (_, _) => const _PlaceholderPage(title: 'Mis Clases'),
+                builder: (_, _) => const MyClassesView(),
               ),
             ],
           ),
@@ -510,23 +517,6 @@ GoRoute(
     ),
   );
 });
-
-class _PlaceholderPage extends StatelessWidget {
-  const _PlaceholderPage({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Text(
-          title,
-          style: TextStyle(color: context.textOnBg, fontSize: 18),
-        ),
-      ),
-    );
-  }
-}
 
 class _AuthStateNotifier extends ChangeNotifier {
   _AuthStateNotifier(Ref ref) {

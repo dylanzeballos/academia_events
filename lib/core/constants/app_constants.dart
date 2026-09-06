@@ -46,6 +46,7 @@ class AppRoutes {
   static const String studentCalendar = '/student/calendar';
   static const String studentClasses = '/student/classes';
   static const String academyAttendance = '/academy/attendance';
+  static const String academyCheckin = '/academy/checkin';
   static const String studentProfile = '/student/profile';
 
   static const String academyDashboard = '/academy';

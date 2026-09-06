@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
+import '../../../data/models/dance_class_schedule_model.dart';
 import '../../../data/models/dance_class_session_model.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
@@ -177,17 +178,170 @@ class _SchedulesTab extends ConsumerWidget {
                   'Sin horarios definidos',
                   style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
+                if (canManage) ...[
+                  const SizedBox(height: 16),
+                  FilledButton.tonalIcon(
+                    onPressed: () => _addScheduleAndGenerate(context, ref),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Crear horario y generar sesiones'),
+                  ),
+                ],
               ],
             ),
           );
         }
 
-        return ListView.builder(
+        return ListView(
           padding: const EdgeInsets.all(16),
-          itemCount: schedules.length,
-          itemBuilder: (context, index) {
-            final s = schedules[index];
-            return Card(
+          children: [
+            if (canManage) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _addScheduleAndGenerate(context, ref),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Agregar horario'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () async {
+                        await _generateSessions(ref);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Sesiones generadas')),
+                        );
+                      },
+                      icon: const Icon(Icons.calendar_month_outlined),
+                      label: const Text('Generar sesiones'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+            for (final s in schedules) _ScheduleTile(schedule: s, onEditCustom: (val) {
+              if (val == 'edit') _editSchedule(context, ref, s);
+              if (val == 'toggle') _toggleSchedule(context, ref, s);
+              if (val == 'delete') _deleteSchedule(context, ref, s);
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _addScheduleAndGenerate(BuildContext context, WidgetRef ref) async {
+    final result = await showScheduleDialog(
+      context,
+      classStart: ref.read(selectedClassProvider).value?.startTime,
+      classEnd: ref.read(selectedClassProvider).value?.endTime,
+    );
+    if (result == null || !context.mounted) return;
+
+    final repo = ref.read(danceClassRepositoryProvider);
+    final danceClass = ref.read(selectedClassProvider).value;
+    await repo.createSchedule({
+      ...result.toJson(),
+      'dance_class_id': danceClass?.id,
+    });
+    await _generateSessions(ref);
+    if (!context.mounted) return;
+    ref.invalidate(classSchedulesProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Horario agregado y sesiones generadas')),
+    );
+  }
+
+  Future<void> _generateSessions(WidgetRef ref) async {
+    final repo = ref.read(danceClassRepositoryProvider);
+    final danceClass = ref.read(selectedClassProvider).value;
+    if (danceClass == null) return;
+    final periodStart = danceClass.startTime ?? DateTime.now();
+    final periodEnd =
+        danceClass.endTime ?? periodStart.add(const Duration(days: 90));
+    await repo.generateSessions(
+      classId: danceClass.id,
+      startDate: periodStart,
+      endDate: periodEnd,
+    );
+    ref.invalidate(classSessionsProvider);
+  }
+
+  Future<void> _editSchedule(
+    BuildContext context,
+    WidgetRef ref,
+    DanceClassScheduleModel s,
+  ) async {
+    final result = await showScheduleDialog(
+      context,
+      existing: s,
+      classStart: ref.read(selectedClassProvider).value?.startTime,
+      classEnd: ref.read(selectedClassProvider).value?.endTime,
+    );
+    if (result == null || !context.mounted) return;
+
+    final repo = ref.read(danceClassRepositoryProvider);
+    await repo.updateSchedule(s.id, result.toJson());
+
+    await repo.clearUpcomingSessionsForSchedule(s.id);
+    await _generateSessions(ref);
+    if (!context.mounted) return;
+    ref.invalidate(classSchedulesProvider);
+    ref.invalidate(classSessionsProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Horario actualizado')),
+    );
+  }
+
+  Future<void> _toggleSchedule(BuildContext context, WidgetRef ref, DanceClassScheduleModel s) async {
+    final repo = ref.read(danceClassRepositoryProvider);
+    await repo.updateSchedule(s.id, {'is_active': !s.isActive});
+    ref.invalidate(classSchedulesProvider);
+    ref.invalidate(classSessionsProvider);
+  }
+
+  Future<void> _deleteSchedule(BuildContext context, WidgetRef ref, DanceClassScheduleModel s) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Eliminar horario'),
+        content: Text('¿Eliminar ${s.dayName} ${s.startTime}-${s.endTime}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !context.mounted) return;
+    final repo = ref.read(danceClassRepositoryProvider);
+    await repo.deleteSchedule(s.id);
+    ref.invalidate(classSchedulesProvider);
+    ref.invalidate(classSessionsProvider);
+  }
+}
+
+class _ScheduleTile extends ConsumerWidget {
+  const _ScheduleTile({required this.schedule, required this.onEditCustom});
+
+  final DanceClassScheduleModel schedule;
+  final ValueChanged<String> onEditCustom;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = schedule;
+    final myRole = ref.watch(myOrgRoleProvider);
+    final canManage = myRole?.canManageSchedules ?? false;
+    return Card(
               color: context.cardBg,
               margin: const EdgeInsets.only(bottom: 8),
               shape: RoundedRectangleBorder(
@@ -229,36 +383,7 @@ class _SchedulesTab extends ConsumerWidget {
                 trailing: canManage
                     ? PopupMenuButton<String>(
                         icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
-                        onSelected: (value) async {
-                          final repo = ref.read(danceClassRepositoryProvider);
-                          if (value == 'edit') {
-                            await _editSchedule(context, ref, s);
-                          } else if (value == 'toggle') {
-                            await repo.updateSchedule(s.id, {'is_active': !s.isActive});
-                            ref.invalidate(classSchedulesProvider);
-                            ref.invalidate(classSessionsProvider);
-                          } else if (value == 'delete') {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                title: const Text('Eliminar horario'),
-                                content: Text('¿Eliminar ${s.dayName} ${s.startTime}-${s.endTime}?'),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirm == true) {
-                              await repo.deleteSchedule(s.id);
-                              ref.invalidate(classSchedulesProvider);
-                              ref.invalidate(classSessionsProvider);
-                            }
-                          }
-                        },
+                        onSelected: onEditCustom,
                         itemBuilder: (_) => [
                           const PopupMenuItem(
                             value: 'edit',
@@ -277,44 +402,6 @@ class _SchedulesTab extends ConsumerWidget {
                     : null,
               ),
             );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _editSchedule(
-    BuildContext context,
-    WidgetRef ref,
-    dynamic s,
-  ) async {
-    final result = await showScheduleDialog(
-      context,
-      existing: s,
-    );
-    if (result == null || !context.mounted) return;
-
-    final repo = ref.read(danceClassRepositoryProvider);
-    await repo.updateSchedule(s.id, result.toJson());
-
-    // Regenerar sesiones futuras del horario para reflejar el nuevo rango.
-    await repo.clearUpcomingSessionsForSchedule(s.id);
-    final danceClass = ref.read(selectedClassProvider).value;
-    final periodStart = danceClass?.startTime ?? DateTime.now();
-    final periodEnd =
-        danceClass?.endTime ?? periodStart.add(const Duration(days: 90));
-    await repo.generateSessions(
-      classId: s.danceClassId,
-      startDate: periodStart,
-      endDate: periodEnd,
-    );
-
-    if (!context.mounted) return;
-    ref.invalidate(classSchedulesProvider);
-    ref.invalidate(classSessionsProvider);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Horario actualizado')),
-    );
   }
 }
 
@@ -344,9 +431,33 @@ class _SessionsTab extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Genera sesiones desde la pestaña de horarios.',
+                  'Crea horarios y genera sesiones desde la pestaña de horarios, o usa el botón de abajo.',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
+                if (canManage) ...[
+                  const SizedBox(height: 16),
+                  FilledButton.tonalIcon(
+                    onPressed: () async {
+                      final repo = ref.read(danceClassRepositoryProvider);
+                      final danceClass = ref.read(selectedClassProvider).value;
+                      if (danceClass == null) return;
+                      final periodStart = danceClass.startTime ?? DateTime.now();
+                      final periodEnd = danceClass.endTime ?? periodStart.add(const Duration(days: 90));
+                      await repo.generateSessions(
+                        classId: danceClass.id,
+                        startDate: periodStart,
+                        endDate: periodEnd,
+                      );
+                      ref.invalidate(classSessionsProvider);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Sesiones generadas')),
+                      );
+                    },
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    label: const Text('Generar sesiones desde horarios'),
+                  ),
+                ],
               ],
             ),
           );

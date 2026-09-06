@@ -53,7 +53,8 @@ class ClassEnrollmentModel {
 
   factory ClassEnrollmentModel.fromJson(Map<String, dynamic> json) {
     final danceClass = json['dance_classes'] as Map<String, dynamic>?;
-    final organization = json['organizations'] as Map<String, dynamic>?;
+    final organization = (danceClass?['organizations'] as Map<String, dynamic>?) ??
+        (json['organizations'] as Map<String, dynamic>?);
 
     var instructorName = json['instructor_name'] as String?;
     final instructorProfile = json['profiles'] as Map<String, dynamic>?;

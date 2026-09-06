@@ -161,6 +161,14 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Check-in con QR (visible para todo el staff de la org)
+                  _QuickActionCard(
+                    icon: Icons.qr_code_scanner,
+                    label: 'Check-in de entradas (QR)',
+                    onTap: () => context.push(AppRoutes.academyCheckin),
+                  ),
+                  const SizedBox(height: 24),
+
                   // Quick actions
                   if (canManage) ...[
                     Text(
