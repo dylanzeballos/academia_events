@@ -89,6 +89,7 @@ class EventOrdersDetailScreen extends StatelessWidget {
                                   qrToken: item.qrToken,
                                   eventStartAt: eventGroup.eventStartAt,
                                   purchaseDate: order.purchaseDate,
+                                  attendeeName: item.attendeeName, // <-- Nombre del asistente conectado
                                 ),
                               ),
                             );

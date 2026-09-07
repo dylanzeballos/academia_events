@@ -17,13 +17,16 @@ final eventTicketTypesProvider =
 });
 
 /// Crea la orden y confirma el pago en un solo paso (simulado).
-final purchaseTicketsProvider = FutureProvider.autoDispose
-    .family<EventPurchaseResult, ({String ticketTypeId, int quantity})>((ref, args) async {
+/// Ahora recibe opcionalmente los nombres de los asistentes.
+final purchaseTicketsProvider = FutureProvider.autoDispose.family<
+    EventPurchaseResult,
+    ({String ticketTypeId, int quantity, List<String>? attendeeNames})>((ref, args) async {
   final repo = ref.watch(ticketRepositoryProvider);
 
   final order = await repo.createEventOrder(
     ticketTypeId: args.ticketTypeId,
     quantity: args.quantity,
+    attendeeNames: args.attendeeNames,
   );
 
   return repo.confirmEventOrderPayment(orderId: order.orderId);
@@ -53,10 +56,15 @@ final userGroupedTicketsProvider = FutureProvider.autoDispose<List<EventGroupWit
     final orderKey = (row['order_id'] as String?) ?? 'batch_$minuteBatch';
 
     final qrToken = (row['qr_data'] as String?) ?? (row['ticket_number'] as String);
+    
+    // Captura el nombre del asistente desde la respuesta de la base de datos
+    final attendeeName = row['attendee_name'] as String?;
+
     final ticketItem = SingleTicketItem(
       ticketId: row['id'] as String,
       ticketNumber: row['ticket_number'] as String,
       qrToken: qrToken,
+      attendeeName: attendeeName, // <-- Se pasa al item individual
     );
 
     // 1. Inicializar contenedor del Evento

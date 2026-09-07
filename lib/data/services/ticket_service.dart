@@ -30,11 +30,13 @@ class TicketService {
   Future<Map<String, dynamic>> createEventOrder({
     required String ticketTypeId,
     required int quantity,
+    List<String>? attendeeNames,
   }) async {
     try {
       final result = await supabase.rpc('create_event_order', params: {
         'p_ticket_type_id': ticketTypeId,
         'p_quantity': quantity,
+        if (attendeeNames != null) 'p_attendee_names': attendeeNames,
       });
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
@@ -67,7 +69,7 @@ class TicketService {
       final rows = await supabase
           .from('tickets')
           .select('''
-            id, order_id, ticket_number, status, created_at,
+            id, order_id, ticket_number, attendee_name, status, created_at,
             ticket_types!inner(
               name,
               events!inner(id, title, cover_image_url, start_at)
@@ -83,12 +85,13 @@ class TicketService {
         final qrData = map['ticket_qr_codes'];
         String? token;
         if (qrData is Map) {
-          token = qrData['token_hash'] as String?;
+          token = qrData['token_hash']?.toString();
         } else if (qrData is List && qrData.isNotEmpty) {
-          token = (qrData.first as Map)['token_hash'] as String?;
+          token = (qrData.first as Map)['token_hash']?.toString();
         }
 
-        map['qr_data'] = token ?? map['ticket_number'];
+        map['qr_data'] = token ?? map['ticket_number']?.toString();
+        map['attendee_name'] = map['attendee_name']?.toString();
         return map;
       }).toList();
     } on PostgrestException catch (e) {
@@ -104,9 +107,12 @@ class TicketService {
             id,
             order_number,
             subtotal,
-            events!inner(title),
+            total_amount,
+            events(title),
             tickets(
               id,
+              ticket_number,
+              attendee_name,
               ticket_qr_codes(token_hash)
             )
           ''')
@@ -118,27 +124,43 @@ class TicketService {
         String token = '';
 
         if (qrData is Map) {
-          token = (qrData['token_hash'] as String?) ?? '';
+          token = qrData['token_hash']?.toString() ?? '';
         } else if (qrData is List && qrData.isNotEmpty) {
-          token = ((qrData.first as Map)['token_hash'] as String?) ?? '';
+          token = (qrData.first as Map)['token_hash']?.toString() ?? '';
         }
 
+        final ticketNum = t['ticket_number']?.toString() ?? '';
+
         return {
-          'ticket_id': t['id'],
-          'qr_token': token,
+          'ticket_id': t['id']?.toString() ?? '',
+          'ticket_number': ticketNum,
+          'attendee_name': t['attendee_name']?.toString(),
+          'qr_token': token.isNotEmpty ? token : ticketNum,
         };
       }).toList();
 
+      // Extracción a prueba de nulos o variaciones de estructura
+      String eventTitle = 'Evento';
+      final eventData = row['events'];
+      if (eventData is Map) {
+        eventTitle = eventData['title']?.toString() ?? 'Evento';
+      } else if (eventData is List && eventData.isNotEmpty) {
+        eventTitle = (eventData.first as Map)['title']?.toString() ?? 'Evento';
+      }
+
       return {
-        'order_id': row['id'],
-        'order_number': row['order_number'],
-        'subtotal': row['subtotal'],
+        'order_id': row['id']?.toString() ?? orderId,
+        'order_number': row['order_number']?.toString() ?? '',
+        'subtotal': (row['subtotal'] as num?)?.toDouble() ?? 
+                    (row['total_amount'] as num?)?.toDouble() ?? 0.0,
         'quantity': ticketsList.length,
-        'event_title': row['events']?['title'] ?? 'Evento',
+        'event_title': eventTitle,
         'tickets': ticketsList,
       };
     } on PostgrestException catch (e) {
       throw TicketException(e.message);
+    } catch (e) {
+      throw TicketException(e.toString());
     }
   }
 }

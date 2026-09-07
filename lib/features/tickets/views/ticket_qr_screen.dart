@@ -16,6 +16,8 @@ class TicketQrScreen extends StatelessWidget {
         itemCount: result.tickets.length,
         itemBuilder: (_, i) {
           final ticket = result.tickets[i];
+          final attendee = ticket.attendeeName;
+
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
             child: Padding(
@@ -26,6 +28,20 @@ class TicketQrScreen extends StatelessWidget {
                     'Entrada ${i + 1} de ${result.tickets.length}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
+                  if (attendee != null && attendee.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.person, size: 16, color: Colors.blueAccent),
+                        const SizedBox(width: 4),
+                        Text(
+                          attendee,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   QrImageView(
                     data: ticket.qrToken,

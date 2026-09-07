@@ -10,6 +10,7 @@ abstract interface class ITicketRepository {
   Future<EventOrderModel> createEventOrder({
     required String ticketTypeId,
     required int quantity,
+    List<String>? attendeeNames,
   });
 
   Future<EventPurchaseResult> confirmEventOrderPayment({
@@ -22,6 +23,7 @@ abstract interface class ITicketRepository {
   Future<EventPurchaseResult> purchaseEventTickets({
     required String ticketTypeId,
     required int quantity,
+    List<String>? attendeeNames,
   });
 
   Future<List<EventTicketModel>> fetchUserEventTickets();
@@ -46,10 +48,12 @@ class TicketRepository implements ITicketRepository {
   Future<EventOrderModel> createEventOrder({
     required String ticketTypeId,
     required int quantity,
+    List<String>? attendeeNames,
   }) async {
     final raw = await _service.createEventOrder(
       ticketTypeId: ticketTypeId,
       quantity: quantity,
+      attendeeNames: attendeeNames,
     );
     return EventOrderModel.fromJson(raw);
   }
@@ -72,9 +76,23 @@ class TicketRepository implements ITicketRepository {
   Future<EventPurchaseResult> purchaseEventTickets({
     required String ticketTypeId,
     required int quantity,
+    List<String>? attendeeNames,
   }) async {
-    final order = await createEventOrder(ticketTypeId: ticketTypeId, quantity: quantity);
-    return confirmEventOrderPayment(orderId: order.orderId);
+    // 1. Llamar al servicio directamente para obtener el mapa sin riesgo de fallo en EventOrderModel
+    final rawOrder = await _service.createEventOrder(
+      ticketTypeId: ticketTypeId,
+      quantity: quantity,
+      attendeeNames: attendeeNames,
+    );
+
+    // 2. Extraer el orderId tolerando cualquier nombre de clave ('order_id' o 'id')
+    final orderId = (rawOrder['order_id'] ?? rawOrder['id'] ?? '')?.toString();
+    if (orderId == null || orderId.isEmpty) {
+      throw const TicketException('No se pudo obtener el ID de la orden generada');
+    }
+
+    // 3. Confirmar pago simulado
+    return confirmEventOrderPayment(orderId: orderId);
   }
 
   @override

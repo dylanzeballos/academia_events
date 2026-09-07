@@ -2,11 +2,13 @@ class SingleTicketItem {
   final String ticketId;
   final String ticketNumber;
   final String qrToken;
+  final String? attendeeName; // <-- Campo añadido
 
   SingleTicketItem({
     required this.ticketId,
     required this.ticketNumber,
     required this.qrToken,
+    this.attendeeName,         // <-- Opcional para admitir tickets sin nombre
   });
 }
 

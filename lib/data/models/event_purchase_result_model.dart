@@ -1,12 +1,19 @@
 class PurchasedTicketQr {
-  const PurchasedTicketQr({required this.ticketId, required this.qrToken});
+  const PurchasedTicketQr({
+    required this.ticketId,
+    required this.qrToken,
+    this.attendeeName,
+  });
+
   final String ticketId;
   final String qrToken;
+  final String? attendeeName;
 
   factory PurchasedTicketQr.fromJson(Map<String, dynamic> json) =>
       PurchasedTicketQr(
         ticketId: json['ticket_id'] as String? ?? '',
         qrToken: json['qr_token'] as String? ?? '',
+        attendeeName: json['attendee_name'] as String?,
       );
 }
 

@@ -13,6 +13,7 @@ class EventTicketPassCard extends StatelessWidget {
     required this.qrToken,
     required this.eventStartAt,
     required this.purchaseDate,
+    this.attendeeName, // <-- Nuevo parámetro
   });
 
   final String eventTitle;
@@ -21,6 +22,7 @@ class EventTicketPassCard extends StatelessWidget {
   final String qrToken;
   final DateTime? eventStartAt;
   final DateTime purchaseDate;
+  final String? attendeeName; // <-- Almacena el titular
 
   String _formatDateTime(DateTime? dt) {
     if (dt == null) return 'Por confirmar';
@@ -103,6 +105,27 @@ class EventTicketPassCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                // Muestra el nombre del asistente si existe
+                if (attendeeName != null && attendeeName!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.person, color: AppColors.primary, size: 14),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          attendeeName!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
