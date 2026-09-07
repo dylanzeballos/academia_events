@@ -37,25 +37,6 @@ class ClassEnrollmentService {
     }
   }
 
-  /// Llama al RPC `record_attendance`.
-  Future<void> recordAttendance({
-    required String enrollmentId,
-    required String sessionId,
-    required String status,
-    String? notes,
-  }) async {
-    try {
-      await supabase.rpc('record_attendance', params: {
-        'p_enrollment_id': enrollmentId,
-        'p_session_id': sessionId,
-        'p_status': status,
-        'p_notes': notes,
-      });
-    } on PostgrestException catch (e) {
-      throw ClassEnrollmentException(_friendlyError(e.message));
-    }
-  }
-
   // ─── Consultas de inscripciones del usuario ──────
 
   Future<List<Map<String, dynamic>>> fetchMyEnrollments() async {
@@ -114,27 +95,9 @@ class ClassEnrollmentService {
     }
   }
 
-  /// Asistencias registradas para una sesión (para la academia poder
-  /// revisarlas/registrarlas). RLS asegura solo org owner/admin/instructor.
-  Future<List<Map<String, dynamic>>> fetchAttendanceForSession(
-      String sessionId) async {
-    try {
-      return await supabase
-          .from('attendances')
-          .select('''
-            id, enrollment_id, session_id, status, notes,
-            recorded_by, recorded_at, created_at, updated_at
-          ''')
-          .eq('session_id', sessionId)
-          .order('recorded_at');
-    } catch (e) {
-      return [];
-    }
-  }
-
   // ─── Sesiones para la academia ────────────────────
 
-  /// Sesiones de una clase para poder registrar asistencia (academia).
+  /// Sesiones futuras programadas de una clase (para el check-in con QR).
   Future<List<Map<String, dynamic>>> fetchSessionsForClass(
       String classId) async {
     try {

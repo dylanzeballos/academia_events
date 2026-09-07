@@ -39,12 +39,16 @@ final purchaseClassPassProvider = FutureProvider.autoDispose
   return repo.purchaseClassPass(enrollmentId);
 });
 
-/// Sesiones programadas de una clase (para que el staff seleccione la sesión
-/// a registrar en el check-in).
+/// Próxima sesión programada de una clase (para que el staff la seleccione en
+/// el check-in). Solo se muestra la siguiente: ni pasadas ni muy futuras.
 final checkinClassSessionsProvider = FutureProvider.autoDispose
     .family<List<DanceClassSessionModel>, String>((ref, classId) async {
   final repo = ref.watch(classEnrollmentRepositoryProvider);
-  return repo.fetchSessionsForClass(classId);
+  final sessions = await repo.fetchSessionsForClass(classId);
+  final now = DateTime.now();
+  final upcoming = sessions.where((s) => s.endAt.isAfter(now)).toList()
+    ..sort((a, b) => a.startAt.compareTo(b.startAt));
+  return upcoming.isEmpty ? const [] : [upcoming.first];
 });
 
 /// Ejecuta el check-in de un ticket de evento.

@@ -133,8 +133,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = AppColors.calendarEventColors;
-    final accent = colors[event.colorIndex % colors.length];
+    final accent = AppColors.colorForOrganization(event.organizationId);
     final location = event.location;
     final hasLocation = location?.latitude != null && location?.longitude != null;
 
@@ -574,8 +573,12 @@ class _PublicEventDetailBody extends ConsumerWidget {
                         ),
                       ),
                       OutlinedButton(
-                        onPressed: () => context.push('/organizations/detail', extra: event.organizationId),
-                        child: const Text('Ver perfil'),
+                        onPressed: () => context.push(
+                          '${AppRoutes.organizationPublicDetailBase}/'
+                          '${event.organizationId}',
+                          extra: event.organizationName,
+                        ),
+                        child: const Text('Ver organización'),
                       ),
                     ],
                   ),

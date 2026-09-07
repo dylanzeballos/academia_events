@@ -7,6 +7,7 @@ import '../../../data/models/class_model.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import 'class_attendance_view.dart';
 import 'class_create_view.dart';
 import 'class_detail_view.dart';
 
@@ -57,13 +58,24 @@ class ClassListView extends ConsumerWidget {
               itemBuilder: (context, index) => ClassTile(
                 danceClass: classes[index],
                 canManage: canManage,
-                onTap: () {
+                onTap: () async {
                   ref.read(selectedClassIdProvider.notifier).select(classes[index].id);
-                  Navigator.push(
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ClassDetailView()),
                   );
+                  ref.invalidate(orgClassesProvider);
                 },
+                onAttendance: canManage
+                    ? () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ClassAttendanceView(
+                              classId: classes[index].id,
+                              classTitle: classes[index].title,
+                            ),
+                          ),
+                        )
+                    : null,
               ),
             ),
           );
@@ -89,11 +101,13 @@ class ClassTile extends StatelessWidget {
     required this.danceClass,
     required this.canManage,
     required this.onTap,
+    this.onAttendance,
   });
 
   final ClassModel danceClass;
   final bool canManage;
   final VoidCallback onTap;
+  final VoidCallback? onAttendance;
 
   @override
   Widget build(BuildContext context) {
@@ -103,87 +117,114 @@ class ClassTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
         side: BorderSide(color: context.divider),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        onTap: canManage ? onTap : null,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                child: Text(
-                  danceClass.title.isNotEmpty ? danceClass.title[0].toUpperCase() : '?',
-                  style: const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      danceClass.title,
-                      style: TextStyle(color: context.textOnBg, fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        if (danceClass.instructorName != null) ...[
-                          Icon(Icons.person_outline, size: 12, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            danceClass.instructorName!,
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        if (danceClass.capacity != null) ...[
-                          Icon(Icons.people_outline, size: 12, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${danceClass.capacity} cupos',
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            onTap: canManage ? onTap : null,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: danceClass.isPublished
-                          ? AppColors.success.withValues(alpha: 0.15)
-                          : Colors.grey.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                     child: Text(
-                      danceClass.isPublished ? 'Publicada' : 'Borrador',
-                      style: TextStyle(
-                        color: danceClass.isPublished ? AppColors.success : Colors.grey,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      danceClass.title.isNotEmpty ? danceClass.title[0].toUpperCase() : '?',
+                      style: const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  if (danceClass.price > 0) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '${danceClass.price} ${danceClass.currency}',
-                      style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          danceClass.title,
+                          style: TextStyle(color: context.textOnBg, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            if (danceClass.instructorName != null) ...[
+                              Icon(Icons.person_outline, size: 12, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                danceClass.instructorName!,
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            if (danceClass.enrolledCount > 0) ...[
+                              Icon(Icons.people_outline, size: 12, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                danceClass.capacity != null
+                                    ? '${danceClass.enrolledCount}/${danceClass.capacity} inscritos'
+                                    : '${danceClass.enrolledCount} ${danceClass.enrolledCount == 1 ? 'inscrito' : 'inscritos'}',
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                              ),
+                            ] else if (danceClass.capacity != null) ...[
+                              Icon(Icons.people_outline, size: 12, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${danceClass.capacity} cupos',
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: danceClass.isPublished
+                              ? AppColors.success.withValues(alpha: 0.15)
+                              : Colors.grey.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          danceClass.isPublished ? 'Publicada' : 'Borrador',
+                          style: TextStyle(
+                            color: danceClass.isPublished ? AppColors.success : Colors.grey,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (danceClass.price > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '${danceClass.price} ${danceClass.currency}',
+                          style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          if (onAttendance != null)
+            Align(
+              alignment: Alignment.bottomRight,
+              child: TextButton.icon(
+                onPressed: onAttendance,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.assessment_outlined, size: 18),
+                label: const Text('Ver asistencia'),
+              ),
+            ),
+        ],
       ),
     );
   }

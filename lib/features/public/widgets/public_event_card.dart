@@ -64,14 +64,12 @@ class PublicEventCard extends StatelessWidget {
                           ),
                         ),
                         errorWidget: (_, _, _) => _PlaceholderBanner(
-                          color: AppColors.calendarEventColors[
-                              event.colorIndex % AppColors.calendarEventColors.length],
+                          color: AppColors.colorForOrganization(event.organizationId),
                         ),
                       )
                     else
                       _PlaceholderBanner(
-                        color: AppColors.calendarEventColors[
-                            event.colorIndex % AppColors.calendarEventColors.length],
+                        color: AppColors.colorForOrganization(event.organizationId),
                       ),
                     // Price badge
                     Positioned(

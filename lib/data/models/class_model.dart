@@ -10,6 +10,7 @@ class ClassModel {
     this.coverImageUrl,
     this.status = 'draft',
     this.capacity,
+    this.enrolledCount = 0,
     this.price = 0,
     this.currency = 'BOB',
     this.startTime,
@@ -27,6 +28,7 @@ class ClassModel {
   final String? coverImageUrl;
   final String status;
   final int? capacity;
+  final int enrolledCount;
   final double price;
   final String currency;
   final DateTime? startTime;
@@ -69,6 +71,7 @@ class ClassModel {
       coverImageUrl: json['cover_image_url'] as String?,
       status: (json['status'] as String?) ?? 'draft',
       capacity: json['capacity'] as int?,
+      enrolledCount: (json['enrolled_count'] as num?)?.toInt() ?? 0,
       price: (json['price'] as num?)?.toDouble() ?? 0,
       currency: (json['currency'] as String?) ?? 'BOB',
       startTime: json['start_at'] != null

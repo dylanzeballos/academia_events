@@ -134,11 +134,11 @@ class _OrgCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: organization.logoUrl!,
                       fit: BoxFit.cover,
-                      width: 40,
-                      height: 40,
+                      width: 36,
+                      height: 36,
                       placeholder: (_, _) => Container(
-                        width: 40,
-                        height: 40,
+                        width: 36,
+                        height: 36,
                         color: context.divider.withValues(alpha: 0.3),
                         child: const Center(
                           child: SizedBox(
@@ -149,19 +149,19 @@ class _OrgCard extends StatelessWidget {
                         ),
                       ),
                       errorWidget: (_, _, _) => Container(
-                        width: 40,
-                        height: 40,
+                        width: 36,
+                        height: 36,
                         color: context.divider.withValues(alpha: 0.3),
                         child: Icon(
                           Icons.business_outlined,
                           color: AppColors.primary,
-                          size: 20,
+                          size: 18,
                         ),
                       ),
                     )
                   : Container(
-                      width: 40,
-                      height: 40,
+                      width: 36,
+                      height: 36,
                       color: AppColors.primary.withValues(alpha: 0.15),
                       child: Center(
                         child: Text(
@@ -177,7 +177,7 @@ class _OrgCard extends StatelessWidget {
                       ),
                     ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Text(

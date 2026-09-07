@@ -211,9 +211,9 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                       children: [
                         Expanded(
                           child: _QuickActionCard(
-                            icon: Icons.fact_check_outlined,
-                            label: 'Registrar\nasistencia',
-                            onTap: () => context.push(AppRoutes.academyAttendance),
+                            icon: Icons.add_box_outlined,
+                            label: 'Crear\nevento',
+                            onTap: () => context.push(AppRoutes.eventCreate),
                           ),
                         ),
                         const SizedBox(width: 12),

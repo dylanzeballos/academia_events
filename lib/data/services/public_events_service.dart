@@ -225,7 +225,7 @@ class PublicEventsService {
     return PublicEventData.fromJson(response);
   }
 
-  Future<List<OrganizationWithEventCount>> getOrganizationsWithEvents({int limit = 10}) async {
+  Future<List<OrganizationWithEventCount>> getOrganizationsWithEvents({int limit = 200}) async {
     final response = await supabase
         .from('organizations')
         .select('''

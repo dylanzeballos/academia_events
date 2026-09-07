@@ -13,6 +13,7 @@ import '../widgets/detail/event_publish_action_bar.dart';
 import '../widgets/detail/event_schedule_card.dart';
 import '../widgets/detail/event_ticket_action_bar.dart';
 import '../widgets/detail/event_tickets_section.dart';
+import 'event_attendance_view.dart';
 
 class EventDetailView extends ConsumerWidget {
   const EventDetailView({super.key, required this.eventId});
@@ -74,6 +75,22 @@ class EventDetailView extends ConsumerWidget {
           if (isAcademyMode)
             eventAsync.maybeWhen(
               data: (event) => IconButton(
+                tooltip: 'Ver asistencia',
+                icon: const Icon(Icons.assessment_outlined),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => EventAttendanceView(
+                      eventId: event.id,
+                      eventTitle: event.title,
+                    ),
+                  ),
+                ),
+              ),
+              orElse: () => const SizedBox.shrink(),
+            ),
+          if (isAcademyMode)
+            eventAsync.maybeWhen(
+              data: (event) => IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
                 onPressed: () => _deleteEvent(context, ref, event),
               ),
@@ -123,8 +140,7 @@ class _EventDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AppColors.calendarEventColors;
-    final accent = colors[event.colorIndex % colors.length];
+    final accent = AppColors.colorForOrganization(event.organizationId);
 
     return SingleChildScrollView(
       child: Column(

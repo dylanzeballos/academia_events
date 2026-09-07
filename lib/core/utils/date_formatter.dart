@@ -9,6 +9,8 @@ class DateFormatter {
   static final _fullDate = DateFormat('EEEE d MMMM yyyy', 'es');
   static final _shortDay = DateFormat('EEE', 'es'); // Lun, Mar...
   static final _dayNumber = DateFormat('d');
+  static final _monthYear = DateFormat('MMMM yyyy', 'es'); // septiembre 2026
+  static final _shortMonth = DateFormat('MMM', 'es'); // sep, oct...
 
   /// Ej: "18:30"
   static String hourMin(DateTime dt) => _hourMin.format(dt);
@@ -28,6 +30,16 @@ class DateFormatter {
 
   /// Número del día: "15"
   static String dayNumber(DateTime dt) => _dayNumber.format(dt);
+
+  /// Mes y año con el mes en mayúscula corto/medio: "septiembre 2026"
+  static String monthYear(DateTime dt) => _monthYear.format(dt);
+
+  /// Mes abreviado: "sep"
+  static String shortMonth(DateTime dt) => _shortMonth.format(dt);
+
+  /// Capitaliza la primera letra de una cadena ("septiembre" → "Septiembre").
+  static String capitalize(String text) =>
+      text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
   /// Devuelve los 7 días de la semana que contiene [reference].
   static List<DateTime> weekDays(DateTime reference) {

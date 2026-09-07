@@ -24,7 +24,6 @@ import '../../features/classes/views/class_list_view.dart';
 import '../../features/classes/views/class_create_view.dart';
 import '../../features/classes/views/class_detail_view.dart';
 import '../../features/enrollment/views/my_classes_view.dart';
-import '../../features/enrollment/views/attendance_management_view.dart';
 
 import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
@@ -32,7 +31,8 @@ import '../../features/events/views/event_detail_view.dart';
 
 import '../../features/public/views/public_events_view.dart';
 import '../../features/public/views/public_event_detail_view.dart';
-import '../../features/public/views/public_calendar_view.dart';
+
+import '../../features/public/views/organization_detail_view.dart';
 import '../../features/public/widgets/organization_carousel.dart';
 
 import '../../features/tickets/views/student_tickets_view.dart';
@@ -355,15 +355,16 @@ GoRoute(
           return PublicEventDetailView(eventId: eventId);
         },
       ),
-      GoRoute(
-        path: AppRoutes.publicCalendar,
-        builder: (_, _) => const PublicCalendarView(),
-      ),
 
-      // Asistencia (academia: owner / admin / instructor)
       GoRoute(
-        path: AppRoutes.academyAttendance,
-        builder: (_, _) => const AttendanceManagementView(),
+        path: AppRoutes.organizationPublicDetail,
+        builder: (context, state) {
+          final organizationId = state.pathParameters['id'] ?? '';
+          return PublicOrganizationDetailView(
+            organizationId: organizationId,
+            organizationName: state.extra as String?,
+          );
+        },
       ),
 
       // Check-in con QR (academia: staff autorizado)

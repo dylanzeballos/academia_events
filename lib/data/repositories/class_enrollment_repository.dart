@@ -8,18 +8,11 @@ import '../services/class_enrollment_service.dart';
 abstract interface class IClassEnrollmentRepository {
   Future<String> enrollInClass(String classId);
   Future<void> cancelEnrollment(String enrollmentId);
-  Future<void> recordAttendance({
-    required String enrollmentId,
-    required String sessionId,
-    required String status,
-    String? notes,
-  });
 
   Future<List<ClassEnrollmentModel>> fetchMyEnrollments();
   Future<List<ClassEnrollmentModel>> fetchEnrollmentsForClass(String classId);
 
   Future<List<AttendanceModel>> fetchMyAttendance();
-  Future<List<AttendanceModel>> fetchAttendanceForSession(String sessionId);
 
   Future<List<DanceClassSessionModel>> fetchSessionsForClass(String classId);
   Future<List<DanceClassSessionModel>> fetchAllSessionsForClass(String classId);
@@ -49,20 +42,6 @@ class ClassEnrollmentRepository implements IClassEnrollmentRepository {
       _service.cancelEnrollment(enrollmentId);
 
   @override
-  Future<void> recordAttendance({
-    required String enrollmentId,
-    required String sessionId,
-    required String status,
-    String? notes,
-  }) =>
-      _service.recordAttendance(
-        enrollmentId: enrollmentId,
-        sessionId: sessionId,
-        status: status,
-        notes: notes,
-      );
-
-  @override
   Future<List<ClassEnrollmentModel>> fetchMyEnrollments() async {
     final rows = await _service.fetchMyEnrollments();
     return rows
@@ -80,13 +59,6 @@ class ClassEnrollmentRepository implements IClassEnrollmentRepository {
   @override
   Future<List<AttendanceModel>> fetchMyAttendance() async {
     final rows = await _service.fetchMyAttendance();
-    return rows.map((r) => AttendanceModel.fromJson(r)).toList();
-  }
-
-  @override
-  Future<List<AttendanceModel>> fetchAttendanceForSession(
-      String sessionId) async {
-    final rows = await _service.fetchAttendanceForSession(sessionId);
     return rows.map((r) => AttendanceModel.fromJson(r)).toList();
   }
 

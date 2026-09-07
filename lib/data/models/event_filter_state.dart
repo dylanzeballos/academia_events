@@ -17,6 +17,7 @@ class EventFilterState extends Equatable {
     this.provinceId,
     this.municipalityId,
     this.cityId,
+    this.organizationId,
     this.dateFrom,
     this.dateTo,
     this.priceMin,
@@ -33,6 +34,7 @@ class EventFilterState extends Equatable {
   final String? provinceId;
   final String? municipalityId;
   final String? cityId;
+  final String? organizationId;
   final DateTime? dateFrom;
   final DateTime? dateTo;
   final double? priceMin;
@@ -49,6 +51,7 @@ class EventFilterState extends Equatable {
       provinceId != null ||
       municipalityId != null ||
       cityId != null ||
+      organizationId != null ||
       dateFrom != null ||
       dateTo != null ||
       priceMin != null ||
@@ -62,6 +65,7 @@ class EventFilterState extends Equatable {
     String? provinceId,
     String? municipalityId,
     String? cityId,
+    String? organizationId,
     DateTime? dateFrom,
     DateTime? dateTo,
     double? priceMin,
@@ -81,6 +85,7 @@ class EventFilterState extends Equatable {
       provinceId: clearLocation ? null : (provinceId ?? this.provinceId),
       municipalityId: clearLocation ? null : (municipalityId ?? this.municipalityId),
       cityId: clearLocation ? null : (cityId ?? this.cityId),
+      organizationId: organizationId ?? this.organizationId,
       dateFrom: clearDate ? null : (dateFrom ?? this.dateFrom),
       dateTo: clearDate ? null : (dateTo ?? this.dateTo),
       priceMin: clearPrice ? null : (priceMin ?? this.priceMin),
@@ -108,6 +113,7 @@ class EventFilterState extends Equatable {
         provinceId,
         municipalityId,
         cityId,
+        organizationId,
         dateFrom,
         dateTo,
         priceMin,

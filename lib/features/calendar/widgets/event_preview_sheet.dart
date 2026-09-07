@@ -13,8 +13,7 @@ class EventPreviewSheet {
   const EventPreviewSheet._();
 
   static void show(BuildContext context, EventModel event) {
-    final colors = AppColors.calendarEventColors;
-    final color = colors[event.colorIndex % colors.length];
+    final color = AppColors.colorForOrganization(event.organizationId);
 
     showModalBottomSheet<void>(
       context: context,

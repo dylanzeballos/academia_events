@@ -41,6 +41,7 @@ final publicSelectedDayProvider = NotifierProvider<PublicSelectedDayNotifier, Da
 
 final publicWeekEventsProvider = FutureProvider<List<PublicEventModel>>((ref) async {
   final week = ref.watch(publicSelectedWeekProvider);
+  final filter = ref.watch(eventFiltersProvider);
   final repo = ref.watch(publicEventsRepositoryProvider);
 
   final startOfWeek = week;
@@ -51,11 +52,38 @@ final publicWeekEventsProvider = FutureProvider<List<PublicEventModel>>((ref) as
       dateFrom: startOfWeek,
       dateTo: endOfWeek,
       sortBy: EventSortBy.dateAsc,
+      danceCategoryIds: filter.danceCategoryIds,
+      categoryIds: filter.categoryIds,
+      organizationId: filter.organizationId,
     ),
   );
 
   return result.items;
 });
+
+/// Eventos de una organización dentro de la semana seleccionada en el
+/// calendario público, respetando los filtros de categoría de baile.
+final organizationWeekEventsProvider =
+    FutureProvider.family<List<PublicEventModel>, String>((
+      ref,
+      organizationId,
+    ) async {
+      final week = ref.watch(publicSelectedWeekProvider);
+      final filter = ref.watch(eventFiltersProvider);
+      final repo = ref.watch(publicEventsRepositoryProvider);
+
+      final result = await repo.searchEvents(
+        const EventFilterState().copyWith(
+          dateFrom: week,
+          dateTo: week.add(const Duration(days: 7)),
+          sortBy: EventSortBy.dateAsc,
+          danceCategoryIds: filter.danceCategoryIds,
+          categoryIds: filter.categoryIds,
+        ),
+        organizationId: organizationId,
+      );
+      return result.items;
+    });
 
 final publicEventsServiceProvider = Provider<PublicEventsService>((ref) {
   return const PublicEventsService();
@@ -134,6 +162,10 @@ class EventFiltersNotifier extends Notifier<EventFilterState> {
   void setDanceCategoryIds(List<String> ids) {
     state = state.copyWith(danceCategoryIds: ids, page: 1);
   }
+
+  void setOrganizationId(String? organizationId) {
+    state = state.copyWith(organizationId: organizationId, page: 1);
+  }
 }
 
 final eventFiltersProvider = NotifierProvider<EventFiltersNotifier, EventFilterState>(
@@ -174,7 +206,7 @@ final publicOrganizationEventsProvider =
 
 final organizationsWithEventsProvider = FutureProvider<List<OrganizationWithEventCount>>((ref) async {
   final repo = ref.watch(publicEventsRepositoryProvider);
-  return repo.getOrganizationsWithEvents(limit: 10);
+  return repo.getOrganizationsWithEvents(limit: 200);
 });
 
 final publicEventCategoriesProvider = FutureProvider<List<EventCategoryModel>>((ref) async {

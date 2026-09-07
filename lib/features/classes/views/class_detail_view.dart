@@ -10,6 +10,7 @@ import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../widgets/schedule_dialog.dart';
+import 'class_attendance_view.dart';
 
 class ClassDetailView extends ConsumerStatefulWidget {
   const ClassDetailView({super.key});
@@ -51,6 +52,20 @@ class _ClassDetailViewState extends ConsumerState<ClassDetailView>
         return Scaffold(
           appBar: AppBar(
             title: Text(danceClass.title),
+            actions: [
+              IconButton(
+                tooltip: 'Ver asistencia',
+                icon: const Icon(Icons.assessment_outlined),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ClassAttendanceView(
+                      classId: danceClass.id,
+                      classTitle: danceClass.title,
+                    ),
+                  ),
+                ),
+              ),
+            ],
             bottom: TabBar(
               controller: _tabCtrl,
               indicatorColor: AppColors.primary,

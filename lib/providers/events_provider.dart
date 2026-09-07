@@ -35,11 +35,17 @@ class SelectedWeekNotifier extends Notifier<DateTime> {
   @override
   DateTime build() {
     final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
+    final today = DateTime(now.year, now.month, now.day);
+    // Ancla al lunes de la semana actual: la vista de semana muestra SIEMPRE
+    // los 7 días (lun a dom) y las flechas saltan de lunes a lunes.
+    return today.subtract(Duration(days: today.weekday - 1));
   }
 
-  void setWeek(DateTime week) =>
-      state = DateTime(week.year, week.month, week.day);
+  void setWeek(DateTime week) {
+    final day = DateTime(week.year, week.month, week.day);
+    state = day.subtract(Duration(days: day.weekday - 1));
+  }
+
   void nextWeek() => state = state.add(const Duration(days: 7));
   void previousWeek() => state = state.subtract(const Duration(days: 7));
 }
@@ -62,52 +68,46 @@ final selectedDayProvider = NotifierProvider<SelectedDayNotifier, DateTime>(
 // ─── FUTURE / COMPUTED PROVIDERS ───
 
 /// Los eventos del calendario respetan los filtros activos de la barra
-/// (`eventFiltersProvider`): categorías, categorías de baile, rango de fechas
-/// y precio se aplican a los eventos; las clases solo se filtran por fecha.
+/// (`eventFiltersProvider`): categorías, categorías de baile, organización,
+/// rango de fechas y precio. Las clases NO se muestran en el calendario
+/// (viven en su propia pestaña de Clases).
 final weekEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   final week = ref.watch(selectedWeekProvider);
   final filter = ref.watch(eventFiltersProvider);
   final eventsRepo = ref.watch(eventsRepositoryProvider);
-  final classesRepo = ref.watch(classesRepositoryProvider);
 
   final events = await eventsRepo.fetchWeekEvents(week);
-  final classes = await classesRepo.fetchWeekClasses(week);
-
-  final filteredEvents = events
-      .where((e) => _scheduleEventMatches(e, filter, isClass: false))
-      .toList();
-  final filteredClasses = classes
-      .where((e) => _scheduleEventMatches(e, filter, isClass: true))
-      .toList();
-
-  final all = [...filteredEvents, ...filteredClasses];
-  all.sort((a, b) => a.startTime.compareTo(b.startTime));
-
-  return all;
+  final filtered = events
+      .where((e) => _scheduleEventMatches(e, filter))
+      .toList()
+    ..sort((a, b) => a.startTime.compareTo(b.startTime));
+  return filtered;
 });
 
-/// ¿El evento/la clase satisface los filtros activos de la barra?
+/// ¿El evento satisface los filtros activos de la barra?
 ///
-/// Los filtros de categoría y precio se aplican solo a eventos (las clases
-/// no tienen categorías ni precios por sesión). El rango de fechas aplica a
-/// ambos.
-bool _scheduleEventMatches(EventModel e, EventFilterState f,
-    {required bool isClass}) {
-  if (!isClass) {
-    if (f.categoryIds.isNotEmpty &&
-        (e.categoryId == null || !f.categoryIds.contains(e.categoryId))) {
-      return false;
-    }
-    if (f.danceCategoryIds.isNotEmpty &&
-        !e.danceCategoryIds.any(f.danceCategoryIds.contains)) {
-      return false;
-    }
-    final price = e.startingPrice;
-    if (f.priceMin != null || f.priceMax != null) {
-      if (price == null) return false;
-      if (f.priceMin != null && price < f.priceMin!) return false;
-      if (f.priceMax != null && price > f.priceMax!) return false;
-    }
+/// Los filtros de categoría, precio, organización y rango de fechas se
+/// aplican a los eventos que se muestran en el calendario.
+bool _scheduleEventMatches(EventModel e, EventFilterState f) {
+  // El filtro de organización aplica a los eventos (la barra del Horario
+  // permite elegir una organización).
+  if (f.organizationId != null && e.organizationId != f.organizationId) {
+    return false;
+  }
+
+  if (f.categoryIds.isNotEmpty &&
+      (e.categoryId == null || !f.categoryIds.contains(e.categoryId))) {
+    return false;
+  }
+  if (f.danceCategoryIds.isNotEmpty &&
+      !e.danceCategoryIds.any(f.danceCategoryIds.contains)) {
+    return false;
+  }
+  final price = e.startingPrice;
+  if (f.priceMin != null || f.priceMax != null) {
+    if (price == null) return false;
+    if (f.priceMin != null && price < f.priceMin!) return false;
+    if (f.priceMax != null && price > f.priceMax!) return false;
   }
 
   final from = f.dateFrom;

@@ -17,7 +17,7 @@ class DanceClassService {
   Future<List<Map<String, dynamic>>> fetchOrganizationClasses(
       String organizationId) async {
     try {
-      return await supabase
+      final rows = await supabase
           .from('dance_classes')
           .select('''
             id, title, organization_id, slug,
@@ -29,6 +29,27 @@ class DanceClassService {
           ''')
           .eq('organization_id', organizationId)
           .order('created_at', ascending: false);
+
+      if (rows.isEmpty) return rows;
+
+      // Conteo real de inscritos (pending/approved/active) por clase.
+      final classIds = rows.map((c) => c['id'] as String).toList();
+      final enrollments = await supabase
+          .from('class_enrollments')
+          .select('dance_class_id')
+          .inFilter('dance_class_id', classIds)
+          .inFilter('status', ['pending', 'approved', 'active']);
+
+      final countByClass = <String, int>{};
+      for (final e in enrollments) {
+        final id = e['dance_class_id'] as String;
+        countByClass[id] = (countByClass[id] ?? 0) + 1;
+      }
+
+      return [
+        for (final row in rows)
+          {...row, 'enrolled_count': countByClass[row['id']] ?? 0},
+      ];
     } catch (e) {
       return [];
     }

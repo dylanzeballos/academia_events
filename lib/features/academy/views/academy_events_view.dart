@@ -7,6 +7,7 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../events/views/event_attendance_view.dart';
 
 final orgEventsProvider = FutureProvider((ref) async {
   final orgId = ref.watch(selectedOrganizationIdProvider);
@@ -71,39 +72,82 @@ class AcademyEventsView extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                     side: BorderSide(color: context.divider),
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(12),
-               
-                    onTap: () => context.push(AppRoutes.eventDetail, extra: event.id),
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.secondary.withValues(alpha: 0.15),
-                      child: const Icon(Icons.event, color: AppColors.secondary, size: 20),
-                    ),
-                    title: Text(
-                      event.title,
-                      style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.w500),
-                    ),
-                    subtitle: Text(
-                      '${event.startTime.day}/${event.startTime.month}/${event.startTime.year}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: event.isPublished
-                            ? AppColors.success.withValues(alpha: 0.15)
-                            : Colors.grey.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        event.isPublished ? 'Publicado' : 'Borrador',
-                        style: TextStyle(
-                          color: event.isPublished ? AppColors.success : Colors.grey,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.all(12),
+                        onTap: () => context.push(
+                          AppRoutes.eventDetail,
+                          extra: event.id,
+                        ),
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              AppColors.secondary.withValues(alpha: 0.15),
+                          child: const Icon(
+                            Icons.event,
+                            color: AppColors.secondary,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          event.title,
+                          style: TextStyle(
+                            color: context.textOnBg,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${event.startTime.day}/${event.startTime.month}/${event.startTime.year}',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: event.isPublished
+                                ? AppColors.success.withValues(alpha: 0.15)
+                                : Colors.grey.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            event.isPublished ? 'Publicado' : 'Borrador',
+                            style: TextStyle(
+                              color: event.isPublished
+                                  ? AppColors.success
+                                  : Colors.grey,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => EventAttendanceView(
+                                    eventId: event.id,
+                                    eventTitle: event.title,
+                                  ),
+                                ),
+                              ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.assessment_outlined, size: 18),
+                          label: const Text('Ver asistencia'),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },

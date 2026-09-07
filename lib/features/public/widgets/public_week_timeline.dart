@@ -281,8 +281,7 @@ class _PublicEventCard extends StatelessWidget {
   final PublicEventModel event;
   final VoidCallback onTap;
 
-  Color get _color => AppColors.calendarEventColors[
-      event.colorIndex % AppColors.calendarEventColors.length];
+  Color get _color => AppColors.colorForOrganization(event.organizationId);
 
   @override
   Widget build(BuildContext context) {

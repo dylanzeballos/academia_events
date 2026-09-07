@@ -36,7 +36,7 @@ class PublicEventsRepository implements IPublicEventsRepository {
       searchQuery: filter.searchQuery.isEmpty ? null : filter.searchQuery,
       categoryIds: filter.categoryIds.isEmpty ? null : filter.categoryIds,
       danceCategoryIds: filter.danceCategoryIds.isEmpty ? null : filter.danceCategoryIds,
-      organizationId: organizationId,
+      organizationId: organizationId ?? filter.organizationId,
       departmentId: filter.departmentId,
       provinceId: filter.provinceId,
       municipalityId: filter.municipalityId,

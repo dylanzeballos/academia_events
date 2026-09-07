@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/theme_extensions.dart';
 
 /// Cabecera de un día en el selector semanal (Lun / 16).
 class WeekDayHeader extends StatelessWidget {
@@ -60,7 +61,7 @@ class WeekDayHeader extends StatelessWidget {
                     ? Colors.white
                     : _isToday
                         ? AppColors.primary
-                        : Colors.white70,
+                        : context.textOnBg.withValues(alpha: 0.7),
               ),
             ),
           ],

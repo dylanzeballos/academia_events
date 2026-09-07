@@ -25,6 +25,68 @@ final myEnrollmentsProvider =
   return repo.fetchMyEnrollments();
 });
 
+// ─── Mis clases, agrupadas por clase y por próxima sesión ───
+
+/// Una clase de "Mis Clases": la inscripción (con datos de clase/org) junto a
+/// sus sesiones futuras, ordenadas de la más próxima a la más lejana.
+class MyClassGroup {
+  const MyClassGroup({
+    required this.enrollment,
+    required this.upcomingSessions,
+  });
+
+  final ClassEnrollmentModel enrollment;
+
+  /// Sesiones futuras (ya excluidas las pasadas), más próxima primero.
+  final List<DanceClassSessionModel> upcomingSessions;
+
+  DanceClassSessionModel get nextSession => upcomingSessions.first;
+}
+
+/// "Mis Clases" para la pestaña del estudiante:
+/// - Agrupa por clase (dedupe por si hay inscripciones duplicadas).
+/// - Solo muestra clases con sesiones FUTURAS (las pasadas no saturan).
+/// - Ordena por la sesión más próxima en primer lugar.
+final myClassesWithSessionsProvider = FutureProvider<List<MyClassGroup>>((ref) async {
+  ref.watch(authStateProvider);
+  final enrollments = await ref.watch(myEnrollmentsProvider.future);
+  final now = DateTime.now();
+
+  // Solo inscripciones que importan (omitir rechazadas).
+  final relevant =
+      enrollments.where((e) => e.status != 'rejected').toList();
+
+  // Agrupar por clase: si hay varias inscripciones, quedarse con la activa.
+  final byClass = <String, ClassEnrollmentModel>{};
+  for (final enrollment in relevant) {
+    final existing = byClass[enrollment.danceClassId];
+    if (existing == null || (enrollment.isActive && !existing.isActive)) {
+      byClass[enrollment.danceClassId] = enrollment;
+    }
+  }
+
+  final repo = ref.watch(classEnrollmentRepositoryProvider);
+  final groups = <MyClassGroup>[];
+  for (final enrollment in byClass.values) {
+    final sessions =
+        await repo.fetchAllSessionsForClass(enrollment.danceClassId);
+    final upcoming = sessions
+        .where((s) => s.startAt.isAfter(now))
+        .toList()
+      ..sort((a, b) => a.startAt.compareTo(b.startAt));
+    // Los pasados no se muestran: si no queda ninguna sesión futura, la
+    // clase no aparece en la lista.
+    if (upcoming.isEmpty) continue;
+    groups.add(MyClassGroup(enrollment: enrollment, upcomingSessions: upcoming));
+  }
+
+  groups.sort(
+    (a, b) => a.nextSession.startAt.compareTo(b.nextSession.startAt),
+  );
+
+  return groups;
+});
+
 // ─── Mi asistencia (estudiante) ───────────────────
 
 final myAttendanceProvider = FutureProvider<List<AttendanceModel>>((ref) async {
@@ -199,90 +261,4 @@ class EnrollmentActionNotifier extends Notifier<EnrollmentActionState> {
 final enrollmentActionProvider =
     NotifierProvider<EnrollmentActionNotifier, EnrollmentActionState>(() {
   return EnrollmentActionNotifier();
-});
-
-// ─── Estado de carga de asistencia (para la academia) ───
-
-class AttendanceContext {
-  const AttendanceContext({
-    this.sessions = const [],
-    this.attendances = const [],
-    this.isLoading = false,
-    this.error,
-  });
-
-  final List<DanceClassSessionModel> sessions;
-  final List<AttendanceModel> attendances;
-  final bool isLoading;
-  final String? error;
-
-  AttendanceContext copyWith({
-    List<DanceClassSessionModel>? sessions,
-    List<AttendanceModel>? attendances,
-    bool? isLoading,
-    String? error,
-  }) {
-    return AttendanceContext(
-      sessions: sessions ?? this.sessions,
-      attendances: attendances ?? this.attendances,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-    );
-  }
-}
-
-class SessionAttendanceNotifier extends Notifier<AttendanceContext> {
-  @override
-  AttendanceContext build() => const AttendanceContext();
-
-  Future<void> load(String classId) async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final repo = ref.read(classEnrollmentRepositoryProvider);
-      final sessions = await repo.fetchSessionsForClass(classId);
-      state = AttendanceContext(sessions: sessions);
-    } catch (e) {
-      state = AttendanceContext(error: e.toString());
-    }
-  }
-
-  Future<void> selectSession(String sessionId) async {
-    try {
-      final repo = ref.read(classEnrollmentRepositoryProvider);
-      final attendances = await repo.fetchAttendanceForSession(sessionId);
-      state = state.copyWith(attendances: attendances, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), isLoading: false);
-    }
-  }
-
-  Future<bool> save({
-    required String enrollmentId,
-    required String sessionId,
-    required String status,
-    String? notes,
-  }) async {
-    try {
-      final repo = ref.read(classEnrollmentRepositoryProvider);
-      await repo.recordAttendance(
-        enrollmentId: enrollmentId,
-        sessionId: sessionId,
-        status: status,
-        notes: notes,
-      );
-      await selectSession(sessionId);
-      return true;
-    } catch (e) {
-      state = state.copyWith(error: e.toString());
-      return false;
-    }
-  }
-
-  void clearError() =>
-      state = state.copyWith(error: null);
-}
-
-final sessionAttendanceProvider =
-    NotifierProvider<SessionAttendanceNotifier, AttendanceContext>(() {
-  return SessionAttendanceNotifier();
 });

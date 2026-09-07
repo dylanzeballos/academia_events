@@ -6,8 +6,8 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
-import '../../calendar/week_calendar_view.dart';
 import '../../classes/views/class_create_view.dart';
+import '../../classes/views/class_attendance_view.dart';
 import '../../classes/views/class_detail_view.dart';
 import '../../classes/views/class_list_view.dart';
 
@@ -23,16 +23,6 @@ class AcademyClassesView extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Clases'),
-        actions: [
-          IconButton(
-            tooltip: 'Calendario',
-            icon: const Icon(Icons.calendar_month_outlined),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const WeekCalendarView()),
-            ),
-          ),
-        ],
       ),
       body: classesAsync.when(
         loading: () => const LoadingIndicator(),
@@ -83,13 +73,24 @@ class AcademyClassesView extends ConsumerWidget {
                 return ClassTile(
                   danceClass: danceClass,
                   canManage: canManage,
-                  onTap: () {
+                  onTap: () async {
                     ref.read(selectedClassIdProvider.notifier).select(danceClass.id);
-                    Navigator.push(
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const ClassDetailView()),
                     );
+                    ref.invalidate(orgClassesProvider);
                   },
+                  onAttendance: canManage
+                      ? () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ClassAttendanceView(
+                                classId: danceClass.id,
+                                classTitle: danceClass.title,
+                              ),
+                            ),
+                          )
+                      : null,
                 );
               },
             ),

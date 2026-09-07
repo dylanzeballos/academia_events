@@ -221,6 +221,29 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         ),
         const SizedBox(height: 12),
         SegmentedButton<_CheckinMode>(
+          style: ButtonStyle(
+            side: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return const BorderSide(color: AppColors.primary, width: 1.5);
+              }
+              return BorderSide(color: context.divider);
+            }),
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppColors.primary.withValues(alpha: 0.15);
+              }
+              return Colors.transparent;
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppColors.primary;
+              }
+              return Colors.grey;
+            }),
+            textStyle: const WidgetStatePropertyAll(
+              TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
           segments: const [
             ButtonSegment(
               value: _CheckinMode.event,
@@ -276,16 +299,24 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
             sessionsAsync.when(
               loading: () => const LoadingIndicator(),
               error: (e, _) => Text('Error cargando sesiones: $e'),
-              data: (sessions) => _SessionDropdown(
-                sessions: sessions,
-                value: _sessionId,
-                onChanged: (id) {
-                  setState(() {
-                    _sessionId = id;
-                    _result = null;
+              data: (sessions) {
+                final nextId = sessions.isEmpty ? null : sessions.first.id;
+                if (nextId != null && _sessionId != nextId) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _sessionId = nextId);
                   });
-                },
-              ),
+                }
+                return _SessionDropdown(
+                  sessions: sessions,
+                  value: _sessionId,
+                  onChanged: (id) {
+                    setState(() {
+                      _sessionId = id;
+                      _result = null;
+                    });
+                  },
+                );
+              },
             ),
         ],
 
@@ -418,7 +449,7 @@ class _SessionDropdown extends StatelessWidget {
     if (sessions.isEmpty) {
       return const _EmptySelection(
         icon: Icons.event_note,
-        message: 'Esta clase no tiene sesiones programadas.',
+        message: 'Esta clase no tiene próximas sesiones.',
       );
     }
 

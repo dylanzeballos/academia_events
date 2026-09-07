@@ -29,6 +29,32 @@ class AppColors {
     Color(0xFF059669),
     Color(0xFFD97706),
   ];
+
+  /// Paleta de colores sólidos y bien diferenciados para distinguir
+  /// organizaciones en los calendarios. Todos son lo bastante oscuros para
+  /// leer texto blanco encima.
+  static const List<Color> organizationColors = [
+    Color(0xFFD32F2F), // rojo 700
+    Color(0xFFBF360C), // naranja profundo 800
+    Color(0xFFFF6F00), // ámbar 900
+    Color(0xFF388E3C), // verde 700
+    Color(0xFF00796B), // verde azulado 700
+    Color(0xFF0097A7), // cian 700
+    Color(0xFF0277BD), // azul claro 800
+    Color(0xFF1976D2), // azul 700
+    Color(0xFF303F9F), // índigo 700
+    Color(0xFF5E35B1), // violeta profundo 600
+    Color(0xFFC2185B), // rosa 700
+    Color(0xFF6A1B9A), // púrpura 800
+  ];
+
+  /// Color estable por organización: el mismo id siempre mapea al mismo
+  /// color. Sin organización (o vacío) se usa el color primario.
+  static Color colorForOrganization(String? organizationId) {
+    final id = organizationId;
+    if (id == null || id.isEmpty) return primary;
+    return organizationColors[id.hashCode.abs() % organizationColors.length];
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -45,7 +71,6 @@ class AppRoutes {
   static const String studentHome = '/student';
   static const String studentCalendar = '/student/calendar';
   static const String studentClasses = '/student/classes';
-  static const String academyAttendance = '/academy/attendance';
   static const String academyCheckin = '/academy/checkin';
   static const String studentProfile = '/student/profile';
 
@@ -76,6 +101,10 @@ class AppRoutes {
   // Base para navegar (push) a la ruta de detalle.
   static const String publicEventDetailBase = '/eventos/detalle';
   static const String publicCalendar = '/calendario';
+
+  // Página pública de una organización
+  static const String organizationPublicDetail = '/organizaciones/:id';
+  static const String organizationPublicDetailBase = '/organizaciones';
 }
 
 // ─────────────────────────────────────────────
