@@ -78,6 +78,12 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
     }
   }
 
+  String _extractGenre(String title) {
+    final clean = title.trim();
+    if (clean.isEmpty) return 'CLASE';
+    return clean.split(RegExp(r'\s+')).first.toUpperCase();
+  }
+
   void _toggleOrientation() {
     setState(() {
       _isLandscape = !_isLandscape;
@@ -147,6 +153,32 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
                 .toList()
               ..sort();
 
+            // Asignación de colores dinámicos sin repetir entre géneros presentes
+            final uniqueGenres = entries
+                .map((e) => _extractGenre(e.danceClass.title))
+                .toSet()
+                .toList();
+
+            const List<Color> dynamicPalette = [
+              Color(0xFFEF4444), // Rojo
+              Color(0xFF8B5CF6), // Violeta
+              Color(0xFFF59E0B), // Ámbar
+              Color(0xFF10B981), // Verde Esmeralda
+              Color(0xFF06B6D4), // Cyan
+              Color(0xFFEC4899), // Rosa
+              Color(0xFF3B82F6), // Azul
+              Color(0xFFF97316), // Naranja
+              Color(0xFF14B8A6), // Turquesa
+              Color(0xFFA855F7), // Púrpura
+              Color(0xFF84CC16), // Lima
+              Color(0xFF6366F1), // Índigo
+            ];
+
+            final Map<String, Color> genreColorMap = {
+              for (int i = 0; i < uniqueGenres.length; i++)
+                uniqueGenres[i]: dynamicPalette[i % dynamicPalette.length],
+            };
+
             return LayoutBuilder(
               builder: (context, constraints) {
                 const headerHeight = 44.0;
@@ -158,7 +190,7 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Columna fija de horas (con su propio controller vertical)
+                    // Columna fija de horas lateral
                     SizedBox(
                       width: _timeColWidth,
                       child: Column(
@@ -224,7 +256,7 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
                       ),
                     ),
 
-                    // Matriz de días (Cabecera + Contenido con su propio controller vertical)
+                    // Matriz de días con cabecera y cuerpo sincronizados
                     Expanded(
                       child: SingleChildScrollView(
                         controller: _horizontalScroll,
@@ -285,6 +317,7 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
                                                   hour: hour,
                                                   entries: entries,
                                                   width: colWidth,
+                                                  genreColorMap: genreColorMap,
                                                   onAddClass: canManage
                                                       ? () async {
                                                           await Navigator.push(

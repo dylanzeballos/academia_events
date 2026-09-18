@@ -5,34 +5,21 @@ import '../../../../providers/dance_class_provider.dart';
 import '../../../classes/views/class_detail_view.dart';
 
 class ScheduleClassCard extends ConsumerWidget {
-  const ScheduleClassCard({super.key, required this.entry});
+  const ScheduleClassCard({
+    super.key,
+    required this.entry,
+    required this.themeColor,
+    required this.styleTag,
+  });
 
   final OrgScheduleEntry entry;
+  final Color themeColor;
+  final String styleTag;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final danceClass = entry.danceClass;
     final schedule = entry.schedule;
-
-    final titleLower = danceClass.title.toLowerCase();
-    final bool isKizomba = titleLower.contains('kizomba') || titleLower.contains('urban');
-    final bool isFree = titleLower.contains('práctica') || titleLower.contains('pista');
-    final bool isBachata = titleLower.contains('bachata');
-
-    final Color badgeBg = isFree
-        ? const Color(0xFF475569)
-        : isKizomba
-            ? const Color(0xFF0EA5E9)
-            : isBachata
-                ? const Color(0xFFEA580C)
-                : const Color(0xFFDB2777);
-
-    final String categoryTag = isFree
-        ? 'LIBRE'
-        : isKizomba
-            ? 'KIZOMBA'
-            : (isBachata ? 'BACHATA' : 'SALSA');
-
     final instructor = schedule.instructorName ?? danceClass.instructorName ?? 'Profesor';
 
     return GestureDetector(
@@ -48,15 +35,15 @@ class ScheduleClassCard extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E2333),
+          color: const Color(0xFF161B26),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: badgeBg.withValues(alpha: 0.4),
+            color: themeColor.withValues(alpha: 0.5),
             width: 1.1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 3,
               offset: const Offset(0, 1.5),
             ),
@@ -66,24 +53,25 @@ class ScheduleClassCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Fila superior: Tag y Hora
+            // Cabecera: Tag dinámico + Hora
             Row(
               children: [
                 Flexible(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                     decoration: BoxDecoration(
-                      color: badgeBg,
+                      color: themeColor,
                       borderRadius: BorderRadius.circular(3),
                     ),
                     child: Text(
-                      categoryTag,
+                      styleTag,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 7.5,
                         fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ),
@@ -100,7 +88,7 @@ class ScheduleClassCard extends ConsumerWidget {
               ],
             ),
 
-            // Título de la clase amplio y legible
+            // Título de la clase
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Text(
@@ -109,14 +97,14 @@ class ScheduleClassCard extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 10.0,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w800,
                   height: 1.15,
                 ),
               ),
             ),
 
-            // Fila inferior: Profesor y Precio
+            // Pie: Profesor y Precio
             Row(
               children: [
                 Expanded(
@@ -126,7 +114,7 @@ class ScheduleClassCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 8.5,
+                      fontSize: 8.0,
                     ),
                   ),
                 ),
@@ -134,7 +122,7 @@ class ScheduleClassCard extends ConsumerWidget {
                   Text(
                     '${danceClass.price.toInt()} Bs',
                     style: TextStyle(
-                      color: badgeBg,
+                      color: themeColor,
                       fontSize: 8.5,
                       fontWeight: FontWeight.w900,
                     ),
