@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/models/class_model.dart';
 import '../data/models/dance_class_schedule_model.dart';
@@ -13,8 +15,7 @@ final danceClassRepositoryProvider = Provider<IDanceClassRepository>((ref) {
 
 // ─── Classes for selected org ──────────────────────
 
-final orgClassesProvider =
-    FutureProvider<List<ClassModel>>((ref) async {
+final orgClassesProvider = FutureProvider<List<ClassModel>>((ref) async {
   final orgId = ref.watch(selectedOrganizationIdProvider);
   if (orgId == null) return [];
   final repo = ref.watch(danceClassRepositoryProvider);
@@ -26,7 +27,6 @@ final orgClassesProvider =
 class SelectedClassIdNotifier extends Notifier<String?> {
   @override
   String? build() {
-    // Resetear la selección al cambiar de sesión.
     ref.watch(authStateProvider);
     return null;
   }
@@ -80,7 +80,12 @@ final upcomingSessionsProvider =
 final orgStatsProvider = FutureProvider<Map<String, int>>((ref) async {
   final orgId = ref.watch(selectedOrganizationIdProvider);
   if (orgId == null) {
-    return {'totalClasses': 0, 'activeClasses': 0, 'upcomingSessions': 0, 'totalMembers': 0};
+    return {
+      'totalClasses': 0,
+      'activeClasses': 0,
+      'upcomingSessions': 0,
+      'totalMembers': 0,
+    };
   }
   final repo = ref.watch(danceClassRepositoryProvider);
   return repo.fetchOrgStats(orgId);
@@ -96,11 +101,50 @@ final orgInstructorsProvider =
   return repo.fetchOrgInstructors(orgId);
 });
 
-// ─── Create class state ────────────────────────────
+// ─── Horario Semanal Multi-Días (Recurrencia) ───────
+
+class OrgScheduleEntry {
+  const OrgScheduleEntry({
+    required this.schedule,
+    required this.danceClass,
+  });
+
+  final DanceClassScheduleModel schedule;
+  final ClassModel danceClass;
+}
+
+final orgWeeklyScheduleEntriesProvider =
+    FutureProvider<List<OrgScheduleEntry>>((ref) async {
+  final orgId = ref.watch(selectedOrganizationIdProvider);
+  if (orgId == null) return [];
+
+  final classes = await ref.watch(orgClassesProvider.future);
+  if (classes.isEmpty) return [];
+
+  final repo = ref.watch(danceClassRepositoryProvider);
+  final entries = <OrgScheduleEntry>[];
+
+  // Cargar cada horario con la misma consulta simple usada por el detalle de clase.
+  // Evita que un join anidado con profiles deje toda la grilla vacía si falla.
+  for (final danceClass in classes) {
+    final schedules = await repo.fetchClassSchedules(danceClass.id);
+    for (final schedule in schedules) {
+      if (schedule.isActive) {
+        entries.add(
+          OrgScheduleEntry(schedule: schedule, danceClass: danceClass),
+        );
+      }
+    }
+  }
+
+  debugPrint('🔍 [SCHEDULES] Registros encontrados: ${entries.length}');
+  return entries;
+});
+
+// ─── Create class state & notifier ─────────────────
 
 class CreateClassState {
   const CreateClassState({this.isLoading = false, this.error});
-
   final bool isLoading;
   final String? error;
 
@@ -116,70 +160,64 @@ class CreateClassNotifier extends Notifier<CreateClassState> {
   @override
   CreateClassState build() => const CreateClassState();
 
-  Future<bool> create({
+  Future<bool> createWithDays({
     required String title,
     String? description,
     int? capacity,
     double price = 0,
     String? instructorId,
-    DateTime? startAt,
-    DateTime? endAt,
-    List<Map<String, dynamic>>? schedules,
+    required String startTime,
+    required String endTime,
+    required Set<int> selectedDays,
   }) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, error: null);
     try {
       final orgId = ref.read(selectedOrganizationIdProvider);
       if (orgId == null) {
-        state = const CreateClassState(error: 'No hay organización seleccionada.');
+        state = const CreateClassState(error: 'No hay academia seleccionada.');
         return false;
       }
 
-      final slug = title
-          .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-          .replaceAll(RegExp(r'^-|-$'), '');
-
+      final slug =
+          '${title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-')}-${DateTime.now().millisecondsSinceEpoch}';
       final repo = ref.read(danceClassRepositoryProvider);
+
+      // Inserción en tabla: dance_classes
       final danceClass = await repo.createClass({
         'organization_id': orgId,
         'title': title,
         'slug': slug,
-        'description': description,
+        'description':
+            description?.trim().isEmpty == true ? null : description?.trim(),
         'capacity': capacity,
         'price': price,
+        'currency': 'BOB',
         'instructor_id': instructorId,
-        'start_at': startAt?.toIso8601String(),
-        'end_at': endAt?.toIso8601String(),
-        'status': 'draft',
+        'status': 'published',
       });
 
-      // Create schedules if provided
-      if (schedules != null && schedules.isNotEmpty) {
-        for (final schedule in schedules) {
-          schedule['dance_class_id'] = danceClass.id;
-          await repo.createSchedule(schedule);
-        }
-
-        // Generar sesiones automáticamente por rango de cada horario.
-        final periodStart = (startAt ?? DateTime.now());
-        final periodEnd = (endAt ?? periodStart.add(const Duration(days: 90)));
-        await repo.generateSessions(
-          classId: danceClass.id,
-          startDate: periodStart,
-          endDate: periodEnd,
-        );
+      // Inserción en tabla: dance_class_schedules
+      for (final day in selectedDays) {
+        await repo.createSchedule({
+          'dance_class_id': danceClass.id,
+          'day_of_week': day,
+          'start_time': startTime,
+          'end_time': endTime,
+          'instructor_id': instructorId,
+          'is_active': true,
+        });
       }
 
       ref.invalidate(orgClassesProvider);
+      ref.invalidate(orgWeeklyScheduleEntriesProvider);
       state = const CreateClassState();
       return true;
     } catch (e) {
+      debugPrint('❌ Error creando clase con horarios: $e');
       state = CreateClassState(error: e.toString());
       return false;
     }
   }
-
-  void clearError() => state = state.copyWith();
 }
 
 final createClassProvider =

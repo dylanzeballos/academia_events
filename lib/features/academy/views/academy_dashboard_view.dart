@@ -11,6 +11,7 @@ import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../organization/views/organization_detail_view.dart';
+import '../views/dashboard/upcoming_sessions_list.dart';
 
 class AcademyDashboardView extends ConsumerStatefulWidget {
   const AcademyDashboardView({super.key});
@@ -85,6 +86,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
             onRefresh: () async {
               ref.invalidate(orgStatsProvider);
               ref.invalidate(orgClassesProvider);
+              ref.invalidate(orgWeeklyScheduleEntriesProvider);
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -92,7 +94,6 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Org selector with logo, name, and role
                   _OrgSelector(
                     orgs: orgs,
                     selectedOrgId: selectedOrgId,
@@ -105,7 +106,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Stats
+                  // ── Métricas / Estadísticas ──
                   statsAsync.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
@@ -127,7 +128,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                             Expanded(
                               child: _StatCard(
                                 icon: Icons.calendar_today,
-                                label: 'Proximas',
+                                label: 'Próximas',
                                 value: '${stats['upcomingSessions'] ?? 0}',
                                 color: AppColors.secondary,
                               ),
@@ -161,7 +162,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Check-in con QR (visible para todo el staff de la org)
+                  // ── Check-in de entradas ──
                   _QuickActionCard(
                     icon: Icons.qr_code_scanner,
                     label: 'Check-in de entradas (QR)',
@@ -169,10 +170,10 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Quick actions
+                  // ── Acciones Rápidas de Administración ──
                   if (canManage) ...[
                     Text(
-                      'Acciones rapidas',
+                      'Acciones rápidas',
                       style: TextStyle(
                         color: context.textOnBg,
                         fontSize: 18,
@@ -198,8 +199,9 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) =>
-                                        const OrganizationDetailView()),
+                                  builder: (_) =>
+                                      const OrganizationDetailView(),
+                                ),
                               );
                             },
                           ),
@@ -219,8 +221,8 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _QuickActionCard(
-                            icon: Icons.event_note_outlined,
-                            label: 'Gestionar\nclases',
+                            icon: Icons.calendar_month_outlined,
+                            label: 'Gestionar\nhorario',
                             onTap: () => context.go(AppRoutes.academyClasses),
                           ),
                         ),
@@ -229,9 +231,9 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                     const SizedBox(height: 24),
                   ],
 
-                  // Upcoming sessions
+                  // ── Lista de Próximas Sesiones del Horario ──
                   Text(
-                    'Proximas sesiones',
+                    'Horario programado',
                     style: TextStyle(
                       color: context.textOnBg,
                       fontSize: 18,
@@ -239,7 +241,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _UpcomingSessionsList(),
+                  const UpcomingSessionsList(),
                 ],
               ),
             ),
@@ -258,8 +260,10 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: context.cardBg,
-          title: Text('Invitar miembro',
-              style: TextStyle(color: context.textOnBg)),
+          title: Text(
+            'Invitar miembro',
+            style: TextStyle(color: context.textOnBg),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -295,7 +299,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Recibiran una invitacion en la plataforma.',
+                'Recibirán una invitación en la plataforma.',
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ],
@@ -310,7 +314,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                 final email = emailCtrl.text.trim();
                 if (email.isEmpty || !email.contains('@')) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Ingresa un email valido')),
+                    const SnackBar(content: Text('Ingresa un email válido')),
                   );
                   return;
                 }
@@ -329,8 +333,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Invitacion enviada a $email')),
+                      SnackBar(content: Text('Invitación enviada a $email')),
                     );
                   }
                 } catch (e) {
@@ -341,8 +344,10 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                   }
                 }
               },
-              child: const Text('Enviar invitacion',
-                  style: TextStyle(color: AppColors.primary)),
+              child: const Text(
+                'Enviar invitación',
+                style: TextStyle(color: AppColors.primary),
+              ),
             ),
           ],
         ),
@@ -384,12 +389,10 @@ class _OrgSelector extends ConsumerWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            // Org logo or initial
             CircleAvatar(
               radius: 24,
               backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-              backgroundImage:
-                  logoUrl != null ? NetworkImage(logoUrl) : null,
+              backgroundImage: logoUrl != null ? NetworkImage(logoUrl) : null,
               child: logoUrl == null
                   ? Text(
                       org.name.isNotEmpty ? org.name[0].toUpperCase() : '?',
@@ -402,8 +405,6 @@ class _OrgSelector extends ConsumerWidget {
                   : null,
             ),
             const SizedBox(width: 12),
-
-            // Name + role
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,10 +422,11 @@ class _OrgSelector extends ConsumerWidget {
                         ),
                         items: orgs
                             .map<DropdownMenuItem<String>>(
-                                (o) => DropdownMenuItem(
-                                      value: o.organization.id,
-                                      child: Text(o.organization.name),
-                                    ))
+                              (o) => DropdownMenuItem(
+                                value: o.organization.id,
+                                child: Text(o.organization.name),
+                              ),
+                            )
                             .toList(),
                         onChanged: (v) {
                           if (v != null) onSelected(v);
@@ -440,13 +442,10 @@ class _OrgSelector extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-
-                  // Role badge
                   if (currentRole != null)
                     Container(
                       margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
@@ -562,79 +561,6 @@ class _QuickActionCard extends StatelessWidget {
   }
 }
 
-class _UpcomingSessionsList extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final orgClassesAsync = ref.watch(orgClassesProvider);
-
-    return orgClassesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Text('Error: $e',
-          style: const TextStyle(color: Colors.grey)),
-      data: (classes) {
-        if (classes.isEmpty) {
-          return Card(
-            color: context.cardBg,
-            child: const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(
-                child: Text(
-                  'No hay clases creadas aun',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            ),
-          );
-        }
-
-        return Card(
-          color: context.cardBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-            side: BorderSide(color: context.divider),
-          ),
-          child: Column(
-            children: classes
-                .take(5)
-                .map((c) => ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            AppColors.primary.withValues(alpha: 0.15),
-                        child: Text(
-                          c.title.isNotEmpty
-                              ? c.title[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      title: Text(
-                        c.title,
-                        style: TextStyle(
-                            color: context.textOnBg,
-                            fontWeight: FontWeight.w500),
-                      ),
-                      subtitle: Text(
-                        c.isPublished ? 'Publicada' : 'Borrador',
-                        style: TextStyle(
-                          color: c.isPublished
-                              ? AppColors.success
-                              : Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                      trailing: const Icon(Icons.chevron_right,
-                          color: Colors.grey),
-                    ))
-                .toList(),
-          ),
-        );
-      },
-    );
-  }
-}
-
 class _EmptyOrgsCta extends StatelessWidget {
   const _EmptyOrgsCta();
 
@@ -659,8 +585,7 @@ class _EmptyOrgsCta extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Crea la tuya para administrar clases, eventos, '
-            'profesores y entradas.',
+            'Crea la tuya para administrar clases, eventos, profesores y entradas.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey, fontSize: 13),
           ),

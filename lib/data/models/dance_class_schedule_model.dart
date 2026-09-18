@@ -17,22 +17,14 @@ class DanceClassScheduleModel {
 
   final String id;
   final String danceClassId;
-  final int dayOfWeek;
+  final int dayOfWeek; // 0 = Dom, 1 = Lun, 2 = Mar, ..., 6 = Sáb
   final String startTime;
   final String endTime;
   final String? instructorId;
   final String? instructorName;
-
-  /// Inicio de la recurrencia (opcional). Si es nulo, aplica desde el inicio
-  /// del período de la clase.
   final DateTime? startDate;
-
-  /// Fin de la recurrencia (opcional). Si es nulo, no tiene fecha de fin.
   final DateTime? endDate;
-
-  /// Ubicación propia del horario (heredada a sus sesiones).
   final Map<String, dynamic>? locationOverride;
-
   final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -45,24 +37,23 @@ class DanceClassScheduleModel {
         4 => 'Jueves',
         5 => 'Viernes',
         6 => 'Sábado',
-        _ => '',
+        _ => 'Día $dayOfWeek',
       };
 
   factory DanceClassScheduleModel.fromJson(Map<String, dynamic> json) {
-    final instructorProfile = json['profiles'] as Map<String, dynamic>?;
-    final firstName = instructorProfile?['first_name'] as String? ?? '';
-    final lastName = instructorProfile?['last_name'] as String? ?? '';
-    final fullName = '$firstName $lastName'.trim();
+    final instructor = json['profiles'] as Map<String, dynamic>?;
+    final fullName = instructor != null
+        ? '${instructor['first_name'] ?? ''} ${instructor['last_name'] ?? ''}'.trim()
+        : null;
 
     return DanceClassScheduleModel(
       id: json['id'] as String,
       danceClassId: json['dance_class_id'] as String,
-      dayOfWeek: json['day_of_week'] as int,
+      dayOfWeek: (json['day_of_week'] as num).toInt(),
       startTime: json['start_time'] as String,
       endTime: json['end_time'] as String,
       instructorId: json['instructor_id'] as String?,
-      instructorName: fullName.isNotEmpty ? fullName : null,
-      isActive: (json['is_active'] as bool?) ?? true,
+      instructorName: (fullName != null && fullName.isNotEmpty) ? fullName : null,
       startDate: json['start_date'] != null
           ? DateTime.tryParse(json['start_date'] as String)
           : null,
@@ -70,6 +61,7 @@ class DanceClassScheduleModel {
           ? DateTime.tryParse(json['end_date'] as String)
           : null,
       locationOverride: json['location_override'] as Map<String, dynamic>?,
+      isActive: (json['is_active'] as bool?) ?? true,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
           : null,
@@ -84,10 +76,10 @@ class DanceClassScheduleModel {
         'day_of_week': dayOfWeek,
         'start_time': startTime,
         'end_time': endTime,
-        'instructor_id': instructorId,
-        'start_date': startDate?.toIso8601String().split('T')[0],
-        'end_date': endDate?.toIso8601String().split('T')[0],
-        'location_override': locationOverride,
+        if (instructorId != null) 'instructor_id': instructorId,
+        if (startDate != null) 'start_date': startDate?.toIso8601String().split('T')[0],
+        if (endDate != null) 'end_date': endDate?.toIso8601String().split('T')[0],
+        if (locationOverride != null) 'location_override': locationOverride,
         'is_active': isActive,
       };
 }

@@ -1,17 +1,16 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/class_model.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
-import '../../calendar/widgets/column/timeline_scale.dart';
 import '../../classes/views/class_create_view.dart';
-import '../../classes/views/class_detail_view.dart';
+import 'schedule/schedule_day_column.dart';
+import 'schedule/schedule_header.dart';
+import 'schedule/schedule_hours_column.dart';
 
 class AcademyClassesView extends ConsumerStatefulWidget {
   const AcademyClassesView({super.key});
@@ -21,18 +20,15 @@ class AcademyClassesView extends ConsumerStatefulWidget {
 }
 
 class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
-  final ScrollController _verticalScroll = ScrollController();
   final ScrollController _horizontalScroll = ScrollController();
-  final ScrollController _headerScroll = ScrollController();
-  bool _syncingScroll = false;
+  final ScrollController _hoursVerticalScroll = ScrollController();
+  final ScrollController _gridVerticalScroll = ScrollController();
+  bool _syncingVertical = false;
   bool _isLandscape = false;
-  bool _fitToScreen = false;
 
-  static const double _timeColWidth = 62.0;
-  // Ancho generoso para permitir desplazamiento claro a la derecha en vertical
-  static const double _scrollColWidth = 145.0;
-  static const int _startHour = 15;
-  static const int _endHour = 23;
+  static const double _timeColWidth = 54.0;
+  static const double _minColWidth = 95.0;
+  static const double _slotHeight = 92.0;
 
   static const List<(int, String, String)> _daysOfWeek = [
     (1, 'LUN', 'LUNES'),
@@ -41,66 +37,70 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
     (4, 'JUE', 'JUEVES'),
     (5, 'VIE', 'VIERNES'),
     (6, 'SÁB', 'SÁBADO'),
-    (7, 'DOM', 'DOMINGO'),
+    (0, 'DOM', 'DOMINGO'),
   ];
 
   @override
   void initState() {
     super.initState();
-    _horizontalScroll.addListener(_syncFromGrid);
-    _headerScroll.addListener(_syncFromHeader);
+    _hoursVerticalScroll.addListener(_syncFromHours);
+    _gridVerticalScroll.addListener(_syncFromGrid);
+  }
+
+  void _syncFromHours() {
+    if (_syncingVertical) return;
+    _syncingVertical = true;
+    if (_hoursVerticalScroll.hasClients && _gridVerticalScroll.hasClients) {
+      if ((_hoursVerticalScroll.offset - _gridVerticalScroll.offset).abs() > 0.5) {
+        _gridVerticalScroll.jumpTo(_hoursVerticalScroll.offset);
+      }
+    }
+    _syncingVertical = false;
   }
 
   void _syncFromGrid() {
-    if (_syncingScroll) return;
-    _syncingScroll = true;
-    if (_horizontalScroll.hasClients && _headerScroll.hasClients) {
-      if ((_horizontalScroll.offset - _headerScroll.offset).abs() > 0.5) {
-        _headerScroll.jumpTo(_horizontalScroll.offset);
+    if (_syncingVertical) return;
+    _syncingVertical = true;
+    if (_hoursVerticalScroll.hasClients && _gridVerticalScroll.hasClients) {
+      if ((_gridVerticalScroll.offset - _hoursVerticalScroll.offset).abs() > 0.5) {
+        _hoursVerticalScroll.jumpTo(_gridVerticalScroll.offset);
       }
     }
-    _syncingScroll = false;
+    _syncingVertical = false;
   }
 
-  void _syncFromHeader() {
-    if (_syncingScroll) return;
-    _syncingScroll = true;
-    if (_horizontalScroll.hasClients && _headerScroll.hasClients) {
-      if ((_headerScroll.offset - _horizontalScroll.offset).abs() > 0.5) {
-        _horizontalScroll.jumpTo(_headerScroll.offset);
-      }
+  int _parseHour(String timeStr) {
+    try {
+      final clean = timeStr.trim().split(' ')[0].split('+')[0];
+      return int.parse(clean.split(':')[0]);
+    } catch (_) {
+      return 12;
     }
-    _syncingScroll = false;
   }
 
   void _toggleOrientation() {
     setState(() {
       _isLandscape = !_isLandscape;
-      if (_isLandscape) {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ]);
-      } else {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.portraitUp,
-        ]);
-      }
+      SystemChrome.setPreferredOrientations(
+        _isLandscape
+            ? [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]
+            : [DeviceOrientation.portraitUp],
+      );
     });
   }
 
   @override
   void dispose() {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    _verticalScroll.dispose();
     _horizontalScroll.dispose();
-    _headerScroll.dispose();
+    _hoursVerticalScroll.dispose();
+    _gridVerticalScroll.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final classesAsync = ref.watch(orgClassesProvider);
+    final scheduleEntriesAsync = ref.watch(orgWeeklyScheduleEntriesProvider);
     final myRole = ref.watch(myOrgRoleProvider);
     final canManage = myRole?.canManageClasses ?? false;
 
@@ -110,18 +110,10 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
         backgroundColor: const Color(0xFF141824),
         elevation: 0,
         title: const Text(
-          'Horario de Clases',
+          'Horario Semanal',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
-          IconButton(
-            tooltip: _fitToScreen ? 'Deslizar días (Scroll)' : 'Ajustar a pantalla',
-            icon: Icon(
-              _fitToScreen ? Icons.view_column_outlined : Icons.fit_screen_outlined,
-              color: _fitToScreen ? AppColors.primary : Colors.white70,
-            ),
-            onPressed: () => setState(() => _fitToScreen = !_fitToScreen),
-          ),
           IconButton(
             tooltip: _isLandscape ? 'Modo Vertical' : 'Rotar Horizontal',
             icon: Icon(
@@ -133,539 +125,256 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
           IconButton(
             tooltip: 'Refrescar',
             icon: const Icon(Icons.refresh, color: Colors.white70),
-            onPressed: () => ref.invalidate(orgClassesProvider),
+            onPressed: () {
+              ref.invalidate(orgClassesProvider);
+              ref.invalidate(orgWeeklyScheduleEntriesProvider);
+            },
           ),
         ],
       ),
-      body: classesAsync.when(
-        loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(
-          child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
-        ),
-        data: (classes) {
-          if (classes.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.school_outlined,
-                    size: 64,
-                    color: Colors.white.withValues(alpha: 0.2),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sin clases registradas',
-                    style: TextStyle(
-                      color: context.textOnBg,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Crea tu primera clase recurrente.',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  if (canManage) ...[
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ClassCreateView()),
+      body: SafeArea(
+        child: scheduleEntriesAsync.when(
+          loading: () => const LoadingIndicator(),
+          error: (e, _) => Center(
+            child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+          ),
+          data: (entries) {
+            if (entries.isEmpty) return _buildEmptyState(context, canManage);
+
+            final activeHoursList = entries
+                .map((e) => _parseHour(e.schedule.startTime))
+                .toSet()
+                .toList()
+              ..sort();
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                const headerHeight = 44.0;
+                final availableWidth = constraints.maxWidth - _timeColWidth;
+                final colWidth =
+                    (availableWidth / _daysOfWeek.length).clamp(_minColWidth, 180.0);
+                final totalDaysWidth = colWidth * _daysOfWeek.length;
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Columna fija de horas (con su propio controller vertical)
+                    SizedBox(
+                      width: _timeColWidth,
+                      child: Column(
+                        children: [
+                          Container(
+                            height: headerHeight,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF171B26),
+                              border: Border(
+                                right: BorderSide(color: Color(0xFF222738), width: 1.2),
+                                bottom: BorderSide(color: Color(0xFF222738), width: 1.2),
+                              ),
+                            ),
+                            child: const Text(
+                              'HORA',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              controller: _hoursVerticalScroll,
+                              physics: const ClampingScrollPhysics(),
+                              child: Column(
+                                children: List.generate(activeHoursList.length, (index) {
+                                  final hour = activeHoursList[index];
+                                  final isBigGap = index > 0 &&
+                                      (hour - activeHoursList[index - 1]) > 1;
+
+                                  return Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (isBigGap)
+                                        Container(
+                                          height: 24,
+                                          color: const Color(0xFF0C0E14),
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.more_horiz,
+                                              size: 14,
+                                              color: Colors.white.withValues(alpha: 0.25),
+                                            ),
+                                          ),
+                                        ),
+                                      SizedBox(
+                                        height: _slotHeight,
+                                        child: ScheduleHoursColumn(
+                                          hour: hour,
+                                          width: _timeColWidth,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Crear clase'),
-                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE85D04)),
+                    ),
+
+                    // Matriz de días (Cabecera + Contenido con su propio controller vertical)
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: _horizontalScroll,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: SizedBox(
+                          width: totalDaysWidth,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ScheduleHeader(
+                                colWidth: colWidth,
+                                daysOfWeek: _daysOfWeek,
+                                headerHeight: headerHeight,
+                              ),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  controller: _gridVerticalScroll,
+                                  physics: const ClampingScrollPhysics(),
+                                  child: Column(
+                                    children: List.generate(activeHoursList.length, (index) {
+                                      final hour = activeHoursList[index];
+                                      final isBigGap = index > 0 &&
+                                          (hour - activeHoursList[index - 1]) > 1;
+
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (isBigGap)
+                                            Container(
+                                              height: 24,
+                                              color: const Color(0xFF0C0E14),
+                                              child: Center(
+                                                child: Container(
+                                                  height: 1,
+                                                  margin: const EdgeInsets.symmetric(
+                                                      horizontal: 10),
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.05),
+                                                ),
+                                              ),
+                                            ),
+                                          Container(
+                                            height: _slotHeight,
+                                            decoration: const BoxDecoration(
+                                              border: Border(
+                                                bottom: BorderSide(
+                                                  color: Color(0xFF1C2130),
+                                                  width: 0.8,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: _daysOfWeek.map((dayDef) {
+                                                final dayInt = dayDef.$1;
+                                                return ScheduleDayColumn(
+                                                  dayOfWeek: dayInt,
+                                                  hour: hour,
+                                                  entries: entries,
+                                                  width: colWidth,
+                                                  onAddClass: canManage
+                                                      ? () async {
+                                                          await Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                              builder: (_) =>
+                                                                  const ClassCreateView(),
+                                                            ),
+                                                          );
+                                                          ref.invalidate(
+                                                              orgClassesProvider);
+                                                          ref.invalidate(
+                                                              orgWeeklyScheduleEntriesProvider);
+                                                        }
+                                                      : null,
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
-                ],
-              ),
+                );
+              },
             );
-          }
-
-          final scale = TimelineScale(
-            startHour: _startHour,
-            endHour: _endHour,
-            activeHours: {for (var h = _startHour; h < _endHour; h++) h},
-            availableHeight: 0,
-            activePxPerHour: 82.0,
-          );
-
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final availableGridWidth = constraints.maxWidth - _timeColWidth;
-              // Si está activo el fit, divide en la pantalla; sino usa ancho amplio para deslizar
-              final colWidth = _fitToScreen
-                  ? (availableGridWidth / _daysOfWeek.length).clamp(65.0, 300.0)
-                  : _scrollColWidth;
-              final totalGridWidth = colWidth * _daysOfWeek.length;
-
-              return Column(
-                children: [
-                  // ── Cabecera sincronizada con deslizamiento ──
-                  Container(
-                    height: 52,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF171B26),
-                      border: Border(
-                        bottom: BorderSide(color: Color(0xFF222738), width: 1.2),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: _timeColWidth,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              right: BorderSide(color: Color(0xFF222738), width: 1.2),
-                            ),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF202638),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.schedule, size: 11, color: Colors.white70),
-                                SizedBox(width: 3),
-                                Text(
-                                  'HORA',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            controller: _headerScroll,
-                            scrollDirection: Axis.horizontal,
-                            physics: _fitToScreen
-                                ? const NeverScrollableScrollPhysics()
-                                : const ClampingScrollPhysics(),
-                            child: SizedBox(
-                              width: totalGridWidth,
-                              child: Row(
-                                children: _daysOfWeek.map((d) {
-                                  return SizedBox(
-                                    width: colWidth,
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          d.$2,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 13,
-                                            letterSpacing: 0.6,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          d.$3,
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.45),
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 9,
-                                            letterSpacing: 0.8,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ── Grilla con scroll horizontal a la derecha y vertical ──
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _verticalScroll,
-                      physics: const BouncingScrollPhysics(),
-                      child: SizedBox(
-                        height: scale.totalHeight,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Columna de Horas laterales fijas
-                            SizedBox(
-                              width: _timeColWidth,
-                              child: _DarkTimelineLabels(scale: scale),
-                            ),
-                            // Columnas de días desplazables libremente hacia la derecha
-                            Expanded(
-                              child: SingleChildScrollView(
-                                controller: _horizontalScroll,
-                                scrollDirection: Axis.horizontal,
-                                physics: _fitToScreen
-                                    ? const NeverScrollableScrollPhysics()
-                                    : const BouncingScrollPhysics(),
-                                child: SizedBox(
-                                  width: totalGridWidth,
-                                  child: Row(
-                                    children: _daysOfWeek.map((dayDef) {
-                                      final weekday = dayDef.$1;
-                                      final dayClasses = classes.where((c) {
-                                        final start = c.startTime;
-                                        if (start == null) return false;
-                                        return start.weekday == weekday;
-                                      }).toList();
-
-                                      return SizedBox(
-                                        width: colWidth,
-                                        child: _DarkScheduleDayColumn(
-                                          weekday: weekday,
-                                          classes: dayClasses,
-                                          scale: scale,
-                                          onAddClass: canManage
-                                              ? (h) => Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (_) => const ClassCreateView(),
-                                                    ),
-                                                  )
-                                              : null,
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        },
+          },
+        ),
       ),
-      floatingActionButton: canManage
-          ? FloatingActionButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ClassCreateView()),
-              ),
+      floatingActionButton: (canManage && !_isLandscape)
+          ? FloatingActionButton.small(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ClassCreateView()),
+                );
+                ref.invalidate(orgClassesProvider);
+                ref.invalidate(orgWeeklyScheduleEntriesProvider);
+              },
               backgroundColor: const Color(0xFFE85D04),
-              child: const Icon(Icons.add, color: Colors.white),
+              child: const Icon(Icons.add, color: Colors.white, size: 20),
             )
           : null,
     );
   }
-}
 
-// ─────────────────────────────────────────────
-// ETIQUETAS DE HORA
-// ─────────────────────────────────────────────
-class _DarkTimelineLabels extends StatelessWidget {
-  const _DarkTimelineLabels({required this.scale});
-
-  final TimelineScale scale;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF141824),
-        border: Border(right: BorderSide(color: Color(0xFF222738), width: 1.2)),
-      ),
-      child: Stack(
-        children: List.generate(scale.totalHours + 1, (i) {
-          final hour = scale.startHour + i;
-          final top = scale.topAt(hour);
-          final isHighlighted = hour == 19;
-
-          return Positioned(
-            top: top + 4,
-            left: 0,
-            right: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${hour.toString().padLeft(2, '0')}:00',
-                  style: TextStyle(
-                    color: isHighlighted ? const Color(0xFFFF7A00) : Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  '${(hour + 1).toString().padLeft(2, '0')}:00',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (isHighlighted)
-                  Container(
-                    width: 5,
-                    height: 5,
-                    margin: const EdgeInsets.only(top: 3),
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFFF7A00),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// COLUMNA DEL DÍA
-// ─────────────────────────────────────────────
-class _DarkScheduleDayColumn extends StatelessWidget {
-  const _DarkScheduleDayColumn({
-    required this.weekday,
-    required this.classes,
-    required this.scale,
-    this.onAddClass,
-  });
-
-  final int weekday;
-  final List<ClassModel> classes;
-  final TimelineScale scale;
-  final void Function(int hour)? onAddClass;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Color(0xFF1E2333), width: 0.8)),
-      ),
-      child: Stack(
+  Widget _buildEmptyState(BuildContext context, bool canManage) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Espacios vacíos con botón '+'
-          ...List.generate(scale.totalHours, (i) {
-            final hour = scale.startHour + i;
-            final top = scale.topAt(hour);
-            final height = scale.pxPerHourAt(hour);
-
-            return Positioned(
-              top: top,
-              left: 0,
-              right: 0,
-              height: height,
-              child: Container(
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Color(0xFF1C2130), width: 0.7)),
-                ),
-                child: Center(
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.add,
-                      size: 16,
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                    onPressed: onAddClass != null ? () => onAddClass!(hour) : null,
-                  ),
-                ),
-              ),
-            );
-          }),
-
-          // Tarjetas de clases
-          ...classes.where((c) => c.startTime != null).map((cls) {
-            final start = cls.startTime!;
-            final end = cls.endTime ?? start.add(const Duration(hours: 1));
-
-            final startMin = start.hour * 60 + start.minute;
-            final endMin = end.hour * 60 + end.minute;
-
-            final top = scale.yForMinutes(startMin);
-            final height = math.max(scale.yForMinutes(endMin) - top, 72.0);
-
-            return Positioned(
-              top: top + 2,
-              left: 3,
-              right: 3,
-              height: height - 4,
-              child: _DarkClassCard(danceClass: cls),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// TARJETA DE CLASE
-// ─────────────────────────────────────────────
-class _DarkClassCard extends ConsumerWidget {
-  const _DarkClassCard({required this.danceClass});
-
-  final ClassModel danceClass;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final titleLower = danceClass.title.toLowerCase();
-    final bool isKizomba = titleLower.contains('kizomba') || titleLower.contains('urban');
-    final bool isFree = titleLower.contains('práctica') || titleLower.contains('pista');
-
-    final Color cardBg = isFree
-        ? const Color(0xFF161A26)
-        : isKizomba
-            ? const Color(0xFF133444)
-            : const Color(0xFF382319);
-
-    final Color badgeBg = isFree
-        ? Colors.transparent
-        : isKizomba
-            ? const Color(0xFF1EA7C7)
-            : const Color(0xFFE85D04);
-
-    final String categoryTag = isFree
-        ? 'PRÁCTICA LIBRE'
-        : isKizomba
-            ? 'KIZOMBA'
-            : (titleLower.contains('bachata') ? 'BACHATA' : 'SALSA');
-
-    final String instructor = danceClass.instructorName ?? 'Staff';
-
-    return GestureDetector(
-      onTap: () async {
-        ref.read(selectedClassIdProvider.notifier).select(danceClass.id);
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ClassDetailView()),
-        );
-        ref.invalidate(orgClassesProvider);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isFree ? const Color(0xFF262E42) : badgeBg.withValues(alpha: 0.35),
-            width: 1.1,
+          Icon(Icons.calendar_month_outlined,
+              size: 64, color: Colors.white.withValues(alpha: 0.2)),
+          const SizedBox(height: 16),
+          Text(
+            'Sin clases configuradas',
+            style: TextStyle(
+                color: context.textOnBg,
+                fontSize: 18,
+                fontWeight: FontWeight.w600),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+          const SizedBox(height: 8),
+          const Text('Define qué días y horas abre cada clase.',
+              style: TextStyle(color: Colors.grey, fontSize: 14)),
+          if (canManage) ...[
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ClassCreateView()),
+                );
+                ref.invalidate(orgClassesProvider);
+                ref.invalidate(orgWeeklyScheduleEntriesProvider);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Crear clase y definir días'),
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFE85D04)),
             ),
           ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!isFree)
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      categoryTag,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '75m',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              )
-            else
-              Text(
-                categoryTag,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 8,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            const SizedBox(height: 4),
-            Expanded(
-              child: Text(
-                danceClass.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  height: 1.12,
-                ),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    isFree ? 'Pista Abierta' : instructor,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.65),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (!isFree)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: const Text(
-                      'S1',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

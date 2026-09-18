@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/class_model.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
@@ -28,11 +27,12 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
   bool _isLandscape = false;
   bool _fitToScreen = false;
 
-  static const double _timeColWidth = 62.0;
-  static const double _defaultColWidth = 120.0;
-  static const int _startHour = 15;
+  static const double _timeColWidth = 58.0;
+  static const double _defaultColWidth = 145.0;
+  static const int _startHour = 7;
   static const int _endHour = 23;
 
+  // 1 = Lun ... 6 = Sáb, 0 = Dom (Postgres day_of_week)
   static const List<(int, String, String)> _daysOfWeek = [
     (1, 'LUN', 'LUNES'),
     (2, 'MAR', 'MARTES'),
@@ -40,7 +40,7 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
     (4, 'JUE', 'JUEVES'),
     (5, 'VIE', 'VIERNES'),
     (6, 'SÁB', 'SÁBADO'),
-    (7, 'DOM', 'DOMINGO'),
+    (0, 'DOM', 'DOMINGO'),
   ];
 
   @override
@@ -53,8 +53,8 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
   void _syncH() {
     if (_syncingScroll) return;
     _syncingScroll = true;
-    if ((_horizontalScroll.offset - _headerScroll.offset).abs() > 0.5) {
-      if (_horizontalScroll.hasClients && _headerScroll.hasClients) {
+    if (_horizontalScroll.hasClients && _headerScroll.hasClients) {
+      if ((_horizontalScroll.offset - _headerScroll.offset).abs() > 0.5) {
         _headerScroll.jumpTo(_horizontalScroll.offset);
       }
     }
@@ -88,7 +88,8 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
 
   @override
   Widget build(BuildContext context) {
-    final classesAsync = ref.watch(orgClassesProvider);
+    // Escucha el provider que une las clases con sus horarios semanales
+    final scheduleEntriesAsync = ref.watch(orgWeeklyScheduleEntriesProvider);
     final myRole = ref.watch(myOrgRoleProvider);
     final canManage = myRole?.canManageClasses ?? false;
 
@@ -121,15 +122,20 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
           IconButton(
             tooltip: 'Refrescar',
             icon: const Icon(Icons.refresh, color: Colors.white70),
-            onPressed: () => ref.invalidate(orgClassesProvider),
+            onPressed: () {
+              ref.invalidate(orgClassesProvider);
+              ref.invalidate(orgWeeklyScheduleEntriesProvider);
+            },
           ),
         ],
       ),
-      body: classesAsync.when(
+      body: scheduleEntriesAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
-        data: (classes) {
-          if (classes.isEmpty) {
+        error: (e, _) => Center(
+          child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+        ),
+        data: (entries) {
+          if (entries.isEmpty) {
             return _buildEmptyState(canManage);
           }
 
@@ -145,13 +151,13 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
             builder: (context, constraints) {
               final availableGridWidth = constraints.maxWidth - _timeColWidth;
               final colWidth = _fitToScreen
-                  ? (availableGridWidth / _daysOfWeek.length).clamp(70.0, 300.0)
+                  ? math.max(availableGridWidth / _daysOfWeek.length, 120.0)
                   : _defaultColWidth;
               final totalGridWidth = colWidth * _daysOfWeek.length;
 
               return Column(
                 children: [
-                  // ── Fila superior: Chip "HORA" + Cabecera de días ──
+                  // ── Cabecera: HORA + Días ──
                   Container(
                     height: 52,
                     decoration: const BoxDecoration(
@@ -164,7 +170,7 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                           width: _timeColWidth,
                           alignment: Alignment.center,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
                             decoration: BoxDecoration(
                               color: const Color(0xFF202638),
                               borderRadius: BorderRadius.circular(8),
@@ -172,13 +178,13 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.schedule, size: 11, color: Colors.white70),
+                                Icon(Icons.schedule, size: 10, color: Colors.white70),
                                 SizedBox(width: 3),
                                 Text(
                                   'HORA',
                                   style: TextStyle(
                                     color: Colors.white70,
-                                    fontSize: 9,
+                                    fontSize: 8.5,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.5,
                                   ),
@@ -191,7 +197,7 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                           child: SingleChildScrollView(
                             controller: _headerScroll,
                             scrollDirection: Axis.horizontal,
-                            physics: _fitToScreen ? const NeverScrollableScrollPhysics() : null,
+                            physics: const ClampingScrollPhysics(),
                             child: SizedBox(
                               width: totalGridWidth,
                               child: Row(
@@ -232,50 +238,51 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                     ),
                   ),
 
-                  // ── Grilla con horas laterales y tarjetas de clases ──
+                  // ── Grilla con Horas y Columnas de Clases ──
                   Expanded(
                     child: SingleChildScrollView(
                       controller: _verticalScroll,
+                      physics: const BouncingScrollPhysics(),
                       child: SizedBox(
                         height: scale.totalHeight,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Columna de Horas laterales
                             SizedBox(
                               width: _timeColWidth,
                               child: _DarkTimelineLabels(scale: scale),
                             ),
-                            // Columnas de días
                             Expanded(
                               child: SingleChildScrollView(
                                 controller: _horizontalScroll,
                                 scrollDirection: Axis.horizontal,
-                                physics: _fitToScreen ? const NeverScrollableScrollPhysics() : null,
+                                physics: const BouncingScrollPhysics(),
                                 child: SizedBox(
                                   width: totalGridWidth,
                                   child: Row(
                                     children: _daysOfWeek.map((dayDef) {
-                                      final weekday = dayDef.$1;
-                                      final dayClasses = classes.where((c) {
-                                        final start = c.startTime;
-                                        if (start == null) return false;
-                                        return start.weekday == weekday;
+                                      final dayInt = dayDef.$1;
+                                      final dayEntries = entries.where((e) {
+                                        return e.schedule.dayOfWeek == dayInt;
                                       }).toList();
 
                                       return SizedBox(
                                         width: colWidth,
                                         child: _DarkScheduleDayColumn(
-                                          weekday: weekday,
-                                          classes: dayClasses,
+                                          dayOfWeek: dayInt,
+                                          entries: dayEntries,
                                           scale: scale,
                                           onAddClass: canManage
-                                              ? (h) => Navigator.push(
+                                              ? (h) async {
+                                                  await Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
                                                       builder: (_) => const ClassCreateView(),
                                                     ),
-                                                  )
+                                                  );
+                                                  ref.invalidate(orgClassesProvider);
+                                                  ref.invalidate(orgWeeklyScheduleEntriesProvider);
+                                                }
                                               : null,
                                         ),
                                       );
@@ -297,10 +304,14 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
       ),
       floatingActionButton: canManage
           ? FloatingActionButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ClassCreateView()),
-              ),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ClassCreateView()),
+                );
+                ref.invalidate(orgClassesProvider);
+                ref.invalidate(orgWeeklyScheduleEntriesProvider);
+              },
               backgroundColor: const Color(0xFFE85D04),
               child: const Icon(Icons.add, color: Colors.white),
             )
@@ -327,10 +338,14 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
           if (canManage) ...[
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ClassCreateView()),
-              ),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ClassCreateView()),
+                );
+                ref.invalidate(orgClassesProvider);
+                ref.invalidate(orgWeeklyScheduleEntriesProvider);
+              },
               icon: const Icon(Icons.add),
               label: const Text('Crear Clase'),
               style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE85D04)),
@@ -342,9 +357,6 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
   }
 }
 
-// ─────────────────────────────────────────────
-// ETIQUETAS LATERALES DE HORAS CON PUNTO
-// ─────────────────────────────────────────────
 class _DarkTimelineLabels extends StatelessWidget {
   const _DarkTimelineLabels({required this.scale});
 
@@ -361,7 +373,7 @@ class _DarkTimelineLabels extends StatelessWidget {
         children: List.generate(scale.totalHours + 1, (i) {
           final hour = scale.startHour + i;
           final top = scale.topAt(hour);
-          final isHighlighted = hour == 19; // Horario destacado con punto naranja
+          final isHighlighted = hour == 19;
 
           return Positioned(
             top: top + 4,
@@ -405,21 +417,30 @@ class _DarkTimelineLabels extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// COLUMNA DE DÍA
-// ─────────────────────────────────────────────
 class _DarkScheduleDayColumn extends StatelessWidget {
   const _DarkScheduleDayColumn({
-    required this.weekday,
-    required this.classes,
+    required this.dayOfWeek,
+    required this.entries,
     required this.scale,
     this.onAddClass,
   });
 
-  final int weekday;
-  final List<ClassModel> classes;
+  final int dayOfWeek;
+  final List<OrgScheduleEntry> entries;
   final TimelineScale scale;
   final void Function(int hour)? onAddClass;
+
+  int _timeToMinutes(String rawTime) {
+    try {
+      final clean = rawTime.trim().split(' ')[0].split('+')[0];
+      final parts = clean.split(':');
+      final h = int.parse(parts[0]);
+      final m = parts.length > 1 ? int.parse(parts[1]) : 0;
+      return h * 60 + m;
+    } catch (_) {
+      return 0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -429,7 +450,6 @@ class _DarkScheduleDayColumn extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Líneas y botón '+' para espacios vacíos
           ...List.generate(scale.totalHours, (i) {
             final hour = scale.startHour + i;
             final top = scale.topAt(hour);
@@ -458,23 +478,21 @@ class _DarkScheduleDayColumn extends StatelessWidget {
             );
           }),
 
-          // Tarjetas de clases
-          ...classes.where((c) => c.startTime != null).map((cls) {
-            final start = cls.startTime!;
-            final end = cls.endTime ?? start.add(const Duration(hours: 1));
-
-            final startMin = start.hour * 60 + start.minute;
-            final endMin = end.hour * 60 + end.minute;
+          ...entries.map((entry) {
+            final s = entry.schedule;
+            final startMin = _timeToMinutes(s.startTime);
+            final endMin = _timeToMinutes(s.endTime);
 
             final top = scale.yForMinutes(startMin);
-            final height = math.max(scale.yForMinutes(endMin) - top, 72.0);
+            final bottom = scale.yForMinutes(endMin > startMin ? endMin : startMin + 60);
+            final height = math.max(bottom - top, 64.0);
 
             return Positioned(
               top: top + 2,
-              left: 3,
-              right: 3,
+              left: 2,
+              right: 2,
               height: height - 4,
-              child: _DarkClassCard(danceClass: cls),
+              child: _DarkClassCard(entry: entry),
             );
           }),
         ],
@@ -483,17 +501,16 @@ class _DarkScheduleDayColumn extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// TARJETA IDÉNTICA A LA IMAGEN
-// ─────────────────────────────────────────────
 class _DarkClassCard extends ConsumerWidget {
-  const _DarkClassCard({required this.danceClass});
+  const _DarkClassCard({required this.entry});
 
-  final ClassModel danceClass;
+  final OrgScheduleEntry entry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Determinar temática cromática según el título o categoría
+    final danceClass = entry.danceClass;
+    final schedule = entry.schedule;
+
     final titleLower = danceClass.title.toLowerCase();
     final bool isKizomba = titleLower.contains('kizomba') || titleLower.contains('urban');
     final bool isFree = titleLower.contains('práctica') || titleLower.contains('pista');
@@ -511,12 +528,21 @@ class _DarkClassCard extends ConsumerWidget {
             : const Color(0xFFE85D04);
 
     final String categoryTag = isFree
-        ? 'PRÁCTICA LIBRE'
+        ? 'PRÁCTICA'
         : isKizomba
             ? 'KIZOMBA'
             : (titleLower.contains('bachata') ? 'BACHATA' : 'SALSA');
 
-    final String instructor = danceClass.instructorName ?? 'Staff';
+    final instructor = schedule.instructorName ?? danceClass.instructorName ?? 'Profesor';
+
+    int durationMin = 60;
+    try {
+      final sParts = schedule.startTime.split(':');
+      final eParts = schedule.endTime.split(':');
+      final sM = int.parse(sParts[0]) * 60 + int.parse(sParts[1]);
+      final eM = int.parse(eParts[0]) * 60 + int.parse(eParts[1]);
+      if (eM > sM) durationMin = eM - sM;
+    } catch (_) {}
 
     return GestureDetector(
       onTap: () async {
@@ -526,74 +552,62 @@ class _DarkClassCard extends ConsumerWidget {
           MaterialPageRoute(builder: (_) => const ClassDetailView()),
         );
         ref.invalidate(orgClassesProvider);
+        ref.invalidate(orgWeeklyScheduleEntriesProvider);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         decoration: BoxDecoration(
           color: cardBg,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isFree
-                ? const Color(0xFF262E42)
-                : badgeBg.withValues(alpha: 0.35),
+            color: isFree ? const Color(0xFF262E42) : badgeBg.withValues(alpha: 0.35),
             width: 1.1,
           ),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Fila de Tags (Ej: SALSA | 75m) ──
-            if (!isFree)
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+            Row(
+              children: [
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: badgeBg,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       categoryTag,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 8,
+                        fontSize: 7.5,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 0.4,
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    '75m',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              )
-            else
-              Text(
-                categoryTag,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 8,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
                 ),
-              ),
-
-            const SizedBox(height: 4),
-
-            // ── Título del estilo / Nivel ──
+                const SizedBox(width: 4),
+                Text(
+                  '${durationMin}m',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 7.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
             Expanded(
               child: Text(
                 danceClass.title,
@@ -601,45 +615,36 @@ class _DarkClassCard extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w800,
-                  height: 1.12,
+                  height: 1.1,
                 ),
               ),
             ),
-
-            // ── Profesor / Sala / Pista ──
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
-                    isFree ? 'Pista Abierta' : instructor,
+                    instructor,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.65),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 8.5,
                     ),
                   ),
                 ),
-                if (!isFree)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: Text(
-                      'S1',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
+                if (danceClass.price > 0) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    '${danceClass.price.toInt()} BOB',
+                    style: const TextStyle(
+                      color: Color(0xFFE85D04),
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
+                ],
               ],
             ),
           ],

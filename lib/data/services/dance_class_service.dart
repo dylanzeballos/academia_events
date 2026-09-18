@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config/supabase_config.dart';
@@ -25,14 +26,14 @@ class DanceClassService {
             status, capacity, price, currency,
             start_at, end_at, timezone,
             instructor_id,
-            profiles!instructor_id(first_name, last_name)
+            profiles:instructor_id(first_name, last_name)
           ''')
           .eq('organization_id', organizationId)
           .order('created_at', ascending: false);
 
       if (rows.isEmpty) return rows;
 
-      // Conteo real de inscritos (pending/approved/active) por clase.
+      // Conteo de inscritos por clase
       final classIds = rows.map((c) => c['id'] as String).toList();
       final enrollments = await supabase
           .from('class_enrollments')
@@ -50,7 +51,8 @@ class DanceClassService {
         for (final row in rows)
           {...row, 'enrolled_count': countByClass[row['id']] ?? 0},
       ];
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchOrganizationClasses Error]: $e\n$st');
       return [];
     }
   }
@@ -65,11 +67,12 @@ class DanceClassService {
             status, capacity, price, currency,
             start_at, end_at, timezone,
             instructor_id,
-            profiles!instructor_id(first_name, last_name)
+            profiles:instructor_id(first_name, last_name)
           ''')
           .eq('id', classId)
           .maybeSingle();
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchClass Error]: $e\n$st');
       return null;
     }
   }
@@ -82,7 +85,11 @@ class DanceClassService {
           .select()
           .single();
     } on PostgrestException catch (e) {
+      debugPrint('❌ [SERVICE createClass PostgrestException]: ${e.message}');
       throw DanceClassException(_friendlyError(e.message));
+    } catch (e) {
+      debugPrint('❌ [SERVICE createClass Error]: $e');
+      rethrow;
     }
   }
 
@@ -103,7 +110,7 @@ class DanceClassService {
   Future<List<Map<String, dynamic>>> fetchClassSchedules(
       String classId) async {
     try {
-      return await supabase
+      final rows = await supabase
           .from('dance_class_schedules')
           .select('''
             id, dance_class_id, day_of_week,
@@ -112,11 +119,14 @@ class DanceClassService {
             start_date, end_date,
             location_override, is_active,
             created_at, updated_at,
-            profiles!instructor_id(first_name, last_name)
+            profiles:instructor_id(first_name, last_name)
           ''')
           .eq('dance_class_id', classId)
           .order('day_of_week');
-    } catch (e) {
+
+      return (rows as List).cast<Map<String, dynamic>>();
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchClassSchedules Error]: $e\n$st');
       return [];
     }
   }
@@ -129,10 +139,14 @@ class DanceClassService {
           .select()
           .single();
     } on PostgrestException catch (e) {
+      debugPrint('❌ [SERVICE createSchedule PostgrestException]: ${e.message}');
       if (e.code == '23505') {
         throw const DanceClassException('Ya existe un horario para ese día.');
       }
       throw DanceClassException(_friendlyError(e.message));
+    } catch (e) {
+      debugPrint('❌ [SERVICE createSchedule Error]: $e');
+      rethrow;
     }
   }
 
@@ -161,7 +175,8 @@ class DanceClassService {
           .select('*')
           .eq('dance_class_id', classId)
           .order('session_date', ascending: false);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchClassSessions Error]: $e\n$st');
       return [];
     }
   }
@@ -177,7 +192,8 @@ class DanceClassService {
           .gte('session_date', DateTime.now().toIso8601String().split('T')[0])
           .order('session_date')
           .limit(10);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchUpcomingSessions Error]: $e\n$st');
       return [];
     }
   }
@@ -246,12 +262,6 @@ class DanceClassService {
 
   // ─── Sessions generation ─────────────────────────
 
-  /// Genera las sesiones de una clase dentro del rango [startDate]..[endDate].
-  ///
-  /// Cada horario activo respeta su PROPIO rango (start_date/end_date): si el
-  /// schedule define fechas, se acotan las sesiones a ese rango; si no, se usa
-  /// el rango de la llamada como fallback. La ubicación del schedule se hereda
-  /// a sus sesiones (location_override).
   Future<void> generateSessions({
     required String classId,
     required DateTime startDate,
@@ -280,7 +290,6 @@ class DanceClassService {
       final endHour = int.parse(endParts[0]);
       final endMinute = int.parse(endParts[1]);
 
-      // Rango propio del schedule (si define fechas, se respeta).
       DateTime rangeStart = startDate;
       DateTime rangeEnd = endDate;
       if (schedule['start_date'] != null) {
@@ -296,7 +305,6 @@ class DanceClassService {
       var current = DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
       final effectiveEnd = DateTime(rangeEnd.year, rangeEnd.month, rangeEnd.day);
       while (!current.isAfter(effectiveEnd)) {
-        // day_of_week: 0=domingo, pero weekday: 1=lunes..7=domingo.
         final scheduleWeekday = dayOfWeek == 0 ? 7 : dayOfWeek;
         if (current.weekday == scheduleWeekday) {
           final sessionStart = DateTime(
@@ -321,7 +329,7 @@ class DanceClassService {
             'start_at': sessionStart.toIso8601String(),
             'end_at': sessionEnd.toIso8601String(),
             'status': 'scheduled',
-            'location_override': ?locationOverride,
+            'location_override': locationOverride,
           });
         }
         current = current.add(const Duration(days: 1));
@@ -330,7 +338,6 @@ class DanceClassService {
 
     if (sessions.isEmpty) return;
 
-    // Evitar duplicados: no reintentar (schedule_id, session_date) ya presentes.
     final existingRows = await supabase
         .from('dance_class_sessions')
         .select('schedule_id, session_date')
@@ -347,8 +354,6 @@ class DanceClassService {
     }
   }
 
-  /// Vacía las sesiones futuras (>= hoy) de un horario, para poder regenerarlas
-  /// sin duplicados al editar el horario o su rango.
   Future<void> clearUpcomingSessionsForSchedule(String scheduleId) async {
     final today = DateTime.now().toIso8601String().split('T')[0];
     await supabase
@@ -379,16 +384,20 @@ class DanceClassService {
       final now = DateTime.now();
       final today = now.toIso8601String().split('T')[0];
 
-      final sessionsResult = await supabase
-          .from('dance_class_sessions')
-          .select('id, status')
-          .inFilter(
-              'dance_class_id', classesResult.map((c) => c['id'] as String).toList())
-          .gte('session_date', today);
+      final classIds = classesResult.map((c) => c['id'] as String).toList();
+      int upcomingSessions = 0;
 
-      final upcomingSessions = sessionsResult
-          .where((s) => s['status'] == 'scheduled')
-          .length;
+      if (classIds.isNotEmpty) {
+        final sessionsResult = await supabase
+            .from('dance_class_sessions')
+            .select('id, status')
+            .inFilter('dance_class_id', classIds)
+            .gte('session_date', today);
+
+        upcomingSessions = sessionsResult
+            .where((s) => s['status'] == 'scheduled')
+            .length;
+      }
 
       final membersResult = await supabase
           .from('organization_members')
@@ -402,7 +411,8 @@ class DanceClassService {
         'upcomingSessions': upcomingSessions,
         'totalMembers': membersResult.length,
       };
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchOrgStats Error]: $e\n$st');
       return {
         'totalClasses': 0,
         'activeClasses': 0,
@@ -427,7 +437,8 @@ class DanceClassService {
           .eq('role', 'instructor')
           .eq('is_active', true)
           .order('created_at');
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchOrgInstructors Error]: $e\n$st');
       return [];
     }
   }
