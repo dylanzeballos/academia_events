@@ -6,8 +6,9 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_member_model.dart';
 import '../../../../data/repositories/organization_repository.dart';
+import '../../../../providers/dance_class_provider.dart';
 import '../../../../providers/organization_provider.dart';
-import '../../../organization/views/organization_detail_view.dart';
+import '../../../classes/views/class_create_view.dart';
 
 class DashboardQuickActions extends ConsumerWidget {
   const DashboardQuickActions({super.key, required this.canManage});
@@ -16,72 +17,57 @@ class DashboardQuickActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!canManage) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _QuickActionCard(
-          icon: Icons.qr_code_scanner,
-          label: 'Check-in de entradas (QR)',
-          onTap: () => context.push(AppRoutes.academyCheckin),
+        Text(
+          'Creación rápida',
+          style: TextStyle(
+            color: context.textOnBg,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        if (canManage) ...[
-          const SizedBox(height: 24),
-          Text(
-            'Acciones rápidas',
-            style: TextStyle(
-              color: context.textOnBg,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            // 1. Crear Clase (Acción directa)
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.add_circle_outline,
+                label: 'Nueva\nclase',
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ClassCreateView()),
+                  );
+                  ref.invalidate(orgClassesProvider);
+                  ref.invalidate(orgWeeklyScheduleEntriesProvider);
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.person_add_outlined,
-                  label: 'Invitar\nmiembro',
-                  onTap: () => _showInviteDialog(context, ref),
-                ),
+            const SizedBox(width: 12),
+            // 2. Crear Evento
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.celebration_outlined,
+                label: 'Nuevo\nevento',
+                onTap: () => context.push(AppRoutes.eventCreate),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.list_alt_outlined,
-                  label: 'Ver\nmiembros',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const OrganizationDetailView(),
-                      ),
-                    );
-                  },
-                ),
+            ),
+            const SizedBox(width: 12),
+            // 3. Invitar persona
+            Expanded(
+              child: _QuickActionCard(
+                icon: Icons.person_add_alt_1_outlined,
+                label: 'Invitar\nstaff',
+                onTap: () => _showInviteDialog(context, ref),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.add_box_outlined,
-                  label: 'Crear\nevento',
-                  onTap: () => context.push(AppRoutes.eventCreate),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.calendar_month_outlined,
-                  label: 'Gestionar\nhorario',
-                  onTap: () => context.go(AppRoutes.academyClasses),
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -96,7 +82,7 @@ class DashboardQuickActions extends ConsumerWidget {
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: context.cardBg,
           title: Text(
-            'Invitar miembro',
+            'Invitar miembro al equipo',
             style: TextStyle(color: context.textOnBg),
           ),
           content: Column(
@@ -107,7 +93,7 @@ class DashboardQuickActions extends ConsumerWidget {
                 keyboardType: TextInputType.emailAddress,
                 style: TextStyle(color: context.textOnBg),
                 decoration: const InputDecoration(
-                  labelText: 'Email del invitado',
+                  labelText: 'Correo electrónico',
                   hintText: 'correo@ejemplo.com',
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
@@ -118,7 +104,7 @@ class DashboardQuickActions extends ConsumerWidget {
                 dropdownColor: context.cardBg,
                 style: TextStyle(color: context.textOnBg),
                 decoration: const InputDecoration(
-                  labelText: 'Rol',
+                  labelText: 'Rol asignado',
                   prefixIcon: Icon(Icons.work_outline),
                 ),
                 items: MemberRole.values
@@ -131,11 +117,6 @@ class DashboardQuickActions extends ConsumerWidget {
                 onChanged: (v) {
                   if (v != null) setDialogState(() => selectedRole = v);
                 },
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Recibirán una invitación en la plataforma.',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ],
           ),
@@ -214,18 +195,19 @@ class _QuickActionCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           child: Column(
             children: [
-              Icon(icon, color: AppColors.primary, size: 28),
-              const SizedBox(height: 8),
+              Icon(icon, color: AppColors.primary, size: 26),
+              const SizedBox(height: 6),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: context.textOnBg,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
                 ),
               ),
             ],

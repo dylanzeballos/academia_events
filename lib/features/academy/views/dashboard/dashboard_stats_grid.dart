@@ -16,21 +16,23 @@ class DashboardStatsGrid extends StatelessWidget {
       children: [
         Row(
           children: [
+            // 1. Total de Clases registradas
             Expanded(
               child: _InteractiveStatCard(
                 icon: Icons.school_outlined,
-                label: 'Clases',
+                label: 'Clases totales',
                 value: '${stats['totalClasses'] ?? 0}',
                 color: AppColors.primary,
                 onTap: () => context.go(AppRoutes.academyClasses),
               ),
             ),
             const SizedBox(width: 12),
+            // 2. Sesiones programadas en la semana
             Expanded(
               child: _InteractiveStatCard(
-                icon: Icons.calendar_today,
-                label: 'Próximas',
-                value: '${stats['upcomingSessions'] ?? 0}',
+                icon: Icons.calendar_month_outlined,
+                label: 'Horarios activos',
+                value: '${stats['upcomingSessions'] ?? stats['activeClasses'] ?? 0}',
                 color: AppColors.secondary,
                 onTap: () => context.go(AppRoutes.academyClasses),
               ),
@@ -40,20 +42,22 @@ class DashboardStatsGrid extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
+            // 3. Check-ins / Asistencias
             Expanded(
               child: _InteractiveStatCard(
-                icon: Icons.check_circle_outline,
-                label: 'Activas',
-                value: '${stats['activeClasses'] ?? 0}',
+                icon: Icons.qr_code_scanner_outlined,
+                label: 'Check-in escáner',
+                value: 'QR',
                 color: AppColors.success,
-                onTap: () => context.go(AppRoutes.academyClasses),
+                onTap: () => context.push(AppRoutes.academyCheckin),
               ),
             ),
             const SizedBox(width: 12),
+            // 4. Directorio de Miembros y Staff
             Expanded(
               child: _InteractiveStatCard(
                 icon: Icons.people_outline,
-                label: 'Miembros',
+                label: 'Equipo / Miembros',
                 value: '${stats['totalMembers'] ?? 0}',
                 color: AppColors.warning,
                 onTap: () {
@@ -121,8 +125,8 @@ class _InteractiveStatCard extends StatelessWidget {
                   ),
                   Icon(
                     Icons.arrow_forward_ios_rounded,
-                    size: 13,
-                    color: Colors.white.withValues(alpha: 0.35),
+                    size: 12,
+                    color: Colors.white.withValues(alpha: 0.3),
                   ),
                 ],
               ),
@@ -131,7 +135,7 @@ class _InteractiveStatCard extends StatelessWidget {
                 value,
                 style: TextStyle(
                   color: context.textOnBg,
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -0.5,
                 ),
@@ -139,6 +143,8 @@ class _InteractiveStatCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.55),
                   fontSize: 12,
