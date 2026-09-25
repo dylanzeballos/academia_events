@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
@@ -110,9 +111,14 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
     final myRole = ref.watch(myOrgRoleProvider);
     final canManage = myRole?.canManageClasses ?? false;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F121A),
-      appBar: AppBar(
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (_, _) {
+        if (mounted) context.go(AppRoutes.academyDashboard);
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0F121A),
+        appBar: AppBar(
         backgroundColor: const Color(0xFF141824),
         elevation: 0,
         title: const Text(
@@ -138,8 +144,8 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: scheduleEntriesAsync.when(
+        body: SafeArea(
+          child: scheduleEntriesAsync.when(
           loading: () => const LoadingIndicator(),
           error: (e, _) => Center(
             child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
@@ -369,7 +375,8 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
               child: const Icon(Icons.add, color: Colors.white, size: 20),
             )
           : null,
-    );
+          ),
+            );
   }
 
   Widget _buildEmptyState(BuildContext context, bool canManage) {

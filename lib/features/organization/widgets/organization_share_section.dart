@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,9 +9,14 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/organization_model.dart';
 
 class OrganizationShareSection extends StatelessWidget {
-  const OrganizationShareSection({super.key, required this.organization});
+  const OrganizationShareSection({
+    super.key,
+    required this.organization,
+    this.compact = false,
+  });
 
   final OrganizationModel organization;
+  final bool compact;
 
   String get _publicUrl {
     final publicPath =
@@ -40,8 +46,226 @@ class OrganizationShareSection extends StatelessWidget {
     }
   }
 
+  Future<void> _copyLink(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: _publicUrl));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enlace copiado')),
+      );
+    }
+  }
+
+  Future<void> _showQrDialog(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'QR de la academia',
+                      style: TextStyle(
+                        color: Color(0xFF111827),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Cerrar',
+                    onPressed: () => Navigator.pop(sheetContext),
+                    icon: const Icon(Icons.close, color: Color(0xFF111827)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              RepaintBoundary(
+                child: SizedBox(
+                  width: 250,
+                  height: 250,
+                  child: QrImageView(
+                    data: _qrValue,
+                    size: 250,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _publicUrl,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF4B5563),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () => _copyLink(sheetContext),
+                icon: const Icon(Icons.copy_outlined),
+                label: const Text('Copiar enlace'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompact(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF151B2A),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF29344A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.link, color: Color(0xFF38BDF8), size: 17),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'ENLACE ÚNICO DE LA ACADEMIA',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7A3F2D),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'PERFIL OFICIAL',
+                  style: TextStyle(
+                    color: Color(0xFFFFC09D),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 48,
+            padding: const EdgeInsets.only(left: 12, right: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E1421),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF29344A)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.public, color: Colors.white70, size: 17),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _publicUrl,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Copiar enlace',
+                  onPressed: () => _copyLink(context),
+                  icon: const Icon(Icons.copy_outlined, size: 18),
+                  color: const Color(0xFF38BDF8),
+                ),
+                IconButton(
+                  tooltip: 'Mostrar QR',
+                  onPressed: () => _showQrDialog(context),
+                  icon: const Icon(Icons.qr_code_2, size: 20),
+                  color: Colors.white70,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text(
+                'Compartir vía:',
+                style: TextStyle(color: Color(0xFFE5B9A4), fontSize: 12),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _sharePill(
+                  context,
+                  icon: Icons.chat_outlined,
+                  label: 'WhatsApp',
+                  onTap: () => _shareOnWhatsApp(context),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _sharePill(
+                  context,
+                  icon: Icons.share_outlined,
+                  label: 'Más',
+                  onTap: () => _share(context),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sharePill(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16, color: Colors.white70),
+      label: Text(
+        label,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: Colors.white70, fontSize: 12),
+      ),
+      style: TextButton.styleFrom(
+        backgroundColor: const Color(0xFF1B2334),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (compact) return _buildCompact(context);
+
     return Card(
       color: context.cardBg,
       elevation: 0,

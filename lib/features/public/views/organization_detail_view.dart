@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/models/organization_model.dart';
 import '../../../../data/models/organization_image_model.dart';
 import '../../../../providers/organization_provider.dart';
+import '../../organization/widgets/organization_share_section.dart';
 import './details/org_gallery_section.dart';
 import './details/org_hero_header.dart';
 import './details/org_location_section.dart';
@@ -128,6 +129,14 @@ class _PublicOrganizationDetailViewState
               whatsappNumber: phone,
               onShare: () {},
             ),
+
+            if (org != null) ...[
+              const SizedBox(height: 16),
+              OrganizationShareSection(
+                organization: org,
+                compact: true,
+              ),
+            ],
 
             const SizedBox(height: 16),
 

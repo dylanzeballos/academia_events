@@ -78,17 +78,7 @@ class EventBasicInfoForm extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                controller: capacityController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Aforo Total',
-                  hintText: 'Ej. 150',
-                ),
-              ),
-            ),
+           
           ],
         ),
       ],
