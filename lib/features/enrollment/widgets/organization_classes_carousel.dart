@@ -6,6 +6,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/organization_with_classes.dart';
 import '../../../providers/class_enrollment_provider.dart';
+import '../../../shared/widgets/fullscreen_image_viewer.dart';
 
 /// Carrusel de organizaciones que tienen clases publicadas. Al tocar una
 /// organización se navega a la experiencia de explorar sus clases.
@@ -21,8 +22,7 @@ class OrganizationClassesCarousel extends ConsumerStatefulWidget {
 
 class _OrganizationClassesCarouselState
     extends ConsumerState<OrganizationClassesCarousel> {
-  final PageController _pageController =
-      PageController(viewportFraction: 0.55);
+  final PageController _pageController = PageController(viewportFraction: 0.55);
   int _currentPage = 0;
 
   @override
@@ -128,54 +128,70 @@ class _OrgCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ClipOval(
-              child: (organization.logoUrl != null &&
-                      organization.logoUrl!.isNotEmpty)
-                  ? CachedNetworkImage(
-                      imageUrl: organization.logoUrl!,
-                      fit: BoxFit.cover,
-                      width: 36,
-                      height: 36,
-                      placeholder: (_, _) => Container(
-                        width: 36,
-                        height: 36,
-                        color: context.divider.withValues(alpha: 0.3),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      ),
-                      errorWidget: (_, _, _) => Container(
-                        width: 36,
-                        height: 36,
-                        color: context.divider.withValues(alpha: 0.3),
-                        child: Icon(
-                          Icons.business_outlined,
-                          color: AppColors.primary,
-                          size: 18,
-                        ),
-                      ),
-                    )
-                  : Container(
-                      width: 36,
-                      height: 36,
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      child: Center(
-                        child: Text(
-                          organization.name.isNotEmpty
-                              ? organization.name[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+            GestureDetector(
+              onTap:
+                  organization.logoUrl == null || organization.logoUrl!.isEmpty
+                  ? null
+                  : () => FullscreenImageViewer.show(
+                      context,
+                      organization.logoUrl!,
+                      tag: 'classes-org-logo-${organization.id}',
                     ),
+              child: Hero(
+                tag: 'classes-org-logo-${organization.id}',
+                child: ClipOval(
+                  child:
+                      (organization.logoUrl != null &&
+                          organization.logoUrl!.isNotEmpty)
+                      ? CachedNetworkImage(
+                          imageUrl: organization.logoUrl!,
+                          fit: BoxFit.cover,
+                          width: 36,
+                          height: 36,
+                          placeholder: (_, _) => Container(
+                            width: 36,
+                            height: 36,
+                            color: context.divider.withValues(alpha: 0.3),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (_, _, _) => Container(
+                            width: 36,
+                            height: 36,
+                            color: context.divider.withValues(alpha: 0.3),
+                            child: Icon(
+                              Icons.business_outlined,
+                              color: AppColors.primary,
+                              size: 18,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 36,
+                          height: 36,
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          child: Center(
+                            child: Text(
+                              organization.name.isNotEmpty
+                                  ? organization.name[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
             ),
             const SizedBox(height: 4),
             Padding(

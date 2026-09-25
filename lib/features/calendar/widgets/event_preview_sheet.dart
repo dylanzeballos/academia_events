@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/event_model.dart';
+import '../../../../providers/organization_provider.dart';
 import '../../../shared/widgets/fullscreen_image_viewer.dart';
 
 /// Vista previa del evento al tocar su bloque en el calendario
@@ -24,15 +26,18 @@ class EventPreviewSheet {
   }
 }
 
-class _PreviewContent extends StatelessWidget {
+class _PreviewContent extends ConsumerWidget {
   const _PreviewContent({required this.event, required this.color});
 
   final EventModel event;
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = event.location;
+    final organizationLogo = ref
+        .watch(orgLogoUrlProvider(event.organizationLogoUrl))
+        .whenOrNull(data: (url) => url);
     final duration = DateFormatter.durationMinutes(
       event.startTime,
       event.endTime,
@@ -96,12 +101,38 @@ class _PreviewContent extends StatelessWidget {
                   ),
                   if (event.organizationName.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      '${event.organizationName} · ${_durationLabel(duration)}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                      ),
+                    Row(
+                      children: [
+                        if (organizationLogo != null)
+                          GestureDetector(
+                            onTap: () => FullscreenImageViewer.show(
+                              context,
+                              organizationLogo,
+                              tag: 'calendar-org-logo-${event.id}',
+                            ),
+                            child: Hero(
+                              tag: 'calendar-org-logo-${event.id}',
+                              child: CircleAvatar(
+                                radius: 14,
+                                backgroundImage:
+                                    NetworkImage(organizationLogo),
+                              ),
+                            ),
+                          )
+                        else
+                          const Icon(Icons.apartment,
+                              size: 16, color: Colors.white70),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            '${event.organizationName} · ${_durationLabel(duration)}',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],

@@ -6,6 +6,7 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/fullscreen_image_viewer.dart';
 import 'organization_create_view.dart';
 import 'organization_detail_view.dart';
 
@@ -121,7 +122,17 @@ class _OrganizationCard extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              CircleAvatar(
+              GestureDetector(
+                onTap: resolvedLogo == null
+                    ? null
+                    : () => FullscreenImageViewer.show(
+                          context,
+                          resolvedLogo,
+                          tag: 'organization-list-logo-$name',
+                        ),
+                child: Hero(
+                  tag: 'organization-list-logo-$name',
+                  child: CircleAvatar(
                 radius: 28,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 backgroundImage:
@@ -136,6 +147,8 @@ class _OrganizationCard extends ConsumerWidget {
                         ),
                       )
                     : null,
+                  ),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(

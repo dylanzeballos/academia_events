@@ -53,6 +53,12 @@ final selectedOrganizationProvider = FutureProvider<OrganizationModel?>((ref) {
   return repo.fetchOrganization(orgId);
 });
 
+final publicOrganizationProvider =
+    FutureProvider.family<OrganizationModel?, String>((ref, orgId) {
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.fetchOrganization(orgId);
+});
+
 final organizationImagesProvider =
     FutureProvider.family<List<OrganizationImageModel>, String>(
   (ref, orgId) {

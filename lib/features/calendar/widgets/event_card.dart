@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/event_model.dart';
+import '../../../../providers/organization_provider.dart';
+import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 
 /// Bloque de evento para el timeline.
 ///
@@ -46,14 +49,18 @@ class EventCard extends StatelessWidget {
   }
 }
 
-class _FullContent extends StatelessWidget {
+class _FullContent extends ConsumerWidget {
   const _FullContent({required this.event, required this.color});
 
   final EventModel event;
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final logoUrl = ref
+        .watch(orgLogoUrlProvider(event.organizationLogoUrl))
+        .whenOrNull(data: (url) => url);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 6, 8, 6),
       child: Row(
@@ -94,7 +101,24 @@ class _FullContent extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      Icon(Icons.apartment, size: 13, color: Colors.white70),
+                      if (logoUrl != null)
+                        GestureDetector(
+                          onTap: () => FullscreenImageViewer.show(
+                            context,
+                            logoUrl,
+                            tag: 'calendar-card-org-logo-${event.id}',
+                          ),
+                          child: Hero(
+                            tag: 'calendar-card-org-logo-${event.id}',
+                            child: CircleAvatar(
+                              radius: 9,
+                              backgroundImage: NetworkImage(logoUrl),
+                            ),
+                          ),
+                        )
+                      else
+                        const Icon(Icons.apartment,
+                            size: 13, color: Colors.white70),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -135,14 +159,14 @@ class _FullContent extends StatelessWidget {
   }
 }
 
-class _ShortContent extends StatelessWidget {
+class _ShortContent extends ConsumerWidget {
   const _ShortContent({required this.event, required this.color});
 
   final EventModel event;
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final durationMin =
         DateFormatter.durationMinutes(event.startTime, event.endTime);
     final isVeryShort = durationMin < 20;

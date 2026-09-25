@@ -258,28 +258,40 @@ class _PublicEventDetailBody extends ConsumerWidget {
                     ),
                     if (event.organizationLogoUrl != null &&
                         event.organizationLogoUrl!.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(left: 12),
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: context.divider),
+                      GestureDetector(
+                        onTap: () => FullscreenImageViewer.show(
+                          context,
+                          event.organizationLogoUrl!,
+                          tag: 'public-event-org-logo-${event.id}',
                         ),
-                        child: ClipOval(
-                          child: CachedNetworkImage(
-                            imageUrl: event.organizationLogoUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, _) => Container(
-                              color: context.divider.withValues(alpha: 0.3),
-                              child: const Center(
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
+                        child: Hero(
+                          tag: 'public-event-org-logo-${event.id}',
+                          child: Container(
+                            margin: const EdgeInsets.only(left: 12),
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: context.divider),
                             ),
-                            errorWidget: (_, _, _) => Icon(
-                              Icons.business_outlined,
-                              color: AppColors.primary,
-                              size: 20,
+                            child: ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: event.organizationLogoUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (_, _) => Container(
+                                  color: context.divider.withValues(alpha: 0.3),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (_, _, _) => Icon(
+                                  Icons.business_outlined,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -542,15 +554,33 @@ class _PublicEventDetailBody extends ConsumerWidget {
                   const Divider(),
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                        backgroundImage: event.organizationLogoUrl != null
-                            ? CachedNetworkImageProvider(event.organizationLogoUrl!)
-                            : null,
-                        child: event.organizationLogoUrl == null
-                            ? const Icon(Icons.business_outlined, color: AppColors.primary)
-                            : null,
+                      GestureDetector(
+                        onTap: event.organizationLogoUrl == null
+                            ? null
+                            : () => FullscreenImageViewer.show(
+                                  context,
+                                  event.organizationLogoUrl!,
+                                  tag: 'public-event-organizer-${event.id}',
+                                ),
+                        child: Hero(
+                          tag: 'public-event-organizer-${event.id}',
+                          child: CircleAvatar(
+                            radius: 24,
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.15),
+                            backgroundImage: event.organizationLogoUrl != null
+                                ? CachedNetworkImageProvider(
+                                    event.organizationLogoUrl!,
+                                  )
+                                : null,
+                            child: event.organizationLogoUrl == null
+                                ? const Icon(
+                                    Icons.business_outlined,
+                                    color: AppColors.primary,
+                                  )
+                                : null,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

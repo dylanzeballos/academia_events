@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../data/models/public_event_data.dart';
-import '../../../../providers/public_events_provider.dart';
-import './details/org_achievements_section.dart';
+import '../../../../data/models/organization_model.dart';
+import '../../../../data/models/organization_image_model.dart';
+import '../../../../providers/organization_provider.dart';
 import './details/org_gallery_section.dart';
 import './details/org_hero_header.dart';
 import './details/org_location_section.dart';
-import './details/org_teachers_section.dart';
 import './details/public_schedule_view.dart';
 
 class PublicOrganizationDetailView extends ConsumerWidget {
@@ -22,16 +21,60 @@ class PublicOrganizationDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orgsAsync = ref.watch(organizationsWithEventsProvider);
+    final organizationAsync = ref.watch(
+      publicOrganizationProvider(organizationId),
+    );
+    final galleryAsync = ref.watch(organizationImagesProvider(organizationId));
 
-    OrganizationWithEventCount? org;
-    for (final o in orgsAsync.value ?? const []) {
-      if (o.id == organizationId) {
-        org = o;
-        break;
-      }
+    return organizationAsync.when(
+      loading: () => const Scaffold(
+        backgroundColor: Color(0xFF0A0D14),
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, _) => Scaffold(
+        backgroundColor: const Color(0xFF0A0D14),
+        body: Center(
+          child: Text(
+            'No se pudo cargar la organización: $error',
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ),
+      ),
+      data: (organization) {
+        final logoUrl = ref
+            .watch(orgLogoUrlProvider(organization?.logoUrl))
+            .whenOrNull(data: (url) => url);
+        final coverUrl = ref
+            .watch(orgLogoUrlProvider(organization?.coverImageUrl))
+            .whenOrNull(data: (url) => url);
+
+        return _buildContent(
+          context,
+          organization,
+          galleryAsync,
+          logoUrl: logoUrl,
+          coverUrl: coverUrl,
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    OrganizationModel? organization,
+    AsyncValue<List<OrganizationImageModel>> galleryAsync,
+    {
+    String? logoUrl,
+    String? coverUrl,
     }
+  ) {
+    final org = organization;
     final name = org?.name ?? organizationName ?? 'Academia de Baile';
+    final phone = org?.phoneNumber ?? '';
+    final location = [
+      if (org?.locationName?.trim().isNotEmpty == true) org!.locationName!,
+      if (org?.address?.trim().isNotEmpty == true) org!.address!,
+    ].join(' · ');
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0D14),
@@ -58,7 +101,12 @@ class PublicOrganizationDetailView extends ConsumerWidget {
             // 1. Portada, Avatar, Rating & Botones
             OrgHeroHeader(
               name: name,
-              logoUrl: org?.logoUrl,
+              coverUrl: coverUrl,
+              logoUrl: logoUrl,
+              logoTag: 'organization-logo-$organizationId',
+              description: org?.description,
+              location: location,
+              whatsappNumber: phone,
               onShare: () {},
             ),
 
@@ -158,22 +206,16 @@ class PublicOrganizationDetailView extends ConsumerWidget {
             const SizedBox(height: 28),
 
             // 2. Instalaciones y Galería Oficial
-            const OrgGallerySection(),
+            OrgGallerySection(
+              imagesAsync: galleryAsync,
+            ),
 
             const SizedBox(height: 28),
 
-            // 3. Logros & Trayectoria
-            const OrgAchievementsSection(),
-
-            const SizedBox(height: 28),
-
-            // 4. Plantel de Maestros
-            const OrgTeachersSection(),
-
-            const SizedBox(height: 28),
-
-            // 5. Ubicación en Mapa & Servicios de Sede
-            const OrgLocationSection(),
+            if (org != null)
+              OrgLocationSection(
+                organization: org,
+              ),
 
             const SizedBox(height: 32),
           ],

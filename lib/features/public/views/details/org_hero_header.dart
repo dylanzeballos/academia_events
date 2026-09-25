@@ -2,31 +2,32 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../shared/widgets/fullscreen_image_viewer.dart';
+
 class OrgHeroHeader extends StatelessWidget {
   const OrgHeroHeader({
     super.key,
     required this.name,
     this.coverUrl,
     this.logoUrl,
-    this.genres = 'Salsa Casino, Bachata Sensual & Kizomba • Sede Central',
-    this.rating = '4.9',
-    this.reviewCount = '180+',
-    this.ranking = 'Nº 1',
-    this.whatsappNumber = '+59168458460',
+    this.description,
+    this.location,
+    this.whatsappNumber = '',
+    this.logoTag,
     this.onShare,
   });
 
   final String name;
   final String? coverUrl;
   final String? logoUrl;
-  final String genres;
-  final String rating;
-  final String reviewCount;
-  final String ranking;
+  final String? description;
+  final String? location;
   final String whatsappNumber;
+  final String? logoTag;
   final VoidCallback? onShare;
 
   Future _openWhatsApp() async {
+    if (whatsappNumber.trim().isEmpty) return;
     final cleanPhone = whatsappNumber.replaceAll(RegExp(r'[^0-9]'), '');
     final url = Uri.parse('https://wa.me/$cleanPhone?text=Hola,%20quisiera%20más%20información%20de%20las%20clases');
     if (await canLaunchUrl(url)) {
@@ -58,86 +59,43 @@ class OrgHeroHeader extends StatelessWidget {
               ),
             ),
 
-            // Badge Abierto Ahora
-            Positioned(
-              top: 12,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF0EA5E9), width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF0EA5E9),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'ABIERTO AHORA',
-                      style: TextStyle(
-                        color: Color(0xFF0EA5E9),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Rating & Ranking Flotantes
-            Positioned(
-              bottom: 12,
-              right: 12,
-              child: Row(
-                children: [
-                  _MetricBadge(
-                    mainText: rating,
-                    subText: '★ ($reviewCount)',
-                    isHighlighted: true,
-                  ),
-                  const SizedBox(width: 8),
-                  _MetricBadge(
-                    mainText: ranking,
-                    subText: 'Ranking',
-                    isHighlighted: false,
-                  ),
-                ],
-              ),
-            ),
-
             // Avatar circular superpuesto
             Positioned(
               bottom: -32,
               left: 16,
               child: Stack(
                 children: [
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFE85D04), width: 3),
-                      color: const Color(0xFF1E2333),
-                    ),
-                    child: ClipOval(
-                      child: logoUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: logoUrl!,
-                              fit: BoxFit.cover,
-                              errorWidget: (_, _, _) => _avatarFallback(),
-                            )
-                          : _avatarFallback(),
+                  GestureDetector(
+                    onTap: logoUrl == null
+                        ? null
+                        : () => FullscreenImageViewer.show(
+                              context,
+                              logoUrl!,
+                              tag: logoTag,
+                            ),
+                    child: Hero(
+                      tag: logoTag ?? 'organization-logo-$name',
+                      child: Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFE85D04),
+                            width: 3,
+                          ),
+                          color: const Color(0xFF1E2333),
+                        ),
+                        child: ClipOval(
+                          child: logoUrl != null
+                              ? CachedNetworkImage(
+                                  imageUrl: logoUrl!,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, _, _) => _avatarFallback(),
+                                )
+                              : _avatarFallback(),
+                        ),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -172,32 +130,27 @@ class OrgHeroHeader extends StatelessWidget {
         ),
         const SizedBox(height: 6),
 
-        // Géneros y Sede
-        Text(
-          genres,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.65),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            height: 1.3,
+        if (description != null && description!.trim().isNotEmpty)
+          Text(
+            description!,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.65),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            ),
           ),
-        ),
+        if (location != null && location!.trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            location!,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 12,
+            ),
+          ),
+        ],
         const SizedBox(height: 14),
-
-        // Tags de características
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: const [
-              _FeaturePill(icon: Icons.history_edu, label: '12 Años Formando'),
-              SizedBox(width: 8),
-              _FeaturePill(icon: Icons.verified_user_outlined, label: '8 Profesores Certificados'),
-              SizedBox(width: 8),
-              _FeaturePill(icon: Icons.people_outline, label: '+1,500 Alumnos'),
-            ],
-          ),
-        ),
 
         const SizedBox(height: 16),
 
@@ -215,15 +168,15 @@ class OrgHeroHeader extends StatelessWidget {
                     ),
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: _openWhatsApp,
+                    onPressed: whatsappNumber.trim().isEmpty ? null : _openWhatsApp,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     ),
                     icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18),
-                    label: const Text(
-                      'Inscribirme / WhatsApp',
+                    label: Text(
+                      whatsappNumber.trim().isEmpty ? 'Contacto no disponible' : 'WhatsApp',
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),

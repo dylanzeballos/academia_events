@@ -1,12 +1,14 @@
 // lib/features/events/widgets/event_detail_header.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
+import '../../../../providers/organization_provider.dart';
 import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 
-class EventDetailHeader extends StatelessWidget {
+class EventDetailHeader extends ConsumerWidget {
   const EventDetailHeader({
     super.key,
     required this.event,
@@ -17,7 +19,11 @@ class EventDetailHeader extends StatelessWidget {
   final Color accentColor;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final organizationLogo = ref
+        .watch(orgLogoUrlProvider(event.organizationLogoUrl))
+        .whenOrNull(data: (url) => url);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -78,12 +84,22 @@ class EventDetailHeader extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    if (event.organizationLogoUrl != null &&
-                        event.organizationLogoUrl!.isNotEmpty) ...[
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: Colors.grey.shade300,
-                        backgroundImage: NetworkImage(event.organizationLogoUrl!),
+                    if (organizationLogo != null) ...[
+                      GestureDetector(
+                        onTap: () => FullscreenImageViewer.show(
+                          context,
+                          organizationLogo,
+                          tag: 'event-org-logo-${event.id}',
+                        ),
+                        child: Hero(
+                          tag: 'event-org-logo-${event.id}',
+                          child: CircleAvatar(
+                            radius: 12,
+                            backgroundColor: Colors.grey.shade300,
+                            backgroundImage:
+                              NetworkImage(organizationLogo),
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                     ] else ...[

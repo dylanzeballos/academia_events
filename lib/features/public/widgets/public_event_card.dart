@@ -5,6 +5,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/public_event_model.dart';
+import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 
 class PublicEventCard extends StatelessWidget {
   const PublicEventCard({
@@ -101,25 +102,37 @@ class PublicEventCard extends StatelessWidget {
                       Positioned(
                         bottom: 8,
                         left: 8,
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                        child: GestureDetector(
+                          onTap: () => FullscreenImageViewer.show(
+                            context,
+                            event.organizationLogoUrl!,
+                            tag: 'event-card-org-logo-${event.id}',
                           ),
-                          child: ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: event.organizationLogoUrl!,
-                              fit: BoxFit.cover,
+                          child: Hero(
+                            tag: 'event-card-org-logo-${event.id}',
+                            child: Container(
                               width: 28,
                               height: 28,
-                              errorWidget: (_, _, _) => Container(
-                                color: AppColors.primary.withValues(alpha: 0.2),
-                                child: const Icon(
-                                  Icons.storefront_outlined,
-                                  size: 14,
-                                  color: AppColors.primary,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 2),
+                              ),
+                              child: ClipOval(
+                                child: CachedNetworkImage(
+                                  imageUrl: event.organizationLogoUrl!,
+                                  fit: BoxFit.cover,
+                                  width: 28,
+                                  height: 28,
+                                  errorWidget: (_, _, _) => Container(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.2),
+                                    child: const Icon(
+                                      Icons.storefront_outlined,
+                                      size: 14,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),

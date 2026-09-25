@@ -6,6 +6,7 @@ import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_member_model.dart';
 import '../../../../data/repositories/organization_repository.dart';
 import '../../../../providers/organization_provider.dart';
+import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 import '../../../organization/views/organization_detail_view.dart';
 
 class DashboardOrgSelector extends ConsumerWidget {
@@ -47,7 +48,17 @@ class DashboardOrgSelector extends ConsumerWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            CircleAvatar(
+            GestureDetector(
+              onTap: logoUrl == null
+                  ? null
+                  : () => FullscreenImageViewer.show(
+                        context,
+                        logoUrl,
+                        tag: 'dashboard-org-logo-${org.id}',
+                      ),
+              child: Hero(
+                tag: 'dashboard-org-logo-${org.id}',
+                child: CircleAvatar(
               radius: 24,
               backgroundColor: AppColors.primary.withValues(alpha: 0.15),
               backgroundImage: logoUrl != null ? NetworkImage(logoUrl) : null,
@@ -61,6 +72,8 @@ class DashboardOrgSelector extends ConsumerWidget {
                       ),
                     )
                   : null,
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
