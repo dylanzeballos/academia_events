@@ -126,7 +126,10 @@ class _AcademyDashboardViewState extends ConsumerState {
                       'Error: $e',
                       style: const TextStyle(color: Colors.grey),
                     ),
-                    data: (stats) => DashboardStatsGrid(stats: stats),
+                    data: (stats) => DashboardStatsGrid(
+                      stats: stats,
+                      organization: currentOrgWithRole!.organization,
+                    ),
                   ),
                   const SizedBox(height: 24),
 

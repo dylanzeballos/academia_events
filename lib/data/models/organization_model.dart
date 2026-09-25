@@ -19,6 +19,8 @@ class OrganizationModel {
     this.address,
     this.latitude,
     this.longitude,
+    this.qrCodeHash,
+    this.viewsCount = 0,
     this.createdAt,
     this.updatedAt,
   });
@@ -44,6 +46,8 @@ class OrganizationModel {
   final String? address;
   final double? latitude;
   final double? longitude;
+  final String? qrCodeHash;
+  final int viewsCount;
 
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -69,6 +73,8 @@ class OrganizationModel {
       address: json['address'] as String?,
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
       longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
+      qrCodeHash: json['qr_code_hash'] as String?,
+      viewsCount: (json['views_count'] as num?)?.toInt() ?? 0,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : null,
     );
@@ -95,6 +101,8 @@ class OrganizationModel {
       'address': address,
       'latitude': latitude,
       'longitude': longitude,
+      'qr_code_hash': qrCodeHash,
+      'views_count': viewsCount,
     };
   }
 }

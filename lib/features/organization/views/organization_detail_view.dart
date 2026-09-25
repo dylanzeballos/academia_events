@@ -16,6 +16,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/geographic_location_picker.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../events/widgets/map.dart';
+import '../widgets/organization_share_section.dart';
 import 'organization_members_view.dart';
 
 class OrganizationDetailView extends ConsumerStatefulWidget {
@@ -519,6 +520,9 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                   },
                 ),
               ],
+          const SizedBox(height: 24),
+
+          OrganizationShareSection(organization: org),
           const SizedBox(height: 24),
 
           if (_editing) ...[

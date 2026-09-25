@@ -9,6 +9,10 @@ import '../services/organization_service.dart';
 abstract interface class IOrganizationRepository {
   Future<List<OrganizationWithRole>> fetchMyOrganizations();
   Future<OrganizationModel?> fetchOrganization(String orgId);
+  Future<void> recordOrganizationView(
+    String orgId, {
+    String source,
+  });
   Future<OrganizationModel> createOrganization({
     required String name,
     String? legalName,
@@ -146,6 +150,12 @@ class OrganizationRepository implements IOrganizationRepository {
     final raw = await _service.fetchOrganization(orgId);
     return raw != null ? OrganizationModel.fromJson(raw) : null;
   }
+
+  @override
+  Future<void> recordOrganizationView(
+    String orgId, {
+    String source = 'app',
+  }) => _service.recordOrganizationView(orgId, source: source);
 
   @override
   Future<OrganizationModel> createOrganization({

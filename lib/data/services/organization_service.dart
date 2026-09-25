@@ -33,7 +33,8 @@ class OrganizationService {
             role, is_active, created_at,
             organizations!inner(
               id, name, logo_url, cover_image_url, description, is_active, is_verified,
-              department_id, province_id, municipality_id, location_name, address, latitude, longitude
+              department_id, province_id, municipality_id, location_name, address, latitude, longitude,
+              qr_code_hash, views_count
             )
           ''')
           .eq('user_id', userId)
@@ -59,6 +60,16 @@ class OrganizationService {
     } catch (e) {
       return null;
     }
+  }
+
+  Future<void> recordOrganizationView(
+    String organizationId, {
+    String source = 'app',
+  }) async {
+    await supabase.rpc('record_organization_view', params: {
+      'p_org_id': organizationId,
+      'p_source': source,
+    });
   }
 
   Future<Map<String, dynamic>> createOrganization({

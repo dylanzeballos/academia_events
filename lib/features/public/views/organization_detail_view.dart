@@ -9,7 +9,7 @@ import './details/org_hero_header.dart';
 import './details/org_location_section.dart';
 import './details/public_schedule_view.dart';
 
-class PublicOrganizationDetailView extends ConsumerWidget {
+class PublicOrganizationDetailView extends ConsumerStatefulWidget {
   const PublicOrganizationDetailView({
     super.key,
     required this.organizationId,
@@ -20,7 +20,26 @@ class PublicOrganizationDetailView extends ConsumerWidget {
   final String? organizationName;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PublicOrganizationDetailView> createState() =>
+      _PublicOrganizationDetailViewState();
+}
+
+class _PublicOrganizationDetailViewState
+    extends ConsumerState<PublicOrganizationDetailView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(organizationRepositoryProvider)
+          .recordOrganizationView(widget.organizationId)
+          .catchError((_) {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final organizationId = widget.organizationId;
     final organizationAsync = ref.watch(
       publicOrganizationProvider(organizationId),
     );
@@ -69,7 +88,7 @@ class PublicOrganizationDetailView extends ConsumerWidget {
     }
   ) {
     final org = organization;
-    final name = org?.name ?? organizationName ?? 'Academia de Baile';
+    final name = org?.name ?? widget.organizationName ?? 'Academia de Baile';
     final phone = org?.phoneNumber ?? '';
     final location = [
       if (org?.locationName?.trim().isNotEmpty == true) org!.locationName!,
@@ -103,7 +122,7 @@ class PublicOrganizationDetailView extends ConsumerWidget {
               name: name,
               coverUrl: coverUrl,
               logoUrl: logoUrl,
-              logoTag: 'organization-logo-$organizationId',
+              logoTag: 'organization-logo-${widget.organizationId}',
               description: org?.description,
               location: location,
               whatsappNumber: phone,
@@ -140,7 +159,7 @@ class PublicOrganizationDetailView extends ConsumerWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => PublicScheduleView(
-                          organizationId: organizationId,
+                          organizationId: widget.organizationId,
                           organizationName: name,
                         ),
                       ),

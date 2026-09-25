@@ -3,12 +3,18 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
+import '../../../../data/models/organization_model.dart';
 import '../../../organization/views/organization_detail_view.dart';
 
 class DashboardStatsGrid extends StatelessWidget {
-  const DashboardStatsGrid({super.key, required this.stats});
+  const DashboardStatsGrid({
+    super.key,
+    required this.stats,
+    required this.organization,
+  });
 
   final Map stats;
+  final OrganizationModel organization;
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +76,28 @@ class DashboardStatsGrid extends StatelessWidget {
                 },
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _InteractiveStatCard(
+                icon: Icons.visibility_outlined,
+                label: 'Visualizaciones',
+                value: '${organization.viewsCount}',
+                color: AppColors.primary,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const OrganizationDetailView(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Expanded(child: SizedBox()),
           ],
         ),
       ],
