@@ -64,8 +64,8 @@ class OrganizationShareSection extends StatelessWidget {
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: sheetContext.cardBg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -73,11 +73,11 @@ class OrganizationShareSection extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'QR de la academia',
                       style: TextStyle(
-                        color: Color(0xFF111827),
+                        color: sheetContext.textOnBg,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
@@ -86,7 +86,7 @@ class OrganizationShareSection extends StatelessWidget {
                   IconButton(
                     tooltip: 'Cerrar',
                     onPressed: () => Navigator.pop(sheetContext),
-                    icon: const Icon(Icons.close, color: Color(0xFF111827)),
+                    icon: Icon(Icons.close, color: sheetContext.textOnBg),
                   ),
                 ],
               ),
@@ -108,8 +108,8 @@ class OrganizationShareSection extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF4B5563),
+                style: TextStyle(
+                  color: sheetContext.textMuted,
                   fontSize: 12,
                 ),
               ),
@@ -127,25 +127,34 @@ class OrganizationShareSection extends StatelessWidget {
   }
 
   Widget _buildCompact(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor = context.cardBg;
+    final fieldColor = context.inputBg;
+    final textColor = context.textOnBg;
+    final mutedColor = context.textMuted;
+    final badgeColor = isDark ? const Color(0xFF7A3F2D) : const Color(0xFFFFE8DD);
+    final badgeTextColor =
+        isDark ? const Color(0xFFFFC09D) : const Color(0xFF9A3412);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF151B2A),
+        color: panelColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF29344A)),
+        border: Border.all(color: context.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              const Icon(Icons.link, color: Color(0xFF38BDF8), size: 17),
+              const Icon(Icons.link, color: AppColors.primary, size: 17),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'ENLACE ÚNICO DE LA ACADEMIA',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: textColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -154,13 +163,13 @@ class OrganizationShareSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7A3F2D),
+                  color: badgeColor,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
+                child: Text(
                   'PERFIL OFICIAL',
                   style: TextStyle(
-                    color: Color(0xFFFFC09D),
+                    color: badgeTextColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                   ),
@@ -173,21 +182,21 @@ class OrganizationShareSection extends StatelessWidget {
             height: 48,
             padding: const EdgeInsets.only(left: 12, right: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF0E1421),
+              color: fieldColor,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF29344A)),
+              border: Border.all(color: context.divider),
             ),
             child: Row(
               children: [
-                const Icon(Icons.public, color: Colors.white70, size: 17),
+                Icon(Icons.public, color: mutedColor, size: 17),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _publicUrl,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: textColor,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -197,13 +206,13 @@ class OrganizationShareSection extends StatelessWidget {
                   tooltip: 'Copiar enlace',
                   onPressed: () => _copyLink(context),
                   icon: const Icon(Icons.copy_outlined, size: 18),
-                  color: const Color(0xFF38BDF8),
+                  color: AppColors.primary,
                 ),
                 IconButton(
                   tooltip: 'Mostrar QR',
                   onPressed: () => _showQrDialog(context),
                   icon: const Icon(Icons.qr_code_2, size: 20),
-                  color: Colors.white70,
+                  color: mutedColor,
                 ),
               ],
             ),
@@ -211,9 +220,9 @@ class OrganizationShareSection extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Text(
+              Text(
                 'Compartir vía:',
-                style: TextStyle(color: Color(0xFFE5B9A4), fontSize: 12),
+                style: TextStyle(color: mutedColor, fontSize: 12),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -248,14 +257,15 @@ class OrganizationShareSection extends StatelessWidget {
   }) {
     return TextButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, size: 16, color: Colors.white70),
+      icon: Icon(icon, size: 16, color: context.textMuted),
       label: Text(
         label,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: Colors.white70, fontSize: 12),
+        style: TextStyle(color: context.textOnBg, fontSize: 12),
       ),
       style: TextButton.styleFrom(
-        backgroundColor: const Color(0xFF1B2334),
+        backgroundColor: context.cardBg,
+        side: BorderSide(color: context.divider),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
