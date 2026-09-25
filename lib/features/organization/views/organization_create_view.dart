@@ -2,9 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
@@ -14,6 +16,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../providers/geographic_provider.dart';
 import '../../../shared/widgets/geographic_location_picker.dart';
+import '../../events/widgets/map.dart';
 
 class OrganizationCreateView extends ConsumerStatefulWidget {
   const OrganizationCreateView({super.key});
@@ -32,10 +35,16 @@ class _OrganizationCreateViewState
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _websiteCtrl = TextEditingController();
+  final _locationNameCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
 
   Uint8List? _logoBytes;
   String? _logoExtension;
   String? _logoPreviewPath;
+  Uint8List? _coverBytes;
+  String? _coverExtension;
+  String? _coverPreviewPath;
+  LatLng _selectedLatLng = const LatLng(-17.3935, -66.2825);
 
   @override
   void dispose() {
@@ -45,17 +54,13 @@ class _OrganizationCreateViewState
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _websiteCtrl.dispose();
+    _locationNameCtrl.dispose();
+    _addressCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pickLogo() async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 80,
-    );
+    final image = await _pickImage();
     if (image == null) return;
 
     final bytes = await File(image.path).readAsBytes();
@@ -66,6 +71,42 @@ class _OrganizationCreateViewState
       _logoExtension = ext;
       _logoPreviewPath = image.path;
     });
+  }
+
+  Future<void> _pickCover() async {
+    final image = await _pickImage();
+    if (image == null) return;
+
+    final bytes = await File(image.path).readAsBytes();
+    final ext = image.path.split('.').last;
+
+    setState(() {
+      _coverBytes = bytes;
+      _coverExtension = ext;
+      _coverPreviewPath = image.path;
+    });
+  }
+
+  Future<XFile?> _pickImage() async {
+    final picker = ImagePicker();
+    return picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      maxHeight: 1200,
+      imageQuality: 80,
+    );
+  }
+
+  Future<void> _openMapPicker() async {
+    final pickedLocation = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerMap(initialLatLng: _selectedLatLng),
+      ),
+    );
+    if (pickedLocation != null && mounted) {
+      setState(() => _selectedLatLng = pickedLocation);
+    }
   }
 
   Future<void> _submit() async {
@@ -87,9 +128,21 @@ class _OrganizationCreateViewState
           websiteUrl: _websiteCtrl.text.trim().isEmpty
               ? null
               : _websiteCtrl.text.trim(),
+            locationName: _locationNameCtrl.text.trim().isEmpty
+              ? null
+              : _locationNameCtrl.text.trim(),
+            address: _addressCtrl.text.trim().isEmpty
+              ? null
+              : _addressCtrl.text.trim(),
+            latitude: _selectedLatLng.latitude,
+            longitude: _selectedLatLng.longitude,
           logoBytes: _logoBytes,
           logoExtension: _logoExtension,
-          cityId: ref.read(selectedCityIdProvider),
+            coverBytes: _coverBytes,
+            coverExtension: _coverExtension,
+          departmentId: ref.read(selectedDepartmentIdProvider),
+          provinceId: ref.read(selectedProvinceIdProvider),
+          municipalityId: ref.read(selectedMunicipalityIdProvider),
         );
 
     if (success && mounted) {
@@ -172,6 +225,48 @@ class _OrganizationCreateViewState
               ),
               const SizedBox(height: 24),
 
+              GestureDetector(
+                onTap: _pickCover,
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    image: _coverPreviewPath != null
+                        ? DecorationImage(
+                            image: FileImage(File(_coverPreviewPath!)),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: _coverPreviewPath == null
+                      ? const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.panorama_outlined,
+                                size: 42, color: AppColors.primary),
+                            SizedBox(height: 8),
+                            Text('Agregar banner de la organización'),
+                          ],
+                        )
+                      : Align(
+                          alignment: Alignment.bottomRight,
+                          child: Container(
+                            margin: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.edit,
+                                size: 18, color: context.textOnBg),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
               TextFormField(
                 controller: _nameCtrl,
                 validator: AppValidators.eventTitle,
@@ -213,6 +308,95 @@ class _OrganizationCreateViewState
               ),
               const SizedBox(height: 8),
               const GeographicLocationPicker(),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _locationNameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Lugar o sede (opcional)',
+                  prefixIcon: Icon(Icons.place_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _addressCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Dirección (opcional)',
+                  prefixIcon: Icon(Icons.home_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              InkWell(
+                onTap: _openMapPicker,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  height: 170,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: context.divider),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
+                        IgnorePointer(
+                          child: FlutterMap(
+                            key: ValueKey(
+                              '${_selectedLatLng.latitude}_${_selectedLatLng.longitude}',
+                            ),
+                            options: MapOptions(
+                              initialCenter: _selectedLatLng,
+                              initialZoom: 15,
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate:
+                                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                userAgentPackageName:
+                                    'com.example.academia_events',
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: _selectedLatLng,
+                                    width: 40,
+                                    height: 40,
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 38,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            color: Colors.black54,
+                            padding: const EdgeInsets.all(10),
+                            child: Text(
+                              'Toca el mapa para elegir la ubicación  '
+                              '${_selectedLatLng.latitude.toStringAsFixed(5)}, '
+                              '${_selectedLatLng.longitude.toStringAsFixed(5)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
 
               TextFormField(

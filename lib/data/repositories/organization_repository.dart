@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../models/organization_model.dart';
 import '../models/organization_member_model.dart';
 import '../models/organization_invitation_model.dart';
+import '../models/organization_image_model.dart';
 import '../services/organization_service.dart';
 
 abstract interface class IOrganizationRepository {
@@ -15,7 +16,13 @@ abstract interface class IOrganizationRepository {
     String? email,
     String? phoneNumber,
     String? websiteUrl,
-    String? cityId,
+    String? departmentId,
+    String? provinceId,
+    String? municipalityId,
+    String? locationName,
+    String? address,
+    double? latitude,
+    double? longitude,
   });
   Future<void> updateOrganization(String orgId, Map<String, dynamic> data);
   Future<void> deleteOrganization(String orgId);
@@ -37,7 +44,8 @@ abstract interface class IOrganizationRepository {
     required String email,
     required String role,
   });
-  Future<List<OrganizationInvitationModel>> fetchOrgInvitations(String orgId);
+  Future<List<OrganizationInvitationModel>> fetchOrgInvitations(
+      String orgId);
   Future<List<OrganizationInvitationModel>> fetchMyInvitations();
   Future<Map<String, dynamic>> acceptInvitation(String invitationId);
   Future<Map<String, dynamic>> declineInvitation(String invitationId);
@@ -54,6 +62,27 @@ abstract interface class IOrganizationRepository {
     required Uint8List bytes,
     required String extension,
   });
+
+  Future<String> uploadCover(
+    String orgId,
+    Uint8List bytes, {
+    required String extension,
+  });
+  Future<void> uploadCoverForOrg({
+    required String orgId,
+    required Uint8List bytes,
+    required String extension,
+  });
+
+  Future<List<OrganizationImageModel>> fetchOrganizationImages(
+      String orgId);
+  Future<OrganizationImageModel> addOrganizationImage({
+    required String orgId,
+    required Uint8List bytes,
+    required String extension,
+    String? title,
+  });
+  Future<void> deleteOrganizationImage(OrganizationImageModel image);
 }
 
 class OrganizationWithRole {
@@ -85,7 +114,8 @@ class OrganizationMemberWithProfile {
   final String profileName;
   final String? profilePhone;
 
-  factory OrganizationMemberWithProfile.fromJson(Map<String, dynamic> json) {
+  factory OrganizationMemberWithProfile.fromJson(
+      Map<String, dynamic> json) {
     final profile = json['profiles'] as Map<String, dynamic>?;
     final firstName = profile?['first_name'] as String? ?? '';
     final lastName = profile?['last_name'] as String? ?? '';
@@ -125,7 +155,13 @@ class OrganizationRepository implements IOrganizationRepository {
     String? email,
     String? phoneNumber,
     String? websiteUrl,
-    String? cityId,
+    String? departmentId,
+    String? provinceId,
+    String? municipalityId,
+    String? locationName,
+    String? address,
+    double? latitude,
+    double? longitude,
   }) async {
     final raw = await _service.createOrganization(
       name: name,
@@ -134,14 +170,20 @@ class OrganizationRepository implements IOrganizationRepository {
       email: email,
       phoneNumber: phoneNumber,
       websiteUrl: websiteUrl,
-      cityId: cityId,
+      departmentId: departmentId,
+      provinceId: provinceId,
+      municipalityId: municipalityId,
+      locationName: locationName,
+      address: address,
+      latitude: latitude,
+      longitude: longitude,
     );
     return OrganizationModel.fromJson(raw);
   }
 
   @override
   Future<void> updateOrganization(
-          String orgId, Map<String, dynamic> data) =>
+      String orgId, Map<String, dynamic> data) =>
       _service.updateOrganization(orgId, data);
 
   @override
@@ -149,7 +191,8 @@ class OrganizationRepository implements IOrganizationRepository {
       _service.deleteOrganization(orgId);
 
   @override
-  Future<List<OrganizationMemberWithProfile>> fetchMembers(String orgId) async {
+  Future<List<OrganizationMemberWithProfile>> fetchMembers(
+      String orgId) async {
     final rows = await _service.fetchMembers(orgId);
     return rows
         .map((row) => OrganizationMemberWithProfile.fromJson(row))
@@ -185,20 +228,16 @@ class OrganizationRepository implements IOrganizationRepository {
 
   @override
   Future<List<OrganizationInvitationModel>> fetchOrgInvitations(
-      String orgId) async {
-    final rows = await _service.fetchOrgInvitations(orgId);
-    return rows
-        .map((row) => OrganizationInvitationModel.fromJson(row))
-        .toList();
-  }
+          String orgId) async =>
+      (await _service.fetchOrgInvitations(orgId))
+          .map((row) => OrganizationInvitationModel.fromJson(row))
+          .toList();
 
   @override
-  Future<List<OrganizationInvitationModel>> fetchMyInvitations() async {
-    final rows = await _service.fetchMyInvitations();
-    return rows
-        .map((row) => OrganizationInvitationModel.fromJson(row))
-        .toList();
-  }
+  Future<List<OrganizationInvitationModel>> fetchMyInvitations() async =>
+      (await _service.fetchMyInvitations())
+          .map((row) => OrganizationInvitationModel.fromJson(row))
+          .toList();
 
   @override
   Future<Map<String, dynamic>> acceptInvitation(String invitationId) =>
@@ -235,4 +274,51 @@ class OrganizationRepository implements IOrganizationRepository {
         bytes: bytes,
         extension: extension,
       );
+
+  @override
+  Future<String> uploadCover(
+    String orgId,
+    Uint8List bytes, {
+    required String extension,
+  }) =>
+      _service.uploadCover(orgId, bytes, extension: extension);
+
+  @override
+  Future<void> uploadCoverForOrg({
+    required String orgId,
+    required Uint8List bytes,
+    required String extension,
+  }) =>
+      _service.uploadCoverForOrg(
+        orgId: orgId,
+        bytes: bytes,
+        extension: extension,
+      );
+
+  @override
+  Future<List<OrganizationImageModel>> fetchOrganizationImages(
+      String orgId) async {
+    final rows = await _service.fetchOrganizationImages(orgId);
+    return rows.map(OrganizationImageModel.fromJson).toList();
+  }
+
+  @override
+  Future<OrganizationImageModel> addOrganizationImage({
+    required String orgId,
+    required Uint8List bytes,
+    required String extension,
+    String? title,
+  }) async {
+    final row = await _service.addOrganizationImage(
+      orgId: orgId,
+      bytes: bytes,
+      extension: extension,
+      title: title,
+    );
+    return OrganizationImageModel.fromJson(row);
+  }
+
+  @override
+  Future<void> deleteOrganizationImage(OrganizationImageModel image) =>
+      _service.deleteOrganizationImage(image);
 }

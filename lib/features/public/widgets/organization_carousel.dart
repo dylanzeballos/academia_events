@@ -11,9 +11,8 @@ import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/public_event_data.dart';
 import '../../../../providers/public_events_provider.dart';
 
-/// Auto-sliding carousel of organizations that have published events.
+/// Carrusel circular y auto-deslizante de organizaciones.
 ///
-/// - Solo muestra organizaciones que tienen logo.
 /// - Cada tarjeta muestra el logo (avatar) y el nombre.
 /// - Al tocar una tarjeta se navega a la página pública de la organización
 ///   (con su semana, próximos eventos y clases próximas, sin depender de
@@ -33,15 +32,21 @@ class OrganizationCarousel extends ConsumerStatefulWidget {
 }
 
 class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
+  static const _virtualPageCount = 1000000;
+  static const _initialPage = _virtualPageCount ~/ 2;
+
   late PageController _pageController;
-  int _currentPage = 0;
+  int _currentPage = _initialPage;
   int _orgsCount = 0;
   Timer? _autoPlayTimer;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.34);
+    _pageController = PageController(
+      initialPage: _initialPage,
+      viewportFraction: 0.34,
+    );
     _autoPlayTimer = Timer.periodic(
       widget.autoPlayInterval,
       (_) => _advance(),
@@ -59,7 +64,7 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
   void _advance() {
     if (!mounted || !_pageController.hasClients) return;
     if (_orgsCount <= 1) return;
-    final next = (_currentPage + 1) % _orgsCount;
+    final next = _currentPage + 1;
     _pageController.animateToPage(
       next,
       duration: const Duration(milliseconds: 400),
@@ -78,32 +83,26 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
       ),
       error: (_, _) => const SizedBox.shrink(),
       data: (allOrgs) {
-        // Solo organizaciones con logo.
-        final orgs = List<OrganizationWithEventCount>.from(
-          allOrgs.where((o) =>
-              o.logoUrl != null && o.logoUrl!.trim().isNotEmpty),
-        );
+        // Las organizaciones sin logo muestran su inicial como respaldo.
+        final orgs = List<OrganizationWithEventCount>.from(allOrgs);
         if (orgs.isEmpty) return const SizedBox.shrink();
         _orgsCount = orgs.length;
-        if (_currentPage >= _orgsCount) _currentPage = 0;
 
         return SizedBox(
           height: widget.height,
           child: PageView.builder(
             controller: _pageController,
-            itemCount: orgs.length,
+            itemCount: _virtualPageCount,
             onPageChanged: (index) {
-              // Si el índice salió del rango (p.ej. al quitar orgs sin logo),
-              // reajustar para evitar desbordes.
-              final clamped = index.clamp(0, orgs.length - 1);
-              setState(() => _currentPage = clamped);
+              setState(() => _currentPage = index);
             },
             physics: const ClampingScrollPhysics(),
             itemBuilder: (context, index) {
-              final org = orgs[index];
+              final orgIndex = index % orgs.length;
+              final org = orgs[orgIndex];
               return _OrgLogoItem(
                 organization: org,
-                isActive: index == _currentPage,
+                isActive: orgIndex == _currentPage % orgs.length,
                 onTap: () => context.push(
                   '${AppRoutes.organizationPublicDetailBase}/${org.id}',
                   extra: org.name,

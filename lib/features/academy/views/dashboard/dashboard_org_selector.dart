@@ -6,6 +6,7 @@ import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_member_model.dart';
 import '../../../../data/repositories/organization_repository.dart';
 import '../../../../providers/organization_provider.dart';
+import '../../../organization/views/organization_detail_view.dart';
 
 class DashboardOrgSelector extends ConsumerWidget {
   const DashboardOrgSelector({
@@ -118,6 +119,17 @@ class DashboardOrgSelector extends ConsumerWidget {
                       ),
                     ),
                 ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Editar organización',
+              icon: const Icon(Icons.edit_outlined),
+              color: AppColors.primary,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const OrganizationDetailView(),
+                ),
               ),
             ),
           ],

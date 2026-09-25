@@ -229,12 +229,10 @@ class PublicEventsService {
     final response = await supabase
         .from('organizations')
         .select('''
-          id, name, logo_url, description, city_id,
-          events!inner(id, status, visibility)
+          id, name, logo_url, description,
+          events(id, status, visibility)
         ''')
         .eq('is_active', true)
-        .eq('events.status', 'published')
-        .eq('events.visibility', 'public')
         .limit(limit);
 
     final data = (response as List).cast<Map<String, dynamic>>();
@@ -242,17 +240,22 @@ class PublicEventsService {
     final orgMap = <String, OrganizationWithEventCount>{};
     for (final row in data) {
       final orgId = row['id'] as String;
+      final events = (row['events'] as List?) ?? const [];
+      final publishedEventCount = events.where((event) {
+        final eventData = event as Map<String, dynamic>;
+        return eventData['status'] == 'published' &&
+            eventData['visibility'] == 'public';
+      }).length;
+
       if (!orgMap.containsKey(orgId)) {
         orgMap[orgId] = OrganizationWithEventCount(
           id: orgId,
           name: row['name'] as String,
           logoUrl: _publicLogoUrl(row['logo_url'] as String?),
           description: row['description'] as String?,
-          cityId: row['city_id'] as String?,
-          eventCount: 0,
+          eventCount: publishedEventCount,
         );
       }
-      orgMap[orgId] = orgMap[orgId]!.copyWith(eventCount: orgMap[orgId]!.eventCount + 1);
     }
 
     return orgMap.values.toList()

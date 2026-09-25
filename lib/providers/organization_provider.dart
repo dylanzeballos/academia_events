@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/organization_model.dart';
 import '../data/models/organization_member_model.dart';
 import '../data/models/organization_invitation_model.dart';
+import '../data/models/organization_image_model.dart';
 import '../data/repositories/organization_repository.dart';
 import '../data/services/organization_service.dart';
 import 'auth_provider.dart';
@@ -51,6 +52,14 @@ final selectedOrganizationProvider = FutureProvider<OrganizationModel?>((ref) {
   final repo = ref.watch(organizationRepositoryProvider);
   return repo.fetchOrganization(orgId);
 });
+
+final organizationImagesProvider =
+    FutureProvider.family<List<OrganizationImageModel>, String>(
+  (ref, orgId) {
+    final repo = ref.watch(organizationRepositoryProvider);
+    return repo.fetchOrganizationImages(orgId);
+  },
+);
 
 // ─── Miembros de la organización seleccionada ───────
 
@@ -108,9 +117,17 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
     String? email,
     String? phoneNumber,
     String? websiteUrl,
-    String? cityId,
+    String? departmentId,
+    String? provinceId,
+    String? municipalityId,
+    String? locationName,
+    String? address,
+    double? latitude,
+    double? longitude,
     Uint8List? logoBytes,
     String? logoExtension,
+    Uint8List? coverBytes,
+    String? coverExtension,
   }) async {
     state = state.copyWith(isLoading: true);
     try {
@@ -122,7 +139,13 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
         email: email,
         phoneNumber: phoneNumber,
         websiteUrl: websiteUrl,
-        cityId: cityId,
+        departmentId: departmentId,
+        provinceId: provinceId,
+        municipalityId: municipalityId,
+        locationName: locationName,
+        address: address,
+        latitude: latitude,
+        longitude: longitude,
       );
 
       // Upload logo if provided
@@ -131,6 +154,14 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
           orgId: org.id,
           bytes: logoBytes,
           extension: logoExtension,
+        );
+      }
+
+      if (coverBytes != null && coverExtension != null) {
+        await repo.uploadCoverForOrg(
+          orgId: org.id,
+          bytes: coverBytes,
+          extension: coverExtension,
         );
       }
 
