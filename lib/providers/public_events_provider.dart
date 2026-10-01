@@ -24,9 +24,10 @@ class PublicSelectedWeekNotifier extends Notifier<DateTime> {
   void previousWeek() => state = state.subtract(const Duration(days: 7));
 }
 
-final publicSelectedWeekProvider = NotifierProvider<PublicSelectedWeekNotifier, DateTime>(
-  () => PublicSelectedWeekNotifier(),
-);
+final publicSelectedWeekProvider =
+    NotifierProvider<PublicSelectedWeekNotifier, DateTime>(
+      () => PublicSelectedWeekNotifier(),
+    );
 
 class PublicSelectedDayNotifier extends Notifier<DateTime> {
   @override
@@ -35,11 +36,14 @@ class PublicSelectedDayNotifier extends Notifier<DateTime> {
   void setDay(DateTime day) => state = day;
 }
 
-final publicSelectedDayProvider = NotifierProvider<PublicSelectedDayNotifier, DateTime>(
-  () => PublicSelectedDayNotifier(),
-);
+final publicSelectedDayProvider =
+    NotifierProvider<PublicSelectedDayNotifier, DateTime>(
+      () => PublicSelectedDayNotifier(),
+    );
 
-final publicWeekEventsProvider = FutureProvider<List<PublicEventModel>>((ref) async {
+final publicWeekEventsProvider = FutureProvider<List<PublicEventModel>>((
+  ref,
+) async {
   final week = ref.watch(publicSelectedWeekProvider);
   final filter = ref.watch(eventFiltersProvider);
   final repo = ref.watch(publicEventsRepositoryProvider);
@@ -98,8 +102,9 @@ class EventFiltersNotifier extends Notifier<EventFilterState> {
   @override
   EventFilterState build() => const EventFilterState();
 
-  void setSearchQuery(String query) => state = state.copyWith(searchQuery: query, page: 1);
-  
+  void setSearchQuery(String query) =>
+      state = state.copyWith(searchQuery: query, page: 1);
+
   void toggleCategory(String categoryId) {
     final ids = [...state.categoryIds];
     if (ids.contains(categoryId)) {
@@ -131,6 +136,14 @@ class EventFiltersNotifier extends Notifier<EventFilterState> {
       provinceId: provinceId,
       municipalityId: municipalityId,
       cityId: cityId,
+      page: 1,
+    );
+  }
+
+  void setDepartmentId(String? departmentId) {
+    state = state.copyWith(
+      departmentId: departmentId,
+      clearLocation: departmentId == null,
       page: 1,
     );
   }
@@ -168,20 +181,24 @@ class EventFiltersNotifier extends Notifier<EventFilterState> {
   }
 }
 
-final eventFiltersProvider = NotifierProvider<EventFiltersNotifier, EventFilterState>(
-  () => EventFiltersNotifier(),
-);
+final eventFiltersProvider =
+    NotifierProvider<EventFiltersNotifier, EventFilterState>(
+      () => EventFiltersNotifier(),
+    );
 
-final publicEventsProvider = FutureProvider<PaginatedResult<PublicEventModel>>((ref) async {
+final publicEventsProvider = FutureProvider<PaginatedResult<PublicEventModel>>((
+  ref,
+) async {
   final filter = ref.watch(eventFiltersProvider);
   final repo = ref.watch(publicEventsRepositoryProvider);
   return repo.searchEvents(filter);
 });
 
-final publicEventDetailProvider = FutureProvider.family<PublicEventModel?, String>((ref, eventId) async {
-  final repo = ref.watch(publicEventsRepositoryProvider);
-  return repo.getEventById(eventId);
-});
+final publicEventDetailProvider =
+    FutureProvider.family<PublicEventModel?, String>((ref, eventId) async {
+      final repo = ref.watch(publicEventsRepositoryProvider);
+      return repo.getEventById(eventId);
+    });
 
 /// Eventos de una organización desde hoy (desde las 00:00 de hoy, para que
 /// los eventos vespertinos del día de hoy se sigan mostrando como próximos).
@@ -204,22 +221,29 @@ final publicOrganizationEventsProvider =
       return result.items;
     });
 
-final organizationsWithEventsProvider = FutureProvider<List<OrganizationWithEventCount>>((ref) async {
-  final repo = ref.watch(publicEventsRepositoryProvider);
-  return repo.getOrganizationsWithEvents(limit: 200);
-});
+final organizationsWithEventsProvider =
+    FutureProvider<List<OrganizationWithEventCount>>((ref) async {
+      final repo = ref.watch(publicEventsRepositoryProvider);
+      return repo.getOrganizationsWithEvents(limit: 200);
+    });
 
-final publicEventCategoriesProvider = FutureProvider<List<EventCategoryModel>>((ref) async {
+final publicEventCategoriesProvider = FutureProvider<List<EventCategoryModel>>((
+  ref,
+) async {
   final repo = ref.watch(publicEventsRepositoryProvider);
   return repo.getEventCategories();
 });
 
-final publicDanceCategoriesProvider = FutureProvider<List<DanceCategoryModel>>((ref) async {
+final publicDanceCategoriesProvider = FutureProvider<List<DanceCategoryModel>>((
+  ref,
+) async {
   final repo = ref.watch(publicEventsRepositoryProvider);
   return repo.getDanceCategories();
 });
 
-final publicDepartmentsProvider = FutureProvider<List<DepartmentModel>>((ref) async {
+final publicDepartmentsProvider = FutureProvider<List<DepartmentModel>>((
+  ref,
+) async {
   final repo = ref.watch(publicEventsRepositoryProvider);
   return repo.getDepartments();
 });
@@ -231,11 +255,14 @@ class SelectedDepartmentIdNotifier extends Notifier<String?> {
   void clear() => state = null;
 }
 
-final selectedDepartmentIdProvider = NotifierProvider<SelectedDepartmentIdNotifier, String?>(
-  () => SelectedDepartmentIdNotifier(),
-);
+final selectedDepartmentIdProvider =
+    NotifierProvider<SelectedDepartmentIdNotifier, String?>(
+      () => SelectedDepartmentIdNotifier(),
+    );
 
-final publicProvincesProvider = FutureProvider<List<ProvinceModel>>((ref) async {
+final publicProvincesProvider = FutureProvider<List<ProvinceModel>>((
+  ref,
+) async {
   final deptId = ref.watch(selectedDepartmentIdProvider);
   if (deptId == null) return [];
   final repo = ref.watch(publicEventsRepositoryProvider);
@@ -249,11 +276,14 @@ class SelectedProvinceIdNotifier extends Notifier<String?> {
   void clear() => state = null;
 }
 
-final selectedProvinceIdProvider = NotifierProvider<SelectedProvinceIdNotifier, String?>(
-  () => SelectedProvinceIdNotifier(),
-);
+final selectedProvinceIdProvider =
+    NotifierProvider<SelectedProvinceIdNotifier, String?>(
+      () => SelectedProvinceIdNotifier(),
+    );
 
-final publicMunicipalitiesProvider = FutureProvider<List<MunicipalityModel>>((ref) async {
+final publicMunicipalitiesProvider = FutureProvider<List<MunicipalityModel>>((
+  ref,
+) async {
   final provId = ref.watch(selectedProvinceIdProvider);
   if (provId == null) return [];
   final repo = ref.watch(publicEventsRepositoryProvider);
@@ -267,9 +297,10 @@ class SelectedMunicipalityIdNotifier extends Notifier<String?> {
   void clear() => state = null;
 }
 
-final selectedMunicipalityIdProvider = NotifierProvider<SelectedMunicipalityIdNotifier, String?>(
-  () => SelectedMunicipalityIdNotifier(),
-);
+final selectedMunicipalityIdProvider =
+    NotifierProvider<SelectedMunicipalityIdNotifier, String?>(
+      () => SelectedMunicipalityIdNotifier(),
+    );
 
 final publicCitiesProvider = FutureProvider<List<CityModel>>((ref) async {
   final muniId = ref.watch(selectedMunicipalityIdProvider);
@@ -285,9 +316,10 @@ class SelectedCityIdNotifier extends Notifier<String?> {
   void clear() => state = null;
 }
 
-final selectedCityIdProvider = NotifierProvider<SelectedCityIdNotifier, String?>(
-  () => SelectedCityIdNotifier(),
-);
+final selectedCityIdProvider =
+    NotifierProvider<SelectedCityIdNotifier, String?>(
+      () => SelectedCityIdNotifier(),
+    );
 
 void resetPublicGeographicSelections(WidgetRef ref) {
   ref.read(selectedDepartmentIdProvider.notifier).clear();

@@ -75,10 +75,9 @@ final weekEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   final eventsRepo = ref.watch(eventsRepositoryProvider);
 
   final events = await eventsRepo.fetchWeekEvents(week);
-  final filtered = events
-      .where((e) => _scheduleEventMatches(e, filter))
-      .toList()
-    ..sort((a, b) => a.startTime.compareTo(b.startTime));
+  final filtered =
+      events.where((e) => _scheduleEventMatches(e, filter)).toList()
+        ..sort((a, b) => a.startTime.compareTo(b.startTime));
   return filtered;
 });
 
@@ -100,6 +99,10 @@ bool _scheduleEventMatches(EventModel e, EventFilterState f) {
 
   // El filtro de organización aplica a los eventos (la barra del Horario
   // permite elegir una organización).
+  if (f.departmentId != null && e.location?.departmentId != f.departmentId) {
+    return false;
+  }
+
   if (f.organizationId != null && e.organizationId != f.organizationId) {
     return false;
   }
@@ -161,7 +164,10 @@ final orgEventsProvider = FutureProvider<List<EventModel>>((ref) async {
 /// principios de la semana que viene (cuando hoy es casi fin de semana) no se
 /// pierdan.
 final organizationUpcomingClassesProvider =
-    FutureProvider.family<List<EventModel>, String>((ref, organizationId) async {
+    FutureProvider.family<List<EventModel>, String>((
+      ref,
+      organizationId,
+    ) async {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final horizon = today.add(const Duration(days: 7));
@@ -172,13 +178,16 @@ final organizationUpcomingClassesProvider =
         ...await repo.fetchWeekClasses(now.add(const Duration(days: 7))),
       ];
 
-      final upcoming = candidates
-          .where((e) =>
-              e.organizationId == organizationId &&
-              !e.endTime.isBefore(today) &&
-              !e.startTime.isAfter(horizon))
-          .toList()
-        ..sort((a, b) => a.startTime.compareTo(b.startTime));
+      final upcoming =
+          candidates
+              .where(
+                (e) =>
+                    e.organizationId == organizationId &&
+                    !e.endTime.isBefore(today) &&
+                    !e.startTime.isAfter(horizon),
+              )
+              .toList()
+            ..sort((a, b) => a.startTime.compareTo(b.startTime));
       return upcoming;
     });
 
@@ -288,5 +297,5 @@ class CreateEventNotifier extends Notifier<CreateEventState> {
 
 final createEventProvider =
     NotifierProvider<CreateEventNotifier, CreateEventState>(() {
-  return CreateEventNotifier();
-});
+      return CreateEventNotifier();
+    });

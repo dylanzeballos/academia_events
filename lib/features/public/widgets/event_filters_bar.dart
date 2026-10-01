@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/dance_category_model.dart';
+import '../../../data/models/geographic_model.dart';
 import '../../../data/models/public_event_data.dart';
 import '../../../providers/public_events_provider.dart';
 
@@ -34,9 +35,11 @@ class EventFiltersBar extends ConsumerWidget {
     final filter = ref.watch(eventFiltersProvider);
     final danceAsync = ref.watch(publicDanceCategoriesProvider);
     final orgsAsync = ref.watch(organizationsWithEventsProvider);
+    final departmentsAsync = ref.watch(publicDepartmentsProvider);
 
     final dance = danceAsync.value ?? const <DanceCategoryModel>[];
     final orgs = orgsAsync.value ?? const <OrganizationWithEventCount>[];
+    final departments = departmentsAsync.value ?? const <DepartmentModel>[];
 
     final selectedDanceNames = <String>[];
     if (filter.danceCategoryIds.isNotEmpty) {
@@ -61,6 +64,14 @@ class EventFiltersBar extends ConsumerWidget {
     final orgLabel = filter.organizationId != null && selectedOrgName != null
         ? selectedOrgName
         : 'Organización';
+    DepartmentModel? selectedDepartment;
+    for (final department in departments) {
+      if (department.id == filter.departmentId) {
+        selectedDepartment = department;
+        break;
+      }
+    }
+    final departmentLabel = selectedDepartment?.name ?? 'Departamento';
 
     return Container(
       height: dense ? 36 : 44,
@@ -71,6 +82,31 @@ class EventFiltersBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
+          Flexible(
+            child: PopupMenuButton<String?>(
+              tooltip: 'Filtrar por departamento',
+              onSelected: (value) => ref
+                  .read(eventFiltersProvider.notifier)
+                  .setDepartmentId(value),
+              itemBuilder: (context) => [
+                PopupMenuItem<String?>(
+                  value: null,
+                  child: Text('Todos los departamentos'),
+                ),
+                for (final department in departments)
+                  PopupMenuItem<String?>(
+                    value: department.id,
+                    child: Text(department.name),
+                  ),
+              ],
+              child: _FilterPill(
+                icon: Icons.location_on_outlined,
+                label: departmentLabel,
+                dense: dense,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           // ── Categorías de baile (multi-selección) ───────────────
           Flexible(
             child: PopupMenuButton<String>(

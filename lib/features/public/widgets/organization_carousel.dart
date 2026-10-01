@@ -36,7 +36,7 @@ class OrganizationCarousel extends ConsumerStatefulWidget {
 }
 
 class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
-  static const _virtualPageCount = 5000;
+  static const _virtualPageCount = 1000;
   static const _initialPage = _virtualPageCount ~/ 2;
 
   late PageController _pageController;
@@ -105,13 +105,20 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
             ? List<OrganizationWithEventCount>.from(allOrgs)
             : allOrgs
                   .where(
+              (organization) =>
+                organization.name.toLowerCase().contains(query),
+                  )
+                  .toList();
+        final departmentOrgs = filter.departmentId == null
+            ? orgs
+            : orgs
+                  .where(
                     (organization) =>
-                        organization.name.toLowerCase().contains(query) ||
                         matchingOrganizationIds.contains(organization.id),
                   )
                   .toList();
-        if (orgs.isEmpty) return const SizedBox.shrink();
-        _orgsCount = orgs.length;
+        if (departmentOrgs.isEmpty) return const SizedBox.shrink();
+        _orgsCount = departmentOrgs.length;
 
         return SizedBox(
           height: carouselHeight,
@@ -158,29 +165,42 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                 ),
               ),
               Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: _virtualPageCount,
-                  onPageChanged: (index) {
-                    setState(() => _currentPage = index);
-                  },
-                  physics: const ClampingScrollPhysics(),
-                  itemBuilder: (context, index) {
-                    final orgIndex = index % orgs.length;
-                    final org = orgs[orgIndex];
-                    return _OrgLogoItem(
-                      organization: org,
-                      isActive: orgIndex == _currentPage % orgs.length,
-                      compact: widget.compact,
-                      expanded: showExpandedCarousel,
-                      cardHeight: carouselHeight - 32,
-                      onTap: () => context.push(
-                        '${AppRoutes.organizationPublicDetailBase}/${org.id}',
-                        extra: org.name,
+                child: departmentOrgs.length == 1
+                    ? _OrgLogoItem(
+                        organization: departmentOrgs.first,
+                        isActive: true,
+                        compact: widget.compact,
+                        expanded: showExpandedCarousel,
+                        cardHeight: carouselHeight - 32,
+                        onTap: () => context.push(
+                          '${AppRoutes.organizationPublicDetailBase}/${departmentOrgs.first.id}',
+                          extra: departmentOrgs.first.name,
+                        ),
+                      )
+                    : PageView.builder(
+                        controller: _pageController,
+                        itemCount: _virtualPageCount,
+                        onPageChanged: (index) {
+                          setState(() => _currentPage = index);
+                        },
+                        physics: const ClampingScrollPhysics(),
+                        itemBuilder: (context, index) {
+                          final orgIndex = index % departmentOrgs.length;
+                          final org = departmentOrgs[orgIndex];
+                          return _OrgLogoItem(
+                            organization: org,
+                            isActive:
+                                orgIndex == _currentPage % departmentOrgs.length,
+                            compact: widget.compact,
+                            expanded: showExpandedCarousel,
+                            cardHeight: carouselHeight - 32,
+                            onTap: () => context.push(
+                              '${AppRoutes.organizationPublicDetailBase}/${org.id}',
+                              extra: org.name,
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           ),
@@ -249,99 +269,99 @@ class _OrgLogoItem extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-              SizedBox(
-                width: double.infinity,
-                height: expanded ? 96 : 54,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (organization.bannerUrl != null &&
-                        organization.bannerUrl!.isNotEmpty)
-                      CachedNetworkImage(
-                        imageUrl: organization.bannerUrl!,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, _, _) =>
-                            _BannerFallback(name: organization.name),
-                      )
-                    else
-                      _BannerFallback(name: organization.name),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.05),
-                            Colors.black.withValues(alpha: 0.55),
-                          ],
+                SizedBox(
+                  width: double.infinity,
+                  height: expanded ? 96 : 54,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (organization.bannerUrl != null &&
+                          organization.bannerUrl!.isNotEmpty)
+                        CachedNetworkImage(
+                          imageUrl: organization.bannerUrl!,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, _, _) =>
+                              _BannerFallback(name: organization.name),
+                        )
+                      else
+                        _BannerFallback(name: organization.name),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.05),
+                              Colors.black.withValues(alpha: 0.55),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: _CardBadge(
-                        label: '${organization.eventCount} eventos',
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: _CardBadge(
+                          label: '${organization.eventCount} eventos',
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: expanded ? 14 : 10),
-              _OrgAvatar(
-                name: organization.name,
-                logoUrl: organization.logoUrl,
-                size: expanded
-                    ? 72
-                    : compact
-                    ? 30
-                    : 50,
-                isActive: isActive,
-              ),
-              SizedBox(
-                height: expanded
-                    ? 8
-                    : compact
-                    ? 2
-                    : 5,
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: expanded ? 10 : 6),
-                child: Text(
-                  organization.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: context.textOnBg,
-                    fontSize: expanded
-                        ? 18
-                        : compact
-                        ? 7
-                        : 15,
-                    fontWeight: FontWeight.w800,
+                    ],
                   ),
                 ),
-              ),
-              if (organization.danceGenres.isNotEmpty || expanded) ...[
-                const SizedBox(height: 6),
+                SizedBox(height: expanded ? 14 : 10),
+                _OrgAvatar(
+                  name: organization.name,
+                  logoUrl: organization.logoUrl,
+                  size: expanded
+                      ? 72
+                      : compact
+                      ? 30
+                      : 50,
+                  isActive: isActive,
+                ),
+                SizedBox(
+                  height: expanded
+                      ? 8
+                      : compact
+                      ? 2
+                      : 5,
+                ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: EdgeInsets.symmetric(horizontal: expanded ? 10 : 6),
                   child: Text(
-                    organization.danceGenres.isNotEmpty
-                        ? organization.danceGenres.take(2).join(' & ')
-                        : 'Academia de baile',
-                    maxLines: 2,
+                    organization.name,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: context.textOnBg.withValues(alpha: 0.65),
-                      fontSize: 11,
-                      height: 1.15,
+                      color: context.textOnBg,
+                      fontSize: expanded
+                          ? 18
+                          : compact
+                          ? 7
+                          : 15,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-              ],
+                if (organization.danceGenres.isNotEmpty || expanded) ...[
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      organization.danceGenres.isNotEmpty
+                          ? organization.danceGenres.take(2).join(' & ')
+                          : 'Academia de baile',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: context.textOnBg.withValues(alpha: 0.65),
+                        fontSize: 11,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
