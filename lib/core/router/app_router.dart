@@ -69,7 +69,9 @@ class _StudentShellState extends ConsumerState<_StudentShell> {
     final shell = widget.navigationShell;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final selectedColor = AppColors.primary;
-    final unselectedColor = isDark ? Colors.grey.shade600 : Colors.grey.shade400;
+    final unselectedColor = isDark
+        ? Colors.grey.shade600
+        : Colors.grey.shade400;
 
     return Scaffold(
       body: shell,
@@ -82,7 +84,7 @@ class _StudentShellState extends ConsumerState<_StudentShell> {
             Container(
               color: isDark ? AppColors.background : Colors.white,
               child: const OrganizationCarousel(
-                height: 96,
+                height: 192,
                 autoPlayInterval: Duration(seconds: 4),
               ),
             ),
@@ -163,8 +165,9 @@ class _InstagramNavBar extends StatelessWidget {
                         labels[i],
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                           color: isSelected ? selectedColor : unselectedColor,
                         ),
                       ),
@@ -204,7 +207,9 @@ class _AcademyShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final selectedColor = AppColors.primary;
-    final unselectedColor = isDark ? Colors.grey.shade600 : Colors.grey.shade400;
+    final unselectedColor = isDark
+        ? Colors.grey.shade600
+        : Colors.grey.shade400;
 
     return Scaffold(
       body: navigationShell,
@@ -335,7 +340,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.eventCreate,
         builder: (_, _) => const EventCreateView(),
       ),
-GoRoute(
+      GoRoute(
         path: AppRoutes.eventDetail,
         builder: (context, state) {
           final eventId = state.extra as String;
@@ -373,7 +378,6 @@ GoRoute(
         builder: (_, _) => const CheckinScreen(),
       ),
 
-
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => _StudentShell(navigationShell: shell),
         branches: [
@@ -389,8 +393,7 @@ GoRoute(
             routes: [
               GoRoute(
                 path: '/student/tickets',
-                builder: (_, _) =>
-                    const StudentTicketsView(),
+                builder: (_, _) => const StudentTicketsView(),
               ),
             ],
           ),

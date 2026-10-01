@@ -61,14 +61,18 @@ class PublicEventData {
 
   factory PublicEventData.fromJson(Map<String, dynamic> json) {
     final categoryData = json['event_categories'] as Map<String, dynamic>?;
-    
+
     EventLocationModel? parsedLocation;
     if (json['event_locations'] != null) {
-      if (json['event_locations'] is List && (json['event_locations'] as List).isNotEmpty) {
+      if (json['event_locations'] is List &&
+          (json['event_locations'] as List).isNotEmpty) {
         parsedLocation = EventLocationModel.fromJson(
-            (json['event_locations'] as List).first as Map<String, dynamic>);
+          (json['event_locations'] as List).first as Map<String, dynamic>,
+        );
       } else if (json['event_locations'] is Map<String, dynamic>) {
-        parsedLocation = EventLocationModel.fromJson(json['event_locations'] as Map<String, dynamic>);
+        parsedLocation = EventLocationModel.fromJson(
+          json['event_locations'] as Map<String, dynamic>,
+        );
       }
     }
 
@@ -77,22 +81,40 @@ class PublicEventData {
     final orgLogo = orgData?['logo_url'] as String?;
 
     final imagesData = json['event_images'] as List?;
-    final images = imagesData?.map((e) => e['image_url'] as String).whereType<String>().toList() ?? [];
+    final images =
+        imagesData
+            ?.map((e) => e['image_url'] as String)
+            .whereType<String>()
+            .toList() ??
+        [];
 
     final danceCategoriesData = json['event_dance_categories'] as List?;
-    final danceCategories = danceCategoriesData?.map((e) {
-      final cat = e['dance_categories'] as Map<String, dynamic>?;
-      return cat != null ? DanceCategoryModel.fromJson(cat) : null;
-    }).whereType<DanceCategoryModel>().toList() ?? [];
+    final danceCategories =
+        danceCategoriesData
+            ?.map((e) {
+              final cat = e['dance_categories'] as Map<String, dynamic>?;
+              return cat != null ? DanceCategoryModel.fromJson(cat) : null;
+            })
+            .whereType<DanceCategoryModel>()
+            .toList() ??
+        [];
 
     final ticketTypesData = json['ticket_types'] as List?;
-    final ticketTypes = ticketTypesData?.map((e) => PublicTicketTypeModel.fromJson(e as Map<String, dynamic>)).toList() ?? [];
+    final ticketTypes =
+        ticketTypesData
+            ?.map(
+              (e) => PublicTicketTypeModel.fromJson(e as Map<String, dynamic>),
+            )
+            .toList() ??
+        [];
 
     double? minPrice;
     if (ticketTypes.isNotEmpty) {
       final activeTickets = ticketTypes.where((t) => t.isOnSale).toList();
       if (activeTickets.isNotEmpty) {
-        minPrice = activeTickets.map((t) => t.price).reduce((a, b) => a < b ? a : b);
+        minPrice = activeTickets
+            .map((t) => t.price)
+            .reduce((a, b) => a < b ? a : b);
       }
     }
 
@@ -103,7 +125,9 @@ class PublicEventData {
       organizationName: orgName,
       organizationLogoUrl: orgLogo,
       categoryId: json['category_id'] as String?,
-      categoryName: categoryData?['name'] as String? ?? (json['category_name'] as String?),
+      categoryName:
+          categoryData?['name'] as String? ??
+          (json['category_name'] as String?),
       description: json['description'] as String?,
       coverImageUrl: json['cover_image_url'] as String?,
       qrImageUrl: json['qr_image_url'] as String?,
@@ -193,7 +217,9 @@ class OrganizationWithEventCount {
     required this.id,
     required this.name,
     this.logoUrl,
+    this.bannerUrl,
     this.description,
+    this.danceGenres = const [],
     this.cityId,
     this.eventCount = 0,
   });
@@ -201,7 +227,9 @@ class OrganizationWithEventCount {
   final String id;
   final String name;
   final String? logoUrl;
+  final String? bannerUrl;
   final String? description;
+  final List<String> danceGenres;
   final String? cityId;
   final int eventCount;
 
@@ -209,7 +237,9 @@ class OrganizationWithEventCount {
     String? id,
     String? name,
     String? logoUrl,
+    String? bannerUrl,
     String? description,
+    List<String>? danceGenres,
     String? cityId,
     int? eventCount,
   }) {
@@ -217,7 +247,9 @@ class OrganizationWithEventCount {
       id: id ?? this.id,
       name: name ?? this.name,
       logoUrl: logoUrl ?? this.logoUrl,
+      bannerUrl: bannerUrl ?? this.bannerUrl,
       description: description ?? this.description,
+      danceGenres: danceGenres ?? this.danceGenres,
       cityId: cityId ?? this.cityId,
       eventCount: eventCount ?? this.eventCount,
     );

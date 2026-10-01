@@ -8,6 +8,7 @@ import '../../../providers/events_provider.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../public/widgets/event_filters_bar.dart';
+import '../public/widgets/event_search_bar.dart';
 import 'widgets/week_column.dart';
 
 /// Calendar view estilo Google Calendar.
@@ -30,6 +31,32 @@ class WeekCalendarView extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Horario Semanal',
+                      style: TextStyle(
+                        color: context.textOnBg,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              child: const EventSearchBar(
+                hintText: 'Buscar academias, clases o géneros...',
+              ),
+            ),
             // ── Cabecera de navegación por semana ─────────────────
             _WeekNavigator(weekDays: weekDays),
             const EventFiltersBar(),
@@ -96,6 +123,7 @@ class _WeekNavigator extends ConsumerWidget {
       color: context.cardBg,
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
             icon: const Icon(Icons.chevron_left),
@@ -103,22 +131,32 @@ class _WeekNavigator extends ConsumerWidget {
             onPressed: () =>
                 ref.read(selectedWeekProvider.notifier).previousWeek(),
           ),
-          Expanded(
-            child: Text(
-              _label(),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: context.textOnBg,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Semana',
+                style: TextStyle(
+                  color: context.textOnBg.withValues(alpha: 0.6),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
+              Text(
+                _label(),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.textOnBg,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
             tooltip: 'Semana siguiente',
-            onPressed: () =>
-                ref.read(selectedWeekProvider.notifier).nextWeek(),
+            onPressed: () => ref.read(selectedWeekProvider.notifier).nextWeek(),
           ),
         ],
       ),

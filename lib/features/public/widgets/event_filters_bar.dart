@@ -21,9 +21,11 @@ class EventFiltersBar extends ConsumerWidget {
   const EventFiltersBar({
     super.key,
     this.showOrganizationFilter = true,
+    this.dense = false,
   });
 
   final bool showOrganizationFilter;
+  final bool dense;
 
   static const String _allDanceValue = '__all_dance__';
 
@@ -39,14 +41,15 @@ class EventFiltersBar extends ConsumerWidget {
     final selectedDanceNames = <String>[];
     if (filter.danceCategoryIds.isNotEmpty) {
       for (final c in dance) {
-        if (filter.danceCategoryIds.contains(c.id)) selectedDanceNames.add(c.name);
+        if (filter.danceCategoryIds.contains(c.id))
+          selectedDanceNames.add(c.name);
       }
     }
     final danceLabel = filter.danceCategoryIds.isEmpty
         ? 'Todas'
         : selectedDanceNames.isEmpty
-            ? '${filter.danceCategoryIds.length} seleccionadas'
-            : selectedDanceNames.join(' · ');
+        ? '${filter.danceCategoryIds.length} seleccionadas'
+        : selectedDanceNames.join(' · ');
 
     String? selectedOrgName;
     for (final o in orgs) {
@@ -60,8 +63,8 @@ class EventFiltersBar extends ConsumerWidget {
         : 'Organización';
 
     return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: dense ? 36 : 44,
+      padding: EdgeInsets.symmetric(horizontal: dense ? 12 : 8),
       decoration: BoxDecoration(
         color: context.cardBg,
         border: Border(bottom: BorderSide(color: context.divider, width: 1)),
@@ -98,6 +101,7 @@ class EventFiltersBar extends ConsumerWidget {
               child: _FilterPill(
                 icon: Icons.music_note_rounded,
                 label: danceLabel,
+                dense: dense,
               ),
             ),
           ),
@@ -110,7 +114,9 @@ class EventFiltersBar extends ConsumerWidget {
                 tooltip: 'Filtrar por organización',
                 enabled: orgs.isNotEmpty,
                 onSelected: (value) {
-                  ref.read(eventFiltersProvider.notifier).setOrganizationId(value);
+                  ref
+                      .read(eventFiltersProvider.notifier)
+                      .setOrganizationId(value);
                 },
                 itemBuilder: (context) {
                   return [
@@ -144,7 +150,10 @@ class EventFiltersBar extends ConsumerWidget {
                             ),
                             const SizedBox(width: 8),
                             Flexible(
-                              child: Text(o.name, overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                o.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
@@ -154,6 +163,7 @@ class EventFiltersBar extends ConsumerWidget {
                 child: _FilterPill(
                   icon: Icons.apartment_rounded,
                   label: orgLabel,
+                  dense: dense,
                 ),
               ),
             ),
@@ -181,17 +191,13 @@ class EventFiltersBar extends ConsumerWidget {
 /// Sustituye a la barra de filtros fija que ocupaba el espacio encima de los
 /// días, dejando que la agenda semanal se adapte verticalmente a los eventos.
 class EventFiltersButton extends ConsumerWidget {
-  const EventFiltersButton({
-    super.key,
-    this.showOrganizationFilter = true,
-  });
+  const EventFiltersButton({super.key, this.showOrganizationFilter = true});
 
   final bool showOrganizationFilter;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasActiveFilters =
-        ref.watch(eventFiltersProvider).hasActiveFilters;
+    final hasActiveFilters = ref.watch(eventFiltersProvider).hasActiveFilters;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -272,16 +278,21 @@ Future<void> showEventFiltersSheet(
 
 /// Pastilla que abre el menú desplegable.
 class _FilterPill extends StatelessWidget {
-  const _FilterPill({required this.icon, required this.label});
+  const _FilterPill({
+    required this.icon,
+    required this.label,
+    this.dense = false,
+  });
 
   final IconData icon;
   final String label;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: dense ? 26 : 32,
+      padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 12),
       decoration: BoxDecoration(
         color: context.inputBg,
         borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
@@ -290,22 +301,26 @@ class _FilterPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: context.textMuted),
-          const SizedBox(width: 6),
+          Icon(icon, size: dense ? 12 : 16, color: context.textMuted),
+          SizedBox(width: dense ? 4 : 6),
           Flexible(
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: dense ? 10 : 13,
                 fontWeight: FontWeight.w600,
                 color: context.textOnBg,
               ),
             ),
           ),
-          const SizedBox(width: 4),
-          Icon(Icons.arrow_drop_down, size: 18, color: context.textMuted),
+          SizedBox(width: dense ? 2 : 4),
+          Icon(
+            Icons.arrow_drop_down,
+            size: dense ? 14 : 18,
+            color: context.textMuted,
+          ),
         ],
       ),
     );

@@ -10,14 +10,16 @@ import '../../../../providers/public_events_provider.dart';
 class EventSearchBar extends ConsumerStatefulWidget {
   const EventSearchBar({
     super.key,
-    this.hintText = 'Buscar eventos...',
+    this.hintText = 'Buscar academias, clases o géneros...',
     this.onSubmitted,
     this.autoFocus = false,
+    this.compact = false,
   });
 
   final String hintText;
   final ValueChanged<String>? onSubmitted;
   final bool autoFocus;
+  final bool compact;
 
   @override
   ConsumerState<EventSearchBar> createState() => _EventSearchBarState();
@@ -48,21 +50,36 @@ class _EventSearchBarState extends ConsumerState<EventSearchBar> {
       autofocus: widget.autoFocus,
       decoration: InputDecoration(
         hintText: widget.hintText,
-        hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-        prefixIcon: Icon(Icons.search, color: Colors.grey[500], size: 22),
+        hintStyle: TextStyle(
+          color: Colors.grey[500],
+          fontSize: widget.compact ? 10 : 14,
+        ),
+        prefixIcon: Icon(
+          Icons.search,
+          color: Colors.grey[500],
+          size: widget.compact ? 15 : 22,
+        ),
+        prefixIconConstraints: widget.compact
+            ? const BoxConstraints(minWidth: 30, minHeight: 30)
+            : null,
         suffixIcon: filter.searchQuery.isNotEmpty
             ? IconButton(
-                icon: Icon(Icons.clear, color: Colors.grey[500], size: 22),
+                icon: Icon(
+                  Icons.clear,
+                  color: Colors.grey[500],
+                  size: widget.compact ? 15 : 22,
+                ),
                 onPressed: () => notifier.setSearchQuery(''),
                 tooltip: 'Limpiar búsqueda',
               )
             : null,
         filled: true,
         fillColor: context.cardBg,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 8 : 16,
+          vertical: widget.compact ? 4 : 12,
         ),
+        isDense: widget.compact,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
           borderSide: BorderSide(color: context.divider),
@@ -90,7 +107,9 @@ class EventSearchBarDesktop extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       constraints: const BoxConstraints(maxWidth: 480),
-      child: const EventSearchBar(hintText: 'Buscar eventos por nombre, lugar, categoría...'),
+      child: const EventSearchBar(
+        hintText: 'Buscar eventos por nombre, lugar, categoría...',
+      ),
     );
   }
 }

@@ -23,7 +23,7 @@ class EventsService {
           requires_approval, published_at, created_at,
           organizations(name, logo_url),
           event_categories(name),
-          event_dance_categories(dance_category_id),
+          event_dance_categories(dance_category_id, dance_categories(name)),
           event_locations(*),
           event_images(*),
           ticket_types(*)

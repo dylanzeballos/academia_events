@@ -11,6 +11,7 @@ class EventModel {
     this.categoryId,
     this.categoryName,
     this.danceCategoryIds = const [],
+    this.danceCategoryNames = const [],
     this.description,
     this.coverImageUrl,
     this.qrImageUrl,
@@ -36,6 +37,7 @@ class EventModel {
   final String? categoryId;
   final String? categoryName;
   final List<String> danceCategoryIds;
+  final List<String> danceCategoryNames;
   final String? description;
   final String? coverImageUrl;
   final String? qrImageUrl;
@@ -76,6 +78,7 @@ class EventModel {
     String? categoryId,
     String? categoryName,
     List<String>? danceCategoryIds,
+    List<String>? danceCategoryNames,
     String? description,
     String? coverImageUrl,
     String? qrImageUrl,
@@ -101,6 +104,7 @@ class EventModel {
         categoryId: categoryId ?? this.categoryId,
         categoryName: categoryName ?? this.categoryName,
         danceCategoryIds: danceCategoryIds ?? this.danceCategoryIds,
+        danceCategoryNames: danceCategoryNames ?? this.danceCategoryNames,
         description: description ?? this.description,
         coverImageUrl: coverImageUrl ?? this.coverImageUrl,
         qrImageUrl: qrImageUrl ?? this.qrImageUrl,
@@ -154,6 +158,13 @@ class EventModel {
             .map((t) => TicketTypeModel.fromJson(Map<String, dynamic>.from(t as Map)))
             .toList()
         : <TicketTypeModel>[];
+      final danceCategoryNames = (json['event_dance_categories'] as List?)
+          ?.map((item) => (item as Map)['dance_categories'])
+          .whereType<Map>()
+          .map((category) => category['name'] as String? ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList() ??
+        const <String>[];
 
     return EventModel(
       id: json['id'] as String,
@@ -170,6 +181,7 @@ class EventModel {
               .where((id) => id.isNotEmpty)
               .toList() ??
           const [],
+            danceCategoryNames: danceCategoryNames,
       description: json['description'] as String?,
       coverImageUrl: json['cover_image_url'] as String?,
       qrImageUrl: qrUrl ?? (json['qr_image_url'] as String?),
