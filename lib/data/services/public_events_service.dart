@@ -284,7 +284,8 @@ class PublicEventsService {
           events(
             id, status, visibility, cover_image_url,
             event_dance_categories(dance_categories(name))
-          )
+          ),
+          dance_classes(id, title, status)
         ''')
         .eq('is_active', true)
         .limit(limit);
@@ -295,6 +296,7 @@ class PublicEventsService {
     for (final row in data) {
       final orgId = row['id'] as String;
       final events = (row['events'] as List?) ?? const [];
+      final classes = (row['dance_classes'] as List?) ?? const [];
       final publishedEventCount = events.where((event) {
         final eventData = event as Map<String, dynamic>;
         return eventData['status'] == 'published' &&
@@ -321,6 +323,12 @@ class PublicEventsService {
                     as Map<String, dynamic>?;
             final name = danceCategory?['name'] as String?;
             if (name != null && name.isNotEmpty) danceGenres.add(name);
+          }
+          for (final danceClass in classes) {
+            final classData = danceClass as Map<String, dynamic>;
+            if (classData['status'] != 'published') continue;
+            final title = classData['title'] as String?;
+            if (title != null && title.isNotEmpty) danceGenres.add(title);
           }
         }
         orgMap[orgId] = OrganizationWithEventCount(
