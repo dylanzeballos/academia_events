@@ -8,11 +8,9 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
-import '../../../providers/public_events_provider.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../public/widgets/event_filters_bar.dart';
-import '../public/widgets/event_search_bar.dart';
 import '../public/widgets/organization_carousel.dart';
 import 'widgets/week_column.dart';
 
@@ -31,7 +29,7 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
     final showList = !_showList;
     setState(() => _showList = showList);
     if (showList) {
-      ref.read(eventFiltersProvider.notifier).setSearchQuery('');
+      ref.read(organizationCarouselSearchProvider.notifier).setQuery('');
     }
   }
 
@@ -78,9 +76,7 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
             if (!_showList)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-                child: const EventSearchBar(
-                  hintText: 'Buscar academias o géneros...',
-                ),
+                child: const OrganizationCarouselSearchBar(),
               ),
             if (!_showList) _WeekNavigator(weekDays: weekDays),
             const EventFiltersBar(),

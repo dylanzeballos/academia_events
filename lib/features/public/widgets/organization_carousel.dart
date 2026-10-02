@@ -12,6 +12,100 @@ import '../../../../data/models/public_event_data.dart';
 import '../../../../providers/events_provider.dart';
 import '../../../../providers/public_events_provider.dart';
 
+class OrganizationCarouselSearchNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void setQuery(String query) => state = query;
+}
+
+final organizationCarouselSearchProvider =
+    NotifierProvider<OrganizationCarouselSearchNotifier, String>(
+      OrganizationCarouselSearchNotifier.new,
+    );
+
+class OrganizationCarouselSearchBar extends ConsumerStatefulWidget {
+  const OrganizationCarouselSearchBar({super.key});
+
+  @override
+  ConsumerState<OrganizationCarouselSearchBar> createState() =>
+      _OrganizationCarouselSearchBarState();
+}
+
+class _OrganizationCarouselSearchBarState
+    extends ConsumerState<OrganizationCarouselSearchBar> {
+  Timer? _debounce;
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(organizationCarouselSearchProvider.notifier).setQuery(value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = ref.watch(organizationCarouselSearchProvider);
+    if (_controller.text != query) _controller.text = query;
+
+    return TextField(
+      controller: _controller,
+      decoration: InputDecoration(
+        hintText: 'Buscar academias u organizaciones...',
+        hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+        prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
+        suffixIcon: query.isNotEmpty
+            ? IconButton(
+                icon: Icon(Icons.clear, color: Colors.grey[500]),
+                onPressed: () {
+                  _debounce?.cancel();
+                  _controller.clear();
+                  ref
+                      .read(organizationCarouselSearchProvider.notifier)
+                      .setQuery('');
+                },
+                tooltip: 'Limpiar búsqueda',
+              )
+            : null,
+        filled: true,
+        fillColor: context.cardBg,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+      ),
+      onChanged: _onChanged,
+      textInputAction: TextInputAction.search,
+    );
+  }
+}
+
 /// Carrusel circular y auto-deslizante de organizaciones.
 ///
 /// - Cada tarjeta muestra el logo (avatar) y el nombre.
@@ -83,6 +177,10 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
     final filter = ref.watch(eventFiltersProvider);
     final weekEventsAsync = ref.watch(weekEventsProvider);
     final matchingEvents = weekEventsAsync.value ?? const [];
+    final query = ref
+        .watch(organizationCarouselSearchProvider)
+        .trim()
+        .toLowerCase();
 
     return orgsAsync.when(
       loading: () => SizedBox(
@@ -92,7 +190,6 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
       error: (_, _) => const SizedBox.shrink(),
       data: (allOrgs) {
         // Las organizaciones sin logo muestran su inicial como respaldo.
-        final query = filter.searchQuery.trim().toLowerCase();
         final showExpandedCarousel =
             widget.expandedHeight != null ||
             (weekEventsAsync.hasValue && matchingEvents.isEmpty);
@@ -240,6 +337,15 @@ class _OrgLogoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compactCard = (cardHeight ?? 0) < 240;
+    final bannerHeight = compactCard || !expanded ? 54.0 : 96.0;
+    final avatarSize = compactCard
+        ? 38.0
+        : expanded
+        ? 72.0
+        : compact
+        ? 30.0
+        : 50.0;
     return GestureDetector(
       onTap: onTap,
       child: Center(
@@ -282,7 +388,7 @@ class _OrgLogoItem extends StatelessWidget {
               children: [
                 SizedBox(
                   width: double.infinity,
-                  height: expanded ? 96 : 54,
+                  height: bannerHeight,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -318,19 +424,23 @@ class _OrgLogoItem extends StatelessWidget {
                     ],
                   ),
                 ),
-                SizedBox(height: expanded ? 14 : 10),
+                SizedBox(
+                  height: compactCard
+                      ? 6
+                      : expanded
+                      ? 14
+                      : 10,
+                ),
                 _OrgAvatar(
                   name: organization.name,
                   logoUrl: organization.logoUrl,
-                  size: expanded
-                      ? 72
-                      : compact
-                      ? 30
-                      : 50,
+                  size: avatarSize,
                   isActive: isActive,
                 ),
                 SizedBox(
-                  height: expanded
+                  height: compactCard
+                      ? 4
+                      : expanded
                       ? 8
                       : compact
                       ? 2
@@ -345,7 +455,9 @@ class _OrgLogoItem extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: context.textOnBg,
-                      fontSize: expanded
+                      fontSize: compactCard
+                          ? 14
+                          : expanded
                           ? 18
                           : compact
                           ? 7
@@ -355,19 +467,19 @@ class _OrgLogoItem extends StatelessWidget {
                   ),
                 ),
                 if (organization.danceGenres.isNotEmpty || expanded) ...[
-                  const SizedBox(height: 6),
+                  SizedBox(height: compactCard ? 3 : 6),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Text(
                       organization.danceGenres.isNotEmpty
                           ? organization.danceGenres.take(2).join(' & ')
                           : 'Academia de baile',
-                      maxLines: 2,
+                      maxLines: compactCard ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: context.textOnBg.withValues(alpha: 0.65),
-                        fontSize: 11,
+                        fontSize: compactCard ? 10 : 11,
                         height: 1.15,
                       ),
                     ),
