@@ -24,11 +24,13 @@ class OrganizationCarousel extends ConsumerStatefulWidget {
     this.height = 96,
     this.autoPlayInterval = const Duration(seconds: 4),
     this.compact = false,
+    this.expandedHeight,
   });
 
   final double height;
   final Duration autoPlayInterval;
   final bool compact;
+  final double? expandedHeight;
 
   @override
   ConsumerState<OrganizationCarousel> createState() =>
@@ -92,8 +94,12 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
         // Las organizaciones sin logo muestran su inicial como respaldo.
         final query = filter.searchQuery.trim().toLowerCase();
         final showExpandedCarousel =
-            query.isEmpty && weekEventsAsync.hasValue && matchingEvents.isEmpty;
-        final carouselHeight = showExpandedCarousel
+            widget.expandedHeight != null ||
+            (weekEventsAsync.hasValue && matchingEvents.isEmpty);
+        final carouselHeight =
+            showExpandedCarousel && widget.expandedHeight != null
+            ? widget.expandedHeight!
+            : showExpandedCarousel
             ? (MediaQuery.sizeOf(context).height * 0.5)
                   .clamp(widget.height * 1.5, 360.0)
                   .toDouble()
@@ -105,11 +111,15 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
             ? List<OrganizationWithEventCount>.from(allOrgs)
             : allOrgs
                   .where(
-              (organization) =>
-                organization.name.toLowerCase().contains(query),
+                    (organization) =>
+                        organization.name.toLowerCase().contains(query) ||
+                        organization.danceGenres.any(
+                          (genre) => genre.toLowerCase().contains(query),
+                        ),
                   )
                   .toList();
-        final departmentOrgs = filter.departmentId == null
+        final departmentOrgs =
+            filter.departmentId == null || matchingEvents.isEmpty
             ? orgs
             : orgs
                   .where(
@@ -190,7 +200,8 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                           return _OrgLogoItem(
                             organization: org,
                             isActive:
-                                orgIndex == _currentPage % departmentOrgs.length,
+                                orgIndex ==
+                                _currentPage % departmentOrgs.length,
                             compact: widget.compact,
                             expanded: showExpandedCarousel,
                             cardHeight: carouselHeight - 32,

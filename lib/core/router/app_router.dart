@@ -33,7 +33,6 @@ import '../../features/public/views/public_events_view.dart';
 import '../../features/public/views/public_event_detail_view.dart';
 
 import '../../features/public/views/organization_detail_view.dart';
-import '../../features/public/widgets/organization_carousel.dart';
 
 import '../../features/tickets/views/student_tickets_view.dart';
 import '../../features/checkin/views/checkin_screen.dart';
@@ -78,16 +77,6 @@ class _StudentShellState extends ConsumerState<_StudentShell> {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Carrusel de organizaciones: solo en la pestaña Horario, justo
-          // encima de la barra de navegación.
-          if (shell.currentIndex == 0)
-            Container(
-              color: isDark ? AppColors.background : Colors.white,
-              child: const OrganizationCarousel(
-                height: 192,
-                autoPlayInterval: Duration(seconds: 4),
-              ),
-            ),
           _InstagramNavBar(
             selectedIndex: shell.currentIndex,
             onDestinationSelected: shell.goBranch,

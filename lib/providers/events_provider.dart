@@ -68,7 +68,7 @@ final selectedDayProvider = NotifierProvider<SelectedDayNotifier, DateTime>(
 // ─── FUTURE / COMPUTED PROVIDERS ───
 
 /// Los eventos del calendario respetan los filtros activos de la barra,
-/// incluida la búsqueda por academia, clase, descripción y género.
+/// incluida la búsqueda por nombre de academia.
 final weekEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   final week = ref.watch(selectedWeekProvider);
   final filter = ref.watch(eventFiltersProvider);
@@ -83,18 +83,19 @@ final weekEventsProvider = FutureProvider<List<EventModel>>((ref) async {
 
 /// ¿El evento satisface los filtros activos de la barra?
 ///
-/// La búsqueda compara el nombre de la academia, la clase, la categoría y
-/// los géneros de baile asociados.
+/// La búsqueda del calendario compara la academia y sus géneros de baile.
 bool _scheduleEventMatches(EventModel e, EventFilterState f) {
   final searchQuery = f.searchQuery.trim().toLowerCase();
   if (searchQuery.isNotEmpty) {
-    final searchableText = [
-      e.title,
-      e.organizationName,
-      e.categoryName ?? '',
-      ...e.danceCategoryNames,
-    ].join(' ').toLowerCase();
-    if (!searchableText.contains(searchQuery)) return false;
+    final matchesOrganization = e.organizationName.toLowerCase().contains(
+      searchQuery,
+    );
+    final matchesDanceGenre = e.danceCategoryNames.any(
+      (genre) => genre.toLowerCase().contains(searchQuery),
+    );
+    if (!matchesOrganization && !matchesDanceGenre) {
+      return false;
+    }
   }
 
   // El filtro de organización aplica a los eventos (la barra del Horario
