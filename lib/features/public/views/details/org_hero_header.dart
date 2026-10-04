@@ -14,7 +14,6 @@ class OrgHeroHeader extends StatelessWidget {
     this.location,
     this.whatsappNumber = '',
     this.logoTag,
-    this.onShare,
   });
 
   final String name;
@@ -24,14 +23,22 @@ class OrgHeroHeader extends StatelessWidget {
   final String? location;
   final String whatsappNumber;
   final String? logoTag;
-  final VoidCallback? onShare;
 
-  Future _openWhatsApp() async {
-    if (whatsappNumber.trim().isEmpty) return;
+  Future<void> _openWhatsApp(BuildContext context) async {
     final cleanPhone = whatsappNumber.replaceAll(RegExp(r'[^0-9]'), '');
-    final url = Uri.parse('https://wa.me/$cleanPhone?text=Hola,%20quisiera%20más%20información%20de%20las%20clases');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (cleanPhone.isEmpty) return;
+
+    final url = Uri.https('wa.me', '/$cleanPhone', {
+      'text': 'Hola, quisiera más información de las clases',
+    });
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication) &&
+        context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir WhatsApp con este número.'),
+        ),
+      );
     }
   }
 
@@ -45,17 +52,22 @@ class OrgHeroHeader extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             // Banner Cover
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: coverUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: coverUrl!,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, _, _) => _buildFallbackCover(),
-                      )
-                    : _buildFallbackCover(),
+            GestureDetector(
+              onTap: coverUrl == null
+                  ? null
+                  : () => FullscreenImageViewer.show(context, coverUrl!),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: coverUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: coverUrl!,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, _, _) => _buildFallbackCover(),
+                        )
+                      : _buildFallbackCover(),
+                ),
               ),
             ),
 
@@ -69,10 +81,10 @@ class OrgHeroHeader extends StatelessWidget {
                     onTap: logoUrl == null
                         ? null
                         : () => FullscreenImageViewer.show(
-                              context,
-                              logoUrl!,
-                              tag: logoTag,
-                            ),
+                            context,
+                            logoUrl!,
+                            tag: logoTag,
+                          ),
                     child: Hero(
                       tag: logoTag ?? 'organization-logo-$name',
                       child: Container(
@@ -107,7 +119,11 @@ class OrgHeroHeader extends StatelessWidget {
                         color: Color(0xFF06B6D4),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check, size: 14, color: Colors.white),
+                      child: const Icon(
+                        Icons.check,
+                        size: 14,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
@@ -168,33 +184,33 @@ class OrgHeroHeader extends StatelessWidget {
                     ),
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: whatsappNumber.trim().isEmpty ? null : _openWhatsApp,
+                    onPressed: whatsappNumber.trim().isEmpty
+                        ? null
+                        : () => _openWhatsApp(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
                     ),
-                    icon: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18),
+                    icon: const Icon(
+                      Icons.chat_bubble_outline,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     label: Text(
-                      whatsappNumber.trim().isEmpty ? 'Contacto no disponible' : 'WhatsApp',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      whatsappNumber.trim().isEmpty
+                          ? 'Contacto no disponible'
+                          : 'WhatsApp',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              height: 48,
-              width: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1B2234),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF2B344D)),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
-                onPressed: onShare,
               ),
             ),
           ],
@@ -216,14 +232,22 @@ class OrgHeroHeader extends StatelessWidget {
     return Center(
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : 'A',
-        style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
 }
 
 class _MetricBadge extends StatelessWidget {
-  const _MetricBadge({required this.mainText, required this.subText, this.isHighlighted = false});
+  const _MetricBadge({
+    required this.mainText,
+    required this.subText,
+    this.isHighlighted = false,
+  });
   final String mainText;
   final String subText;
   final bool isHighlighted;
@@ -242,14 +266,20 @@ class _MetricBadge extends StatelessWidget {
           Text(
             mainText,
             style: TextStyle(
-              color: isHighlighted ? const Color(0xFFFBBF24) : const Color(0xFF38BDF8),
+              color: isHighlighted
+                  ? const Color(0xFFFBBF24)
+                  : const Color(0xFF38BDF8),
               fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),
           Text(
             subText,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 9, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -278,7 +308,11 @@ class _FeaturePill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

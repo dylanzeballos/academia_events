@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../data/models/organization_model.dart';
-import '../../../events/widgets/map_view_screen.dart';
 
 class OrgLocationSection extends StatelessWidget {
-  const OrgLocationSection({
-    super.key,
-    required this.organization,
-  });
+  const OrgLocationSection({super.key, required this.organization});
 
   final OrganizationModel organization;
+
+  Future<void> _openGoogleMaps(BuildContext context, LatLng point) async {
+    final uri = Uri.https('www.google.com', '/maps/search/', {
+      'api': '1',
+      'query': '${point.latitude},${point.longitude}',
+    });
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir Google Maps.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,18 +66,7 @@ class OrgLocationSection extends StatelessWidget {
             children: [
               if (point != null)
                 GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MapViewScreen(
-                        center: point,
-                        title: organization.name,
-                        subtitle: [locationName, address]
-                            .where((value) => value.isNotEmpty)
-                            .join(' · '),
-                      ),
-                    ),
-                  ),
+                  onTap: () => _openGoogleMaps(context, point),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
@@ -76,15 +76,14 @@ class OrgLocationSection extends StatelessWidget {
                         options: MapOptions(
                           initialCenter: point,
                           initialZoom: 15,
-                          interactionOptions:
-                              const InteractionOptions(flags: 0),
+                          interactionOptions: const InteractionOptions(
+                            flags: 0,
+                          ),
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate:
-                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName:
-                                'com.example.academia_events',
+                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.example.academia_events',
                           ),
                           MarkerLayer(
                             markers: [
@@ -105,6 +104,21 @@ class OrgLocationSection extends StatelessWidget {
                     ),
                   ),
                 ),
+              if (point != null) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openGoogleMaps(context, point),
+                    icon: const Icon(Icons.map_outlined),
+                    label: const Text('Abrir en Google Maps'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF06B6D4),
+                      side: const BorderSide(color: Color(0xFF06B6D4)),
+                    ),
+                  ),
+                ),
+              ],
               if (point != null) const SizedBox(height: 16),
               if (locationName.isNotEmpty)
                 _InfoRow(
@@ -154,7 +168,7 @@ class _InfoRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(width: 2),
-        const Icon(Icons.place_outlined, color: Color(0xFF06B6D4), size: 20),
+        Icon(icon, color: const Color(0xFF06B6D4), size: 20),
         const SizedBox(width: 10),
         Expanded(
           child: Column(

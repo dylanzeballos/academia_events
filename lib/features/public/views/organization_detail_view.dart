@@ -82,12 +82,10 @@ class _PublicOrganizationDetailViewState
   Widget _buildContent(
     BuildContext context,
     OrganizationModel? organization,
-    AsyncValue<List<OrganizationImageModel>> galleryAsync,
-    {
+    AsyncValue<List<OrganizationImageModel>> galleryAsync, {
     String? logoUrl,
     String? coverUrl,
-    }
-  ) {
+  }) {
     final org = organization;
     final name = org?.name ?? widget.organizationName ?? 'Academia de Baile';
     final phone = org?.phoneNumber ?? '';
@@ -127,15 +125,11 @@ class _PublicOrganizationDetailViewState
               description: org?.description,
               location: location,
               whatsappNumber: phone,
-              onShare: () {},
             ),
 
             if (org != null) ...[
               const SizedBox(height: 16),
-              OrganizationShareSection(
-                organization: org,
-                compact: true,
-              ),
+              OrganizationShareSection(organization: org, compact: true),
             ],
 
             const SizedBox(height: 16),
@@ -211,8 +205,7 @@ class _PublicOrganizationDetailViewState
                               Text(
                                 'Ver días, horas y profesores disponibles',
                                 style: TextStyle(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.55),
+                                  color: Colors.white.withValues(alpha: 0.55),
                                   fontSize: 11.5,
                                 ),
                               ),
@@ -234,16 +227,11 @@ class _PublicOrganizationDetailViewState
             const SizedBox(height: 28),
 
             // 2. Instalaciones y Galería Oficial
-            OrgGallerySection(
-              imagesAsync: galleryAsync,
-            ),
+            OrgGallerySection(imagesAsync: galleryAsync),
 
             const SizedBox(height: 28),
 
-            if (org != null)
-              OrgLocationSection(
-                organization: org,
-              ),
+            if (org != null) OrgLocationSection(organization: org),
 
             const SizedBox(height: 32),
           ],
