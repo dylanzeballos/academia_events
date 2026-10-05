@@ -31,7 +31,12 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
     super.initState();
     final id = widget.enrollmentId;
     if (id != null && id.isNotEmpty) {
-      ref.read(selectedEnrolledClassIdProvider.notifier).select(id);
+      // No modificar providers durante initState (el árbol se está
+      // construyendo): posponer hasta después del frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(selectedEnrolledClassIdProvider.notifier).select(id);
+      });
     }
   }
 
