@@ -1,9 +1,12 @@
+import '../../core/utils/display_labels.dart';
+
 /// Inscripción de un usuario a una clase de baile.
 ///
 /// Espeja la tabla `class_enrollments` del proyecto:
 /// (id, dance_class_id, user_id, status, enrolled_at, cancelled_at,
 ///  created_at, updated_at). El enum `enrollment_status` de la BD es:
 /// pending / approved / active / cancelled / rejected / completed.
+
 class ClassEnrollmentModel {
   const ClassEnrollmentModel({
     required this.id,
@@ -48,7 +51,7 @@ class ClassEnrollmentModel {
         'cancelled' => 'Cancelada',
         'rejected' => 'Rechazada',
         'completed' => 'Completada',
-        _ => status,
+        _ => DisplayLabels.status(status),
       };
 
   factory ClassEnrollmentModel.fromJson(Map<String, dynamic> json) {

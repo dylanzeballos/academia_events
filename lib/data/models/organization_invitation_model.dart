@@ -1,3 +1,5 @@
+import '../../core/utils/display_labels.dart';
+
 class OrganizationInvitationModel {
   const OrganizationInvitationModel({
     required this.id,
@@ -82,7 +84,7 @@ class OrganizationInvitationModel {
       case 'expired':
         return 'Expirada';
       default:
-        return status;
+        return DisplayLabels.status(status);
     }
   }
 }

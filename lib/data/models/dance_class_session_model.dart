@@ -1,3 +1,5 @@
+import '../../core/utils/display_labels.dart';
+
 class DanceClassSessionModel {
   const DanceClassSessionModel({
     required this.id,
@@ -36,7 +38,7 @@ class DanceClassSessionModel {
         'cancelled' => 'Cancelada',
         'completed' => 'Completada',
         'rescheduled' => 'Reprogramada',
-        _ => status,
+        _ => DisplayLabels.status(status),
       };
 
   factory DanceClassSessionModel.fromJson(Map<String, dynamic> json) {
