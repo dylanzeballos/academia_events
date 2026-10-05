@@ -31,11 +31,13 @@ class StudentTicketsView extends ConsumerWidget {
             ],
           ),
         ),
-        body: const TabBarView(
-          children: [
-            EventTicketsTab(),
-            ClassTicketsTab(),
-          ],
+        body: const SafeArea(
+          child: TabBarView(
+            children: [
+              EventTicketsTab(),
+              ClassTicketsTab(),
+            ],
+          ),
         ),
       ),
     );
