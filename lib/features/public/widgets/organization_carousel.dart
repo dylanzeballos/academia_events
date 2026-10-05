@@ -201,10 +201,24 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                   .clamp(widget.height * 1.5, 360.0)
                   .toDouble()
             : widget.height;
+        // Organizaciones con eventos que cumplen los filtros exclusivos de
+        // eventos (categoría, precio, fecha o ciudad) en la semana elegida.
         final matchingOrganizationIds = matchingEvents
             .map((event) => event.organizationId)
             .toSet();
-        final orgs = query.isEmpty
+
+        // Filtros que solo pueden evaluarse sobre los eventos: si hay alguno
+        // activo, la academia debe tener un evento que lo cumpla.
+        final requiresMatchingEvent =
+            filter.categoryIds.isNotEmpty ||
+            filter.priceMin != null ||
+            filter.priceMax != null ||
+            filter.dateFrom != null ||
+            filter.dateTo != null ||
+            filter.cityId != null;
+
+        // Filtro local del buscador del carrusel (nombre o género de baile).
+        final searchedOrgs = query.isEmpty
             ? List<OrganizationWithEventCount>.from(allOrgs)
             : allOrgs
                   .where(
@@ -215,17 +229,49 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                         ),
                   )
                   .toList();
-        final departmentOrgs =
-            filter.departmentId == null || matchingEvents.isEmpty
-            ? orgs
-            : orgs
-                  .where(
-                    (organization) =>
-                        matchingOrganizationIds.contains(organization.id),
-                  )
-                  .toList();
-        if (departmentOrgs.isEmpty) return const SizedBox.shrink();
-        _orgsCount = departmentOrgs.length;
+
+        // Los filtros de ubicación, academia y estilo se evalúan sobre la
+        // propia academia, así que las academias sin eventos también aparecen.
+        final visibleOrgs = searchedOrgs.where((organization) {
+          if (filter.organizationId != null &&
+              organization.id != filter.organizationId) {
+            return false;
+          }
+          if (filter.departmentId != null &&
+              organization.departmentId != filter.departmentId &&
+              !matchingOrganizationIds.contains(organization.id)) {
+            return false;
+          }
+          if (filter.provinceId != null &&
+              organization.provinceId != filter.provinceId) {
+            return false;
+          }
+          if (filter.municipalityId != null &&
+              organization.municipalityId != filter.municipalityId) {
+            return false;
+          }
+          if (filter.danceCategoryIds.isNotEmpty &&
+              !organization.danceCategoryIds.any(
+                filter.danceCategoryIds.contains,
+              )) {
+            return false;
+          }
+          final searchQuery = filter.searchQuery.trim().toLowerCase();
+          if (searchQuery.isNotEmpty &&
+              !organization.name.toLowerCase().contains(searchQuery) &&
+              !organization.danceGenres.any(
+                (genre) => genre.toLowerCase().contains(searchQuery),
+              )) {
+            return false;
+          }
+          if (requiresMatchingEvent &&
+              !matchingOrganizationIds.contains(organization.id)) {
+            return false;
+          }
+          return true;
+        }).toList();
+        if (visibleOrgs.isEmpty) return const SizedBox.shrink();
+        _orgsCount = visibleOrgs.length;
 
         return SizedBox(
           height: carouselHeight,
@@ -260,7 +306,7 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                         ),
                       ),
                       child: Text(
-                        '${orgs.length} activas',
+                        '${visibleOrgs.length} activas',
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontSize: 10,
@@ -272,16 +318,16 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                 ),
               ),
               Expanded(
-                child: departmentOrgs.length == 1
+                child: visibleOrgs.length == 1
                     ? _OrgLogoItem(
-                        organization: departmentOrgs.first,
+                        organization: visibleOrgs.first,
                         isActive: true,
                         compact: widget.compact,
                         expanded: showExpandedCarousel,
                         cardHeight: carouselHeight - 32,
                         onTap: () => context.push(
-                          '${AppRoutes.organizationPublicDetailBase}/${departmentOrgs.first.id}',
-                          extra: departmentOrgs.first.name,
+                          '${AppRoutes.organizationPublicDetailBase}/${visibleOrgs.first.id}',
+                          extra: visibleOrgs.first.name,
                         ),
                       )
                     : PageView.builder(
@@ -292,13 +338,13 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                         },
                         physics: const ClampingScrollPhysics(),
                         itemBuilder: (context, index) {
-                          final orgIndex = index % departmentOrgs.length;
-                          final org = departmentOrgs[orgIndex];
+                          final orgIndex = index % visibleOrgs.length;
+                          final org = visibleOrgs[orgIndex];
                           return _OrgLogoItem(
                             organization: org,
                             isActive:
                                 orgIndex ==
-                                _currentPage % departmentOrgs.length,
+                                _currentPage % visibleOrgs.length,
                             compact: widget.compact,
                             expanded: showExpandedCarousel,
                             cardHeight: carouselHeight - 32,
