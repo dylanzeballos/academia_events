@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/theme_extensions.dart';
+
 class ScheduleHeader extends StatelessWidget {
   const ScheduleHeader({
     super.key,
@@ -16,10 +18,10 @@ class ScheduleHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: headerHeight,
-      decoration: const BoxDecoration(
-        color: Color(0xFF171B26),
+      decoration: BoxDecoration(
+        color: context.surfaceHeader,
         border: Border(
-          bottom: BorderSide(color: Color(0xFF222738), width: 1.2),
+          bottom: BorderSide(color: context.divider, width: 1.2),
         ),
       ),
       child: Row(
@@ -31,8 +33,8 @@ class ScheduleHeader extends StatelessWidget {
               children: [
                 Text(
                   d.$2,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: context.textOnBg,
                     fontWeight: FontWeight.w900,
                     fontSize: 12.5,
                     letterSpacing: 0.4,
@@ -41,7 +43,7 @@ class ScheduleHeader extends StatelessWidget {
                 Text(
                   d.$3,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.45),
+                    color: context.textMuted,
                     fontSize: 8.5,
                     fontWeight: FontWeight.w600,
                   ),

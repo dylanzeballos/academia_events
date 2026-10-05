@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/theme_extensions.dart';
+
 class OrgAchievementsSection extends StatelessWidget {
   const OrgAchievementsSection({super.key});
 
@@ -14,13 +16,13 @@ class OrgAchievementsSection extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Nuestros Logros & Trayectoria',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                  style: TextStyle(color: context.textOnBg, fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 Text(
                   'Reconocimientos de la compañía oficial',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                  style: TextStyle(color: context.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -71,9 +73,9 @@ class _AchievementCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF131722),
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1E2538)),
+        border: Border.all(color: context.divider),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,8 +95,8 @@ class _AchievementCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: context.textOnBg,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
@@ -103,7 +105,7 @@ class _AchievementCard extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
+                    color: context.textMuted,
                     fontSize: 11,
                     height: 1.25,
                   ),

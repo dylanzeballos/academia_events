@@ -71,6 +71,8 @@ class EventAttendee {
     required this.checkedIn,
     required this.checkInTime,
     required this.accessPoint,
+    this.ticketPrice = 0,
+    this.currency = 'BOB',
   });
 
   final String userId;
@@ -82,6 +84,8 @@ class EventAttendee {
   final bool checkedIn;
   final DateTime? checkInTime;
   final String? accessPoint;
+  final double ticketPrice;
+  final String currency;
 
   String get fullName => '$firstName $lastName'.trim();
 
@@ -98,6 +102,8 @@ class EventAttendee {
           ? DateTime.tryParse(json['check_in_time'] as String)
           : null,
       accessPoint: json['access_point'] as String?,
+      ticketPrice: (json['ticket_price'] as num?)?.toDouble() ?? 0,
+      currency: (json['currency'] as String?)?.trim() ?? 'BOB',
     );
   }
 }

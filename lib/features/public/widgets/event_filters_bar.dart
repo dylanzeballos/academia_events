@@ -11,13 +11,10 @@ import '../../../providers/public_events_provider.dart';
 /// Barra de filtros desplegables para los calendarios (Horario y calendario
 /// público).
 ///
-/// Sustituye a la antigua barra de filtros activos y al bottom sheet:
-/// solo menús desplegables (categorías de baile multi-selección y
-/// organización) más un botón "Limpiar" cuando hay filtros activos.
-///
-/// Con [showOrganizationFilter] en `false` (página de una organización) se
-/// oculta el desplegable de organización, pues la organización viene fijada
-/// por la ruta.
+/// Se muestra como una fila desplazable de pastillas compactas. Cada pastilla
+/// se resalta cuando su filtro está activo. Con [showOrganizationFilter] en
+/// `false` (página de una organización) se oculta el desplegable de
+/// organización, pues viene fijada por la ruta.
 class EventFiltersBar extends ConsumerWidget {
   const EventFiltersBar({
     super.key,
@@ -44,14 +41,15 @@ class EventFiltersBar extends ConsumerWidget {
     final selectedDanceNames = <String>[];
     if (filter.danceCategoryIds.isNotEmpty) {
       for (final c in dance) {
-        if (filter.danceCategoryIds.contains(c.id))
+        if (filter.danceCategoryIds.contains(c.id)) {
           selectedDanceNames.add(c.name);
+        }
       }
     }
     final danceLabel = filter.danceCategoryIds.isEmpty
-        ? 'Todas'
+        ? 'Estilo'
         : selectedDanceNames.isEmpty
-        ? '${filter.danceCategoryIds.length} seleccionadas'
+        ? '${filter.danceCategoryIds.length} estilos'
         : selectedDanceNames.join(' · ');
 
     String? selectedOrgName;
@@ -63,7 +61,8 @@ class EventFiltersBar extends ConsumerWidget {
     }
     final orgLabel = filter.organizationId != null && selectedOrgName != null
         ? selectedOrgName
-        : 'Organización';
+        : 'Academia';
+
     DepartmentModel? selectedDepartment;
     for (final department in departments) {
       if (department.id == filter.departmentId) {
@@ -71,46 +70,22 @@ class EventFiltersBar extends ConsumerWidget {
         break;
       }
     }
-    final departmentLabel = selectedDepartment?.name ?? 'Departamento';
+    final departmentLabel = selectedDepartment?.name ?? 'Ubicación';
 
     return Container(
-      height: dense ? 36 : 44,
-      padding: EdgeInsets.symmetric(horizontal: dense ? 12 : 8),
       decoration: BoxDecoration(
         color: context.cardBg,
         border: Border(bottom: BorderSide(color: context.divider, width: 1)),
       ),
-      child: Row(
-        children: [
-          Flexible(
-            child: PopupMenuButton<String?>(
-              tooltip: 'Filtrar por departamento',
-              onSelected: (value) => ref
-                  .read(eventFiltersProvider.notifier)
-                  .setDepartmentId(value),
-              itemBuilder: (context) => [
-                PopupMenuItem<String?>(
-                  value: null,
-                  child: Text('Todos los departamentos'),
-                ),
-                for (final department in departments)
-                  PopupMenuItem<String?>(
-                    value: department.id,
-                    child: Text(department.name),
-                  ),
-              ],
-              child: _FilterPill(
-                icon: Icons.location_on_outlined,
-                label: departmentLabel,
-                dense: dense,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // ── Categorías de baile (multi-selección) ───────────────
-          Flexible(
-            child: PopupMenuButton<String>(
-              tooltip: 'Filtrar por categoría de baile',
+      padding: EdgeInsets.symmetric(vertical: dense ? 6 : 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: dense ? 12 : 16),
+        child: Row(
+          children: [
+            // ── Categorías de baile (multi-selección) ───────────────
+            _PillMenu<String>(
+              tooltip: 'Filtrar por estilo de baile',
               onSelected: (value) {
                 final notifier = ref.read(eventFiltersProvider.notifier);
                 if (value == _allDanceValue) {
@@ -119,113 +94,117 @@ class EventFiltersBar extends ConsumerWidget {
                   notifier.toggleDanceCategory(value);
                 }
               },
-              itemBuilder: (context) {
-                return [
+              itemBuilder: (context) => [
+                CheckedPopupMenuItem<String>(
+                  value: _allDanceValue,
+                  checked: filter.danceCategoryIds.isEmpty,
+                  child: const Text('Todos los estilos'),
+                ),
+                for (final c in dance)
                   CheckedPopupMenuItem<String>(
-                    value: _allDanceValue,
-                    checked: filter.danceCategoryIds.isEmpty,
-                    child: const Text('Todas'),
+                    value: c.id,
+                    checked: filter.danceCategoryIds.contains(c.id),
+                    child: Text(c.name),
                   ),
-                  for (final c in dance)
-                    CheckedPopupMenuItem<String>(
-                      value: c.id,
-                      checked: filter.danceCategoryIds.contains(c.id),
-                      child: Text(c.name),
-                    ),
-                ];
-              },
+              ],
               child: _FilterPill(
                 icon: Icons.music_note_rounded,
                 label: danceLabel,
                 dense: dense,
+                active: filter.danceCategoryIds.isNotEmpty,
               ),
             ),
-          ),
-
-          // ── Organización (selección única) ──────────────────────
-          if (showOrganizationFilter) ...[
             const SizedBox(width: 8),
-            Flexible(
-              child: PopupMenuButton<String?>(
-                tooltip: 'Filtrar por organización',
+
+            // ── Organización (selección única) ──────────────────────
+            if (showOrganizationFilter) ...[
+              _PillMenu<String?>(
+                tooltip: 'Filtrar por academia',
                 enabled: orgs.isNotEmpty,
-                onSelected: (value) {
-                  ref
-                      .read(eventFiltersProvider.notifier)
-                      .setOrganizationId(value);
-                },
-                itemBuilder: (context) {
-                  return [
-                    PopupMenuItem<String?>(
-                      value: null,
-                      child: Row(
-                        children: [
-                          Icon(
-                            filter.organizationId == null
-                                ? Icons.radio_button_checked
-                                : Icons.radio_button_off,
-                            size: 18,
-                            color: AppColors.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text('Todas'),
-                        ],
-                      ),
-                    ),
-                    for (final o in orgs)
-                      PopupMenuItem<String?>(
-                        value: o.id,
-                        child: Row(
-                          children: [
-                            Icon(
-                              o.id == filter.organizationId
-                                  ? Icons.radio_button_checked
-                                  : Icons.radio_button_off,
-                              size: 18,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                o.name,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ];
-                },
+                onSelected: (value) => ref
+                    .read(eventFiltersProvider.notifier)
+                    .setOrganizationId(value),
+                itemBuilder: (context) => [
+                  _radioItem(null, selectedOrgName == null, 'Todas'),
+                  for (final o in orgs)
+                    _radioItem(o.id, o.id == filter.organizationId, o.name),
+                ],
                 child: _FilterPill(
                   icon: Icons.apartment_rounded,
                   label: orgLabel,
                   dense: dense,
+                  active: filter.organizationId != null,
                 ),
               ),
+              const SizedBox(width: 8),
+            ],
+
+            // ── Departamento (selección única) ──────────────────────
+            _PillMenu<String?>(
+              tooltip: 'Filtrar por ubicación',
+              onSelected: (value) =>
+                  ref.read(eventFiltersProvider.notifier).setDepartmentId(value),
+              itemBuilder: (context) => [
+                _radioItem(null, filter.departmentId == null, 'Todas'),
+                for (final department in departments)
+                  _radioItem(
+                    department.id,
+                    department.id == filter.departmentId,
+                    department.name,
+                  ),
+              ],
+              child: _FilterPill(
+                icon: Icons.location_on_outlined,
+                label: departmentLabel,
+                dense: dense,
+                active: filter.departmentId != null,
+              ),
             ),
+
+            // ── Limpiar filtros ─────────────────────────────────────
+            if (filter.hasActiveFilters) ...[
+              const SizedBox(width: 6),
+              TextButton.icon(
+                onPressed: () => ref.read(eventFiltersProvider.notifier).reset(),
+                icon: const Icon(Icons.close_rounded, size: 16),
+                label: const Text('Limpiar'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
 
-          const Spacer(),
-
-          // ── Limpiar filtros ─────────────────────────────────────
-          if (filter.hasActiveFilters)
-            TextButton(
-              onPressed: () {
-                ref.read(eventFiltersProvider.notifier).reset();
-              },
-              child: const Text('Limpiar'),
-            ),
+  PopupMenuItem<String?> _radioItem(String? value, bool selected, String label) {
+    return PopupMenuItem<String?>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+            selected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_off,
+            size: 18,
+            color: selected ? AppColors.primary : null,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(label, overflow: TextOverflow.ellipsis),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Botón de filtros para las vistas de semana públicas: abre la hoja de
-/// filtros y muestra un punto indicador cuando hay filtros activos.
-///
-/// Sustituye a la barra de filtros fija que ocupaba el espacio encima de los
-/// días, dejando que la agenda semanal se adapte verticalmente a los eventos.
+/// Botón de filtros que abre la hoja y muestra un punto cuando hay filtros
+/// activos.
 class EventFiltersButton extends ConsumerWidget {
   const EventFiltersButton({super.key, this.showOrganizationFilter = true});
 
@@ -269,8 +248,7 @@ class EventFiltersButton extends ConsumerWidget {
   }
 }
 
-/// Muestra la hoja con los filtros desplegables (categorías de baile y
-/// organización) más el botón "Limpiar".
+/// Muestra la hoja con los filtros desplegables más el botón "Limpiar".
 Future<void> showEventFiltersSheet(
   BuildContext context, {
   bool showOrganizationFilter = true,
@@ -312,51 +290,88 @@ Future<void> showEventFiltersSheet(
   );
 }
 
-/// Pastilla que abre el menú desplegable.
+/// PopupMenuButton tipado con pastilla desplegable.
+class _PillMenu<T> extends StatelessWidget {
+  const _PillMenu({
+    required this.child,
+    required this.itemBuilder,
+    required this.onSelected,
+    required this.tooltip,
+    this.enabled = true,
+  });
+
+  final Widget child;
+  final PopupMenuItemBuilder<T> itemBuilder;
+  final ValueChanged<T> onSelected;
+  final String tooltip;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<T>(
+      tooltip: tooltip,
+      enabled: enabled,
+      onSelected: onSelected,
+      itemBuilder: itemBuilder,
+      position: PopupMenuPosition.under,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Pastilla que abre el menú desplegable. Se resalta cuando está activa.
 class _FilterPill extends StatelessWidget {
   const _FilterPill({
     required this.icon,
     required this.label,
     this.dense = false,
+    this.active = false,
   });
 
   final IconData icon;
   final String label;
   final bool dense;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
+    final fg = active ? AppColors.primary : context.textOnBg;
+    final bg = active
+        ? AppColors.primary.withValues(alpha: 0.14)
+        : context.inputBg;
+    final border = active ? AppColors.primary : context.divider;
+
     return Container(
-      height: dense ? 26 : 32,
-      padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 12),
+      height: dense ? 30 : 36,
+      padding: EdgeInsets.symmetric(horizontal: dense ? 10 : 12),
       decoration: BoxDecoration(
-        color: context.inputBg,
-        borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
-        border: Border.all(color: context.divider),
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: dense ? 12 : 16, color: context.textMuted),
+          Icon(icon, size: dense ? 14 : 16, color: fg),
           SizedBox(width: dense ? 4 : 6),
-          Flexible(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 150),
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: dense ? 10 : 13,
-                fontWeight: FontWeight.w600,
-                color: context.textOnBg,
+                fontSize: dense ? 11 : 13,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                color: fg,
               ),
             ),
           ),
           SizedBox(width: dense ? 2 : 4),
-          Icon(
-            Icons.arrow_drop_down,
-            size: dense ? 14 : 18,
-            color: context.textMuted,
-          ),
+          Icon(Icons.keyboard_arrow_down_rounded, size: dense ? 16 : 18, color: fg),
         ],
       ),
     );

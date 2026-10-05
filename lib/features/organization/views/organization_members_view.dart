@@ -7,6 +7,8 @@ import '../../../data/models/organization_member_model.dart';
 import '../../../data/repositories/organization_repository.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 
@@ -23,28 +25,19 @@ class OrganizationMembersView extends ConsumerWidget {
       body: membersAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => Center(
-          child: AppBanner(message: 'Error: $e'),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: AppBanner(message: friendlyError(e)),
+          ),
         ),
         data: (members) {
           if (members.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Sin miembros',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                  if (canManage) ...[
-                    const SizedBox(height: 16),
-                    AppButton(
-                      label: 'Invitar miembro',
-                      icon: Icons.person_add,
-                      onPressed: () => _showInviteDialog(context, ref),
-                    ),
-                  ],
-                ],
-              ),
+            return AppEmptyState(
+              icon: Icons.people_outline,
+              title: 'Sin miembros',
+              message: 'Invita a tu equipo para empezar a colaborar.',
+              actionLabel: canManage ? 'Invitar miembro' : null,
+              onAction: canManage ? () => _showInviteDialog(context, ref) : null,
             );
           }
 
@@ -191,10 +184,7 @@ class OrganizationMembersView extends ConsumerWidget {
               onPressed: () async {
                 final email = emailCtrl.text.trim();
                 if (email.isEmpty || !email.contains('@')) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(
-                        content: Text('Ingresa un email valido')),
-                  );
+                  AppFeedback.warning(ctx, 'Ingresa un correo válido.');
                   return;
                 }
 
@@ -210,18 +200,16 @@ class OrganizationMembersView extends ConsumerWidget {
                     role: selectedRole,
                   );
                   ref.invalidate(orgInvitationsProvider);
-                  if (ctx.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Invitacion enviada a $email')),
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) {
+                    AppFeedback.success(
+                      context,
+                      'Invitación enviada a $email.',
                     );
                   }
                 } catch (e) {
                   if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
+                    AppFeedback.error(ctx, friendlyError(e));
                   }
                 }
               },

@@ -9,6 +9,8 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
 import '../../../shared/widgets/error_banner.dart';
+import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../public/widgets/event_filters_bar.dart';
 import '../public/widgets/organization_carousel.dart';
@@ -25,6 +27,9 @@ class WeekCalendarView extends ConsumerStatefulWidget {
 class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
   bool _showList = false;
 
+  /// Día abierto en la vista de día (`null` = vista semanal).
+  DateTime? _focusedDay;
+
   void _toggleView() {
     final showList = !_showList;
     setState(() => _showList = showList);
@@ -33,13 +38,36 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
     }
   }
 
+  /// Abre la vista de día y ancla la ventana semanal a ese día.
+  void _openDay(DateTime day) {
+    final date = DateTime(day.year, day.month, day.day);
+    ref.read(selectedDayProvider.notifier).setDay(date);
+    ref.read(selectedWeekProvider.notifier).setWeek(date);
+    setState(() => _focusedDay = date);
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedDay = ref.watch(selectedDayProvider);
     final selectedWeek = ref.watch(selectedWeekProvider);
     final eventsAsync = ref.watch(weekEventsProvider);
     final selectedDayEvents = ref.watch(dayEventsProvider);
-    final weekDays = DateFormatter.weekDays(selectedWeek);
+    final weekDays = DateFormatter.consecutiveDays(selectedWeek, 7);
+
+    if (_focusedDay != null && !_showList) {
+      return eventsAsync.when(
+        loading: () => const Scaffold(body: LoadingIndicator()),
+        error: (e, _) => Scaffold(
+          body: AppErrorState(message: friendlyError(e)),
+        ),
+        data: (allEvents) => _DayView(
+          day: _focusedDay!,
+          events: allEvents,
+          onClose: () => setState(() => _focusedDay = null),
+          onChanged: _openDay,
+        ),
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -50,10 +78,10 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
               child: Row(
                 children: [
                   Text(
-                    'Horario Semanal',
+                    'Horario',
                     style: TextStyle(
                       color: context.textOnBg,
-                      fontSize: 17,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -73,11 +101,6 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
                 ],
               ),
             ),
-            if (!_showList)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-                child: const OrganizationCarouselSearchBar(),
-              ),
             if (!_showList) _WeekNavigator(weekDays: weekDays),
             const EventFiltersBar(),
             Divider(height: 1, color: context.divider),
@@ -88,7 +111,7 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
                   child: Padding(
                     padding: const EdgeInsets.all(AppSizes.paddingLarge),
                     child: AppBanner(
-                      message: 'Error cargando eventos: $e',
+                      message: 'Error cargando eventos. ${friendlyError(e)}',
                       type: BannerType.error,
                     ),
                   ),
@@ -102,19 +125,22 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
                     events: allEvents,
                     selectedDay: selectedDay,
                     heightPerHour: 48,
-                    onDaySelected: (day) =>
-                        ref.read(selectedDayProvider.notifier).setDay(day),
+                    onDaySelected: _openDay,
                     showDayStrip: true,
                   );
                   if (selectedDayEvents.isEmpty) {
                     return Column(
                       children: [
                         Expanded(child: calendar),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                          child: const OrganizationCarouselSearchBar(),
+                        ),
                         SizedBox(
-                          height: 180,
+                          height: 160,
                           child: OrganizationCarousel(
-                            height: 180,
-                            expandedHeight: 180,
+                            height: 160,
+                            expandedHeight: 160,
                             autoPlayInterval: const Duration(seconds: 4),
                           ),
                         ),
@@ -127,6 +153,84 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DayView extends StatelessWidget {
+  const _DayView({
+    required this.day,
+    required this.events,
+    required this.onClose,
+    required this.onChanged,
+  });
+
+  final DateTime day;
+  final List<EventModel> events;
+  final VoidCallback onClose;
+  final ValueChanged<DateTime> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final dayEvents = events
+        .where((e) => DateFormatter.rangeCoversDay(e.startTime, e.endTime, day))
+        .toList()
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Volver a la semana',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: onClose,
+        ),
+        title: Text(
+          DateFormatter.capitalize(DateFormatter.fullDate(day)),
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Día anterior',
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => onChanged(day.subtract(const Duration(days: 1))),
+          ),
+          IconButton(
+            tooltip: 'Día siguiente',
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => onChanged(day.add(const Duration(days: 1))),
+          ),
+        ],
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              dayEvents.isEmpty
+                  ? 'Sin eventos'
+                  : '${dayEvents.length} '
+                      '${dayEvents.length == 1 ? 'evento' : 'eventos'}',
+              style: TextStyle(
+                color: context.textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: WeekColumns(
+              weekDays: [day],
+              events: events,
+              selectedDay: day,
+              heightPerHour: 60,
+              autoScrollToEarliest: dayEvents.isNotEmpty,
+              showNowLine: true,
+              onDaySelected: (_) {},
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -182,7 +286,7 @@ class _WeekEventListTile extends StatelessWidget {
         side: BorderSide(color: context.divider),
       ),
       child: InkWell(
-        onTap: () => context.push(AppRoutes.eventDetail, extra: event.id),
+        onTap: () => context.push('${AppRoutes.eventDetail}/${event.id}'),
         child: SizedBox(
           height: 144,
           child: Row(
@@ -341,48 +445,83 @@ class _WeekNavigator extends ConsumerWidget {
     return '$firstMonth ${first.year} - $lastMonth ${last.year}';
   }
 
+  String _rangeLabel() {
+    final first = weekDays.first;
+    final last = weekDays.last;
+    return '${first.day} ${DateFormatter.shortMonth(first)} – '
+        '${last.day} ${DateFormatter.shortMonth(last)}';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       color: context.cardBg,
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            tooltip: 'Semana anterior',
-            onPressed: () =>
-                ref.read(selectedWeekProvider.notifier).previousWeek(),
+          _navButton(
+            context,
+            Icons.chevron_left,
+            'Semana anterior',
+            () => ref.read(selectedWeekProvider.notifier).previousWeek(),
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Semana',
-                style: TextStyle(
-                  color: context.textOnBg.withValues(alpha: 0.6),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _label(),
+                  style: TextStyle(
+                    color: context.textOnBg,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              Text(
-                _label(),
-                style: TextStyle(
-                  color: context.textOnBg,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+                Text(
+                  _rangeLabel(),
+                  style: TextStyle(
+                    color: context.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            tooltip: 'Semana siguiente',
-            onPressed: () => ref.read(selectedWeekProvider.notifier).nextWeek(),
+          _navButton(
+            context,
+            Icons.chevron_right,
+            'Semana siguiente',
+            () => ref.read(selectedWeekProvider.notifier).nextWeek(),
+          ),
+          const SizedBox(width: 4),
+          TextButton(
+            onPressed: () => ref
+                .read(selectedWeekProvider.notifier)
+                .setWeek(DateTime.now()),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            child: const Text('Hoy'),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _navButton(
+    BuildContext context,
+    IconData icon,
+    String tooltip,
+    VoidCallback onPressed,
+  ) {
+    return IconButton(
+      icon: Icon(icon, color: context.textOnBg),
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      onPressed: onPressed,
     );
   }
 }

@@ -1,5 +1,8 @@
+import '../../core/utils/display_labels.dart';
+
 /// Ticket diario de sesión de clase con su token QR (espejo del RPC
 /// `fetch_my_class_tickets`).
+
 class ClassTicketModel {
   const ClassTicketModel({
     required this.id,
@@ -45,7 +48,7 @@ class ClassTicketModel {
         'used' => 'Usado',
         'expired' => 'Expirado',
         'cancelled' => 'Cancelado',
-        _ => status,
+        _ => DisplayLabels.status(status),
       };
 
   factory ClassTicketModel.fromJson(Map<String, dynamic> json) {

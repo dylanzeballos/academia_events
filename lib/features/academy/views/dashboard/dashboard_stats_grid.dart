@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_model.dart';
-import '../../../organization/views/organization_detail_view.dart';
 
 class DashboardStatsGrid extends StatelessWidget {
   const DashboardStatsGrid({
@@ -67,11 +66,8 @@ class DashboardStatsGrid extends StatelessWidget {
                 value: '${stats['totalMembers'] ?? 0}',
                 color: AppColors.warning,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const OrganizationDetailView(),
-                    ),
+                  context.push(
+                    '${AppRoutes.organizationsDetail}/${organization.id}',
                   );
                 },
               ),
@@ -88,11 +84,8 @@ class DashboardStatsGrid extends StatelessWidget {
                 value: '${organization.viewsCount}',
                 color: AppColors.primary,
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const OrganizationDetailView(),
-                    ),
+                  context.push(
+                    '${AppRoutes.organizationsDetail}/${organization.id}',
                   );
                 },
               ),

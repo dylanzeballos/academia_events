@@ -36,7 +36,7 @@ class TicketService {
       final result = await supabase.rpc('create_event_order', params: {
         'p_ticket_type_id': ticketTypeId,
         'p_quantity': quantity,
-        if (attendeeNames != null) 'p_attendee_names': attendeeNames,
+        'p_attendee_names': ?attendeeNames,
       });
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {

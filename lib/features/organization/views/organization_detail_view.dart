@@ -12,15 +12,23 @@ import '../../../core/utils/validators.dart';
 import '../../../data/models/organization_image_model.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../providers/geographic_provider.dart';
+import '../../../providers/attendance_provider.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/geographic_location_picker.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../events/widgets/map.dart';
+import '../utils/vip_attendance_exporter.dart';
 import '../widgets/organization_share_section.dart';
 import 'organization_members_view.dart';
+import 'organization_membership_view.dart';
 
 class OrganizationDetailView extends ConsumerStatefulWidget {
-  const OrganizationDetailView({super.key});
+  const OrganizationDetailView({super.key, this.organizationId});
+
+  /// Si se provee, selecciona la organización al abrir la vista.
+  final String? organizationId;
 
   @override
   ConsumerState<OrganizationDetailView> createState() =>
@@ -35,13 +43,45 @@ class _OrganizationDetailViewState
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
+    final id = widget.organizationId;
+    if (id != null && id.isNotEmpty) {
+      ref.read(selectedOrganizationIdProvider.notifier).select(id);
+    }
   }
 
   @override
   void dispose() {
     _tabCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _exportVipReport() async {
+    final orgId = ref.read(selectedOrganizationIdProvider);
+    if (orgId == null) return;
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 1, 12, 31),
+      helpText: 'Selecciona el mes del informe VIP',
+    );
+    if (picked == null || !mounted) return;
+    final month = DateTime(picked.year, picked.month, 1);
+    try {
+      final data = await ref
+          .read(attendanceRepositoryProvider)
+          .fetchOrgVipAttendance(orgId, month);
+      await VipAttendanceExporter.export(data);
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.error(
+          context,
+          'No se pudo generar el informe VIP. Inténtalo de nuevo.',
+        );
+      }
+    }
   }
 
   @override
@@ -56,7 +96,9 @@ class _OrganizationDetailViewState
 
     return orgAsync.when(
       loading: () => const Scaffold(body: LoadingIndicator()),
-      error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+      error: (e, _) => Scaffold(
+        body: AppErrorState(message: friendlyError(e)),
+      ),
       data: (org) {
         if (org == null) {
           return const Scaffold(
@@ -66,12 +108,20 @@ class _OrganizationDetailViewState
         return Scaffold(
           appBar: AppBar(
             title: Text(org.name),
+            actions: [
+              IconButton(
+                tooltip: 'Informe VIP mensual',
+                icon: const Icon(Icons.summarize_outlined),
+                onPressed: _exportVipReport,
+              ),
+            ],
             bottom: TabBar(
               controller: _tabCtrl,
               indicatorColor: AppColors.primary,
               tabs: const [
                 Tab(text: 'INFO'),
                 Tab(text: 'MIEMBROS'),
+                Tab(text: 'MEMBRESÍA'),
               ],
             ),
           ),
@@ -80,6 +130,7 @@ class _OrganizationDetailViewState
             children: [
               _InfoTab(organization: org, isAdmin: isAdmin),
               const OrganizationMembersView(),
+              OrganizationMembershipView(organizationId: org.id),
             ],
           ),
         );
@@ -219,13 +270,11 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
         _pendingGalleryImages.clear();
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Actualizado')));
+        AppFeedback.success(context, 'Cambios guardados.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppFeedback.error(context, friendlyError(e));
       }
     }
   }
@@ -313,10 +362,11 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
     try {
       await ref.read(organizationRepositoryProvider).deleteOrganizationImage(image);
       ref.invalidate(organizationImagesProvider(widget.organization.id));
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo eliminar la imagen: $e')),
+        AppFeedback.error(
+          context,
+          'No se pudo eliminar la imagen. Inténtalo de nuevo.',
         );
       }
     }

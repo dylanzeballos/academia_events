@@ -10,15 +10,33 @@ import '../../../data/models/dance_class_session_model.dart';
 import '../../../providers/checkin_provider.dart';
 import '../../../providers/class_enrollment_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../tickets/widgets/class_pass_purchase_sheet.dart';
 
 /// Detalle de una clase a la que el estudiante está inscrito: muestra sus
 /// sesiones y la asistencia registrada, y permite cancelar la inscripción.
-class MyClassDetailView extends ConsumerWidget {
-  const MyClassDetailView({super.key});
+class MyClassDetailView extends ConsumerStatefulWidget {
+  const MyClassDetailView({super.key, this.enrollmentId});
+
+  /// Si se provee, selecciona la inscripción al abrir la vista.
+  final String? enrollmentId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyClassDetailView> createState() => _MyClassDetailViewState();
+}
+
+class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
+  @override
+  void initState() {
+    super.initState();
+    final id = widget.enrollmentId;
+    if (id != null && id.isNotEmpty) {
+      ref.read(selectedEnrolledClassIdProvider.notifier).select(id);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final enrollmentAsync = ref.watch(selectedMyEnrollmentProvider);
     final sessionsAsync = ref.watch(enrolledClassSessionsProvider);
     final attendanceAsync = ref.watch(enrolledClassAttendanceProvider);
@@ -27,7 +45,7 @@ class MyClassDetailView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Mi clase')),
       body: enrollmentAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(friendlyError(e))),
         data: (enrollment) {
           if (enrollment == null) {
             return const Center(child: Text('Inscripción no encontrada.'));
@@ -46,7 +64,7 @@ class MyClassDetailView extends ConsumerWidget {
               const SizedBox(height: 8),
               sessionsAsync.when(
                 loading: () => const LoadingIndicator(),
-                error: (e, _) => Text('Error: $e'),
+                error: (e, _) => Text(friendlyError(e)),
                 data: (sessions) {
                   if (sessions.isEmpty) {
                     return Text(

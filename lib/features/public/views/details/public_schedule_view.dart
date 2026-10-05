@@ -141,9 +141,9 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F121A),
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF141824),
+        backgroundColor: context.surfaceHeader,
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,7 +154,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
             ),
             Text(
               widget.organizationName,
-              style: const TextStyle(fontSize: 11, color: Colors.white54),
+              style: TextStyle(fontSize: 11, color: context.textMuted),
             ),
           ],
         ),
@@ -171,7 +171,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
           ),
           IconButton(
             tooltip: 'Refrescar',
-            icon: const Icon(Icons.refresh, color: Colors.white70),
+            icon: Icon(Icons.refresh, color: context.textOnBg),
             onPressed: () {
               ref.invalidate(publicOrgScheduleProvider(widget.organizationId));
             },
@@ -184,7 +184,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
           error: (e, _) => Center(
             child: Text(
               'Error al cargar horario: $e',
-              style: const TextStyle(color: Colors.white70),
+              style: TextStyle(color: context.textOnBg),
             ),
           ),
           data: (entries) {
@@ -198,7 +198,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                       Icon(
                         Icons.calendar_month_outlined,
                         size: 64,
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: context.textMuted.withValues(alpha: 0.4),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -287,23 +287,23 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                           Container(
                             height: headerHeight,
                             alignment: Alignment.center,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF171B26),
+                            decoration: BoxDecoration(
+                              color: context.surfaceHeader,
                               border: Border(
                                 right: BorderSide(
-                                  color: Color(0xFF222738),
+                                  color: context.divider,
                                   width: 1.2,
                                 ),
                                 bottom: BorderSide(
-                                  color: Color(0xFF222738),
+                                  color: context.divider,
                                   width: 1.2,
                                 ),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'HORA',
                               style: TextStyle(
-                                color: Colors.white70,
+                                color: context.textMuted,
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -328,7 +328,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                                         if (isBigGap)
                                           Container(
                                             height: 24,
-                                            color: const Color(0xFF0C0E14),
+                                            color: context.surfaceDeep,
                                             child: Center(
                                               child: Icon(
                                                 Icons.more_horiz,
@@ -395,7 +395,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                                             if (isBigGap)
                                               Container(
                                                 height: 24,
-                                                color: const Color(0xFF0C0E14),
+                                                color: context.surfaceDeep,
                                                 child: Center(
                                                   child: Container(
                                                     height: 1,
@@ -412,10 +412,10 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                                               ),
                                             Container(
                                               height: _slotHeight,
-                                              decoration: const BoxDecoration(
+                                              decoration: BoxDecoration(
                                                 border: Border(
                                                   bottom: BorderSide(
-                                                    color: Color(0xFF1C2130),
+                                                    color: context.divider,
                                                     width: 0.8,
                                                   ),
                                                 ),

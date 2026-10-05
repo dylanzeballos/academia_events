@@ -13,14 +13,16 @@ class StorageService {
 
   /// Sube [bytes] como avatar del usuario [userId].
   /// Devuelve el path relativo dentro del bucket.
+  ///
+  /// El tipo/extensión se detectan a partir de los bytes (no se confía en la
+  /// extensión del archivo elegido, que puede no coincidir con el contenido).
   Future<String> uploadAvatar(
     String userId,
     Uint8List bytes, {
-    required String extension,
+    String? extension,
   }) async {
-    final cleanExt = extension.toLowerCase().replaceAll('.', '');
-    final path = '$userId/avatar.$cleanExt';
-    final contentType = cleanExt == 'png' ? 'image/png' : 'image/jpeg';
+    final media = _detectImageType(bytes);
+    final path = '$userId/avatar.${media.ext}';
 
     try {
       await supabase.storage.from(_avatarBucket).uploadBinary(
@@ -28,7 +30,7 @@ class StorageService {
             bytes,
             fileOptions: FileOptions(
               upsert: true,
-              contentType: contentType,
+              contentType: media.contentType,
               cacheControl: '3600',
             ),
           );
@@ -72,8 +74,26 @@ class StorageService {
     return supabase.storage.from(bucket ?? _avatarBucket).getPublicUrl(path);
   }
 
-  /// Extrae el path de una URL firmada antigua guardada en BD.
-  /// Ej: https://xxx.supabase.co/storage/v1/object/sign/bucket/a/b.jpg?token=...
+  /// Detecta el tipo de imagen por los bytes (PNG/WEBP/JPEG).
+  _ImageMedia _detectImageType(Uint8List bytes) {
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x4E &&
+        bytes[2] == 0x47 &&
+        bytes[3] == 0x0D) {
+      return const _ImageMedia('png', 'image/png');
+    }
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45) {
+      return const _ImageMedia('webp', 'image/webp');
+    }
+    return const _ImageMedia('jpg', 'image/jpeg');
+  }
+
+  /// Extrae el path de una URL firmada antigua guardada en BD.  /// Ej: https://xxx.supabase.co/storage/v1/object/sign/bucket/a/b.jpg?token=...
   /// devuelve "a/b.jpg". Devuelve null si no es una URL firmada.
   static String? extractPathFromSignedUrl(String url) {
     final marker = '/object/sign/';
@@ -89,4 +109,10 @@ class StorageService {
     if (segments.length < 2) return null;
     return segments.sublist(1).join('/');
   }
+}
+
+class _ImageMedia {
+  const _ImageMedia(this.ext, this.contentType);
+  final String ext;
+  final String contentType;
 }

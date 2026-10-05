@@ -8,12 +8,19 @@ import '../../../data/models/dance_class_session_model.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_confirm_dialog.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../widgets/schedule_dialog.dart';
 import 'class_attendance_view.dart';
 
 class ClassDetailView extends ConsumerStatefulWidget {
-  const ClassDetailView({super.key});
+  const ClassDetailView({super.key, this.classId});
+
+  /// Si se provee, selecciona la clase al abrir la vista (deep links).
+  final String? classId;
 
   @override
   ConsumerState<ClassDetailView> createState() => _ClassDetailViewState();
@@ -27,6 +34,10 @@ class _ClassDetailViewState extends ConsumerState<ClassDetailView>
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 3, vsync: this);
+    final id = widget.classId;
+    if (id != null && id.isNotEmpty) {
+      ref.read(selectedClassIdProvider.notifier).select(id);
+    }
   }
 
   @override
@@ -43,7 +54,9 @@ class _ClassDetailViewState extends ConsumerState<ClassDetailView>
 
     return classAsync.when(
       loading: () => const Scaffold(body: LoadingIndicator()),
-      error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+      error: (e, _) => Scaffold(
+        body: AppErrorState(message: friendlyError(e)),
+      ),
       data: (danceClass) {
         if (danceClass == null) {
           return const Scaffold(body: Center(child: Text('Clase no encontrada')));
@@ -153,11 +166,35 @@ class _InfoTab extends ConsumerWidget {
             AppButton(
               label: danceClass.isPublished ? 'Despublicar' : 'Publicar',
               onPressed: () async {
-                final repo = ref.read(danceClassRepositoryProvider);
-                final newStatus = danceClass.isPublished ? 'draft' : 'published';
-                await repo.updateClass(danceClass.id, {'status': newStatus});
-                ref.invalidate(selectedClassProvider);
-                ref.invalidate(orgClassesProvider);
+                final publishing = !danceClass.isPublished;
+                final ok = await showAppConfirm(
+                  context,
+                  title: publishing ? 'Publicar clase' : 'Despublicar clase',
+                  message: publishing
+                      ? '¿Publicar "${danceClass.title}"? Será visible para inscripciones.'
+                      : '¿Despublicar "${danceClass.title}"? Dejará de ser visible.',
+                  confirmLabel: publishing ? 'Publicar' : 'Despublicar',
+                  isDangerous: !publishing,
+                );
+                if (!ok || !context.mounted) return;
+                try {
+                  await ref.read(danceClassRepositoryProvider).updateClass(
+                        danceClass.id,
+                        {'status': publishing ? 'published' : 'draft'},
+                      );
+                  ref.invalidate(selectedClassProvider);
+                  ref.invalidate(orgClassesProvider);
+                  if (context.mounted) {
+                    AppFeedback.success(
+                      context,
+                      publishing ? 'Clase publicada.' : 'Clase despublicada.',
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    AppFeedback.error(context, friendlyError(e));
+                  }
+                }
               },
               isOutlined: true,
               icon: danceClass.isPublished ? Icons.unpublished_outlined : Icons.publish,
@@ -180,29 +217,16 @@ class _SchedulesTab extends ConsumerWidget {
 
     return schedulesAsync.when(
       loading: () => const LoadingIndicator(),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => AppErrorState(message: friendlyError(e)),
       data: (schedules) {
         if (schedules.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.schedule_outlined, size: 48, color: Colors.grey[600]),
-                const SizedBox(height: 12),
-                const Text(
-                  'Sin horarios definidos',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
-                if (canManage) ...[
-                  const SizedBox(height: 16),
-                  FilledButton.tonalIcon(
-                    onPressed: () => _addScheduleAndGenerate(context, ref),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Crear horario y generar sesiones'),
-                  ),
-                ],
-              ],
-            ),
+          return AppEmptyState(
+            icon: Icons.schedule_outlined,
+            title: 'Sin horarios definidos',
+            message: 'Crea un horario para generar las sesiones de la clase.',
+            actionLabel: canManage ? 'Crear horario' : null,
+            onAction:
+                canManage ? () => _addScheduleAndGenerate(context, ref) : null,
           );
         }
 
@@ -431,50 +455,34 @@ class _SessionsTab extends ConsumerWidget {
 
     return sessionsAsync.when(
       loading: () => const LoadingIndicator(),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => AppErrorState(message: friendlyError(e)),
       data: (sessions) {
         if (sessions.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.calendar_today, size: 48, color: Colors.grey[600]),
-                const SizedBox(height: 12),
-                const Text(
-                  'Sin sesiones generadas',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Crea horarios y genera sesiones desde la pestaña de horarios, o usa el botón de abajo.',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                if (canManage) ...[
-                  const SizedBox(height: 16),
-                  FilledButton.tonalIcon(
-                    onPressed: () async {
-                      final repo = ref.read(danceClassRepositoryProvider);
-                      final danceClass = ref.read(selectedClassProvider).value;
-                      if (danceClass == null) return;
-                      final periodStart = danceClass.startTime ?? DateTime.now();
-                      final periodEnd = danceClass.endTime ?? periodStart.add(const Duration(days: 90));
-                      await repo.generateSessions(
-                        classId: danceClass.id,
-                        startDate: periodStart,
-                        endDate: periodEnd,
-                      );
-                      ref.invalidate(classSessionsProvider);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Sesiones generadas')),
-                      );
-                    },
-                    icon: const Icon(Icons.calendar_month_outlined),
-                    label: const Text('Generar sesiones desde horarios'),
-                  ),
-                ],
-              ],
-            ),
+          return AppEmptyState(
+            icon: Icons.calendar_today_outlined,
+            title: 'Sin sesiones generadas',
+            message:
+                'Crea horarios y genera sesiones desde la pestaña de horarios, o usa el botón de abajo.',
+            actionLabel: canManage ? 'Generar sesiones' : null,
+            onAction: canManage
+                ? () async {
+                    final repo = ref.read(danceClassRepositoryProvider);
+                    final danceClass = ref.read(selectedClassProvider).value;
+                    if (danceClass == null) return;
+                    final periodStart =
+                        danceClass.startTime ?? DateTime.now();
+                    final periodEnd = danceClass.endTime ??
+                        periodStart.add(const Duration(days: 90));
+                    await repo.generateSessions(
+                      classId: danceClass.id,
+                      startDate: periodStart,
+                      endDate: periodEnd,
+                    );
+                    ref.invalidate(classSessionsProvider);
+                    if (!context.mounted) return;
+                    AppFeedback.success(context, 'Sesiones generadas.');
+                  }
+                : null,
           );
         }
 

@@ -70,7 +70,8 @@ class ProfileModel {
 enum UserRole {
   student,
   academy,
-  supervisor;
+  supervisor,
+  platformAdmin;
 
   String get value => name;
 
@@ -78,5 +79,6 @@ enum UserRole {
         UserRole.student => 'Estudiante',
         UserRole.academy => 'Academia',
         UserRole.supervisor => 'Supervisor',
+        UserRole.platformAdmin => 'Administración',
       };
 }

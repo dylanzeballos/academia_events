@@ -51,6 +51,7 @@ class PublicEventsService {
           ticket_types(id, name, description, price, currency, quantity, sold_quantity, sales_start_at, sales_end_at, is_active)
         ''')
         .eq('status', 'published')
+        .eq('moderation_status', 'approved')
         .eq('visibility', 'public');
 
     query = _applyFilters(
@@ -224,6 +225,7 @@ class PublicEventsService {
           .from('events')
           .select('id')
           .eq('status', 'published')
+          .eq('moderation_status', 'approved')
           .eq('visibility', 'public');
 
       query = _applyFilters(
@@ -267,6 +269,7 @@ class PublicEventsService {
         ''')
         .eq('id', eventId)
         .eq('status', 'published')
+        .eq('moderation_status', 'approved')
         .eq('visibility', 'public')
         .maybeSingle();
 

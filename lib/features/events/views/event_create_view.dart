@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/organization_provider.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../widgets/create/event_basic_info_form.dart';
 import '../widgets/create/event_location_form.dart';
 import '../widgets/create/event_schedule_form.dart';
@@ -198,7 +199,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'visibility': 'public',
         'requires_approval': false,
         'published_at': null,
-        if (parsedCapacity != null) 'capacity': parsedCapacity,
+        'capacity': ?parsedCapacity,
       };
 
       final locationData = {
@@ -244,9 +245,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al crear evento: $e')),
-        );
+        AppFeedback.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

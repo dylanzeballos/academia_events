@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
@@ -7,7 +8,6 @@ import '../../../../data/models/organization_member_model.dart';
 import '../../../../data/repositories/organization_repository.dart';
 import '../../../../providers/organization_provider.dart';
 import '../../../../shared/widgets/fullscreen_image_viewer.dart';
-import '../../../organization/views/organization_detail_view.dart';
 
 class DashboardOrgSelector extends ConsumerWidget {
   const DashboardOrgSelector({
@@ -138,12 +138,12 @@ class DashboardOrgSelector extends ConsumerWidget {
               tooltip: 'Editar organización',
               icon: const Icon(Icons.edit_outlined),
               color: AppColors.primary,
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const OrganizationDetailView(),
-                ),
-              ),
+              onPressed: () {
+                final id = ref.read(selectedOrganizationIdProvider);
+                if (id != null) {
+                  context.push('${AppRoutes.organizationsDetail}/$id');
+                }
+              },
             ),
           ],
         ),

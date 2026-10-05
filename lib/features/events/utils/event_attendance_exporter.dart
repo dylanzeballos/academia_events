@@ -4,10 +4,11 @@ import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/utils/excel_report_helpers.dart';
 import '../../../data/models/event_attendance_model.dart';
 
-/// Exporta la lista de asistentes de un evento a un archivo .xlsx y lo
-/// comparte.
+/// Genera el informe de ingresos de un evento con el formato del Excel
+/// demostrativo: NOMBRE · CHECK-IN · MONTO BS.
 class EventAttendanceExporter {
   EventAttendanceExporter._();
 
@@ -15,65 +16,59 @@ class EventAttendanceExporter {
     List<EventAttendee> attendees,
     String eventTitle,
   ) async {
-    final excel = Excel.createExcel();
-    final sheet = excel['Asistentes'];
-
-    sheet.appendRow([
-      TextCellValue('Nombre'),
-      TextCellValue('Ticket'),
-      TextCellValue('Tipo de entrada'),
-      TextCellValue('Estado'),
-      TextCellValue('Hora de check-in'),
-      TextCellValue('Punto de acceso'),
-    ]);
-
-    for (final a in attendees) {
-      sheet.appendRow([
-        TextCellValue(a.fullName),
-        TextCellValue(a.ticketNumber),
-        TextCellValue(a.ticketType),
-        TextCellValue(_statusLabel(a)),
-        TextCellValue(_timeLabel(a.checkInTime)),
-        TextCellValue(a.accessPoint ?? ''),
-      ]);
-    }
-
+    final excel = buildExcel(attendees, eventTitle);
     final bytes = excel.encode();
     if (bytes == null) {
       throw const AttendanceExportException('No se pudo generar el archivo.');
     }
-
     final dir = await getTemporaryDirectory();
     final file = File(
-      '${dir.path}/Asistentes_${_sanitize(eventTitle)}.xlsx',
+      '${dir.path}/Ingresos_${ExcelReportHelpers.sanitize(eventTitle)}.xlsx',
     );
     await file.writeAsBytes(bytes);
 
     await SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
-        text: 'Lista de asistentes de $eventTitle',
+        text: 'Informe de ingresos de $eventTitle',
       ),
     );
   }
 
-  static String _statusLabel(EventAttendee a) {
-    if (a.checkedIn) return 'Ingresó';
-    if (a.ticketStatus == 'used') return 'Usado';
-    return 'Pendiente';
-  }
+  static Excel buildExcel(List<EventAttendee> attendees, String eventTitle) {
+    final excel = Excel.createExcel();
+    const sheetName = 'Informe';
+    final sheet = excel[sheetName];
+    final defaultSheet = excel.getDefaultSheet();
+    if (defaultSheet != null && defaultSheet != sheetName) {
+      excel.delete(defaultSheet);
+    }
 
-  static String _timeLabel(DateTime? time) {
-    if (time == null) return '';
-    return '${_two(time.day)}/${_two(time.month)} '
-        '${_two(time.hour)}:${_two(time.minute)}';
-  }
+    ExcelReportHelpers.writeTitle(sheet, eventTitle.toUpperCase(), 3);
+    ExcelReportHelpers.writeHeader(sheet, 1, const [
+      'NOMBRE',
+      'CHECK-IN',
+      'MONTO BS',
+    ]);
 
-  static String _two(int v) => v.toString().padLeft(2, '0');
+    var row = 2;
+    for (final attendee in attendees) {
+      ExcelReportHelpers.setText(sheet, row, 0, attendee.fullName);
+      ExcelReportHelpers.setText(
+        sheet,
+        row,
+        1,
+        ExcelReportHelpers.formatDateTime(attendee.checkInTime),
+      );
+      ExcelReportHelpers.setNumber(sheet, row, 2, attendee.ticketPrice);
+      row++;
+    }
 
-  static String _sanitize(String title) {
-    final cleaned = title.replaceAll(RegExp(r'[^\w\s]'), '');
-    return cleaned.replaceAll(RegExp(r'\s+'), '_');
+    sheet.setColumnWidth(0, 26);
+    sheet.setColumnWidth(1, 18);
+    sheet.setColumnWidth(2, 14);
+
+    return excel;
   }
 }
 

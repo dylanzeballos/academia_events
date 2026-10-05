@@ -112,6 +112,16 @@ class AuthService {
     return result.isNotEmpty;
   }
 
+  Future<bool> isPlatformAdmin(String userId) async {
+    final result = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+    return result != null;
+  }
+
   Future<String> uploadAvatar(
     String userId,
     Uint8List bytes, {

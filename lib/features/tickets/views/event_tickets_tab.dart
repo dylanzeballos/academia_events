@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/event_ticket_group.dart';
 import '../../../providers/ticket_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import 'event_orders_detail_screen.dart';
 
 class EventTicketsTab extends ConsumerWidget {
@@ -23,26 +25,16 @@ class EventTicketsTab extends ConsumerWidget {
 
     return eventsAsync.when(
       loading: () => const LoadingIndicator(),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => AppErrorState(
+        message: friendlyError(e),
+        onRetry: () => ref.invalidate(userGroupedTicketsProvider),
+      ),
       data: (eventGroups) {
         if (eventGroups.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.confirmation_number_outlined, size: 64, color: Colors.grey[600]),
-                const SizedBox(height: 16),
-                Text(
-                  'Sin tickets de eventos',
-                  style: TextStyle(color: context.textOnBg, fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Aún no has comprado ni reservado tickets.',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-              ],
-            ),
+          return const AppEmptyState(
+            icon: Icons.confirmation_number_outlined,
+            title: 'Sin tickets de eventos',
+            message: 'Aún no has comprado ni reservado tickets.',
           );
         }
 
@@ -90,7 +82,7 @@ class EventTicketsTab extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.15),
+                              color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(

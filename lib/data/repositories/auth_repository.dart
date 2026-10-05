@@ -126,6 +126,9 @@ class AuthRepository implements IAuthRepository {
     final userId = _auth.currentUser?.id;
     if (userId == null) return UserRole.student;
 
+    final isPlatformAdmin = await _auth.isPlatformAdmin(userId);
+    if (isPlatformAdmin) return UserRole.platformAdmin;
+
     final isMember = await _auth.isOrganizationMember(userId);
     return isMember ? UserRole.academy : UserRole.student;
   }

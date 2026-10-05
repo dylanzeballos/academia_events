@@ -1,4 +1,7 @@
+import '../../core/utils/display_labels.dart';
+
 /// Pase de clase (espejo del RPC `fetch_my_class_passes`).
+
 class ClassPassModel {
   const ClassPassModel({
     required this.id,
@@ -35,7 +38,7 @@ class ClassPassModel {
         'active' => 'Activo',
         'expired' => 'Expirado',
         'cancelled' => 'Cancelado',
-        _ => passStatus,
+        _ => DisplayLabels.status(passStatus),
       };
 
   factory ClassPassModel.fromJson(Map<String, dynamic> json) {

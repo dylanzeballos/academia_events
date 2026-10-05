@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_model.dart';
 
 class OrgLocationSection extends StatelessWidget {
@@ -46,10 +47,10 @@ class OrgLocationSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Ubicación',
           style: TextStyle(
-            color: Colors.white,
+            color: context.textOnBg,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -58,9 +59,9 @@ class OrgLocationSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF131722),
+            color: context.cardBg,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF1E2538)),
+            border: Border.all(color: context.divider),
           ),
           child: Column(
             children: [
@@ -176,8 +177,8 @@ class _InfoRow extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white60,
+                style: TextStyle(
+                  color: context.textMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
@@ -185,8 +186,8 @@ class _InfoRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: context.textOnBg,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                 ),

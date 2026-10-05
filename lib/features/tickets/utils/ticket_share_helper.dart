@@ -34,9 +34,11 @@ class TicketShareHelper {
       await file.writeAsBytes(imageBytes);
 
       // 3. Abrir la hoja para compartir (WhatsApp, Guardar en galería, etc.)
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: '¡Aquí está tu entrada para $eventTitle!\nTicket: $ticketNumber',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: '¡Aquí está tu entrada para $eventTitle!\nTicket: $ticketNumber',
+        ),
       );
     } catch (e) {
       if (context.mounted) {

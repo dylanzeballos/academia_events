@@ -5,6 +5,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/theme_extensions.dart';
 import '../../data/models/geographic_model.dart';
 import '../../providers/geographic_provider.dart';
+import 'app_feedback.dart';
 
 /// Widget de selects dependientes para seleccionar ubicacion geografica.
 /// Jerarquia: Department -> Province -> Municipality -> City
@@ -62,7 +63,7 @@ class _GeographicLocationPickerState
         // Department
         departments.when(
           loading: () => const _DropdownSkeleton(label: 'Departamento'),
-          error: (e, _) => Text('Error: $e',
+          error: (e, _) => Text(friendlyError(e),
               style: const TextStyle(color: AppColors.error, fontSize: 12)),
           data: (items) => _GeoDropdown<DepartmentModel>(
             label: 'Departamento',
@@ -83,7 +84,7 @@ class _GeographicLocationPickerState
         if (selectedDept != null)
           provinces.when(
             loading: () => const _DropdownSkeleton(label: 'Provincia'),
-            error: (e, _) => Text('Error: $e',
+            error: (e, _) => Text(friendlyError(e),
                 style: const TextStyle(color: AppColors.error, fontSize: 12)),
             data: (items) => _GeoDropdown<ProvinceModel>(
               label: 'Provincia',
@@ -104,7 +105,7 @@ class _GeographicLocationPickerState
         if (selectedProv != null)
           municipalities.when(
             loading: () => const _DropdownSkeleton(label: 'Municipio'),
-            error: (e, _) => Text('Error: $e',
+            error: (e, _) => Text(friendlyError(e),
                 style: const TextStyle(color: AppColors.error, fontSize: 12)),
             data: (items) => _GeoDropdown<MunicipalityModel>(
               label: 'Municipio',
@@ -125,7 +126,7 @@ class _GeographicLocationPickerState
         if (selectedMuni != null)
           cities.when(
             loading: () => const _DropdownSkeleton(label: 'Ciudad'),
-            error: (e, _) => Text('Error: $e',
+            error: (e, _) => Text(friendlyError(e),
                 style: const TextStyle(color: AppColors.error, fontSize: 12)),
             data: (items) => _GeoDropdown<CityModel>(
               label: 'Ciudad',

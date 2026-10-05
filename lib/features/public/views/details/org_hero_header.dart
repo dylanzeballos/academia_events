@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/utils/theme_extensions.dart';
 import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 
 class OrgHeroHeader extends StatelessWidget {
@@ -14,6 +15,7 @@ class OrgHeroHeader extends StatelessWidget {
     this.location,
     this.whatsappNumber = '',
     this.logoTag,
+    this.onShare,
   });
 
   final String name;
@@ -23,6 +25,7 @@ class OrgHeroHeader extends StatelessWidget {
   final String? location;
   final String whatsappNumber;
   final String? logoTag;
+  final VoidCallback? onShare;
 
   Future<void> _openWhatsApp(BuildContext context) async {
     final cleanPhone = whatsappNumber.replaceAll(RegExp(r'[^0-9]'), '');
@@ -51,22 +54,30 @@ class OrgHeroHeader extends StatelessWidget {
         Stack(
           clipBehavior: Clip.none,
           children: [
-            // Banner Cover
+            // Banner Cover (toca para ampliar)
             GestureDetector(
               onTap: coverUrl == null
                   ? null
-                  : () => FullscreenImageViewer.show(context, coverUrl!),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: coverUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: coverUrl!,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, _, _) => _buildFallbackCover(),
-                        )
-                      : _buildFallbackCover(),
+                  : () => FullscreenImageViewer.show(
+                      context,
+                      coverUrl!,
+                      tag: '${logoTag ?? 'organization-logo-$name'}-cover',
+                    ),
+              child: Hero(
+                tag: '${logoTag ?? 'organization-logo-$name'}-cover',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: coverUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: coverUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, _, _) =>
+                                _buildFallbackCover(context),
+                          )
+                        : _buildFallbackCover(context),
+                  ),
                 ),
               ),
             ),
@@ -96,16 +107,17 @@ class OrgHeroHeader extends StatelessWidget {
                             color: const Color(0xFFE85D04),
                             width: 3,
                           ),
-                          color: const Color(0xFF1E2333),
+                          color: context.surfaceInput,
                         ),
                         child: ClipOval(
                           child: logoUrl != null
                               ? CachedNetworkImage(
                                   imageUrl: logoUrl!,
                                   fit: BoxFit.cover,
-                                  errorWidget: (_, _, _) => _avatarFallback(),
+                                  errorWidget: (_, _, _) =>
+                                      _avatarFallback(context),
                                 )
-                              : _avatarFallback(),
+                              : _avatarFallback(context),
                         ),
                       ),
                     ),
@@ -137,8 +149,8 @@ class OrgHeroHeader extends StatelessWidget {
         // Nombre de la academia
         Text(
           name,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: context.textOnBg,
             fontSize: 22,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
@@ -150,7 +162,7 @@ class OrgHeroHeader extends StatelessWidget {
           Text(
             description!,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.65),
+              color: context.textMuted,
               fontSize: 13,
               fontWeight: FontWeight.w500,
               height: 1.3,
@@ -160,10 +172,7 @@ class OrgHeroHeader extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             location!,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.55),
-              fontSize: 12,
-            ),
+            style: TextStyle(color: context.textMuted, fontSize: 12),
           ),
         ],
         const SizedBox(height: 14),
@@ -213,108 +222,48 @@ class OrgHeroHeader extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 10),
+            Container(
+              height: 48,
+              width: 48,
+              decoration: BoxDecoration(
+                color: context.surfaceInput,
+                shape: BoxShape.circle,
+                border: Border.all(color: context.divider),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.share_outlined,
+                  color: context.textOnBg,
+                  size: 20,
+                ),
+                onPressed: onShare,
+              ),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildFallbackCover() {
+  Widget _buildFallbackCover(BuildContext context) {
     return Container(
-      color: const Color(0xFF1E2538),
-      child: const Center(
-        child: Icon(Icons.music_note, size: 48, color: Colors.white24),
+      color: context.surfaceInput,
+      child: Center(
+        child: Icon(Icons.music_note, size: 48, color: context.textMuted),
       ),
     );
   }
 
-  Widget _avatarFallback() {
+  Widget _avatarFallback(BuildContext context) {
     return Center(
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : 'A',
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: context.textOnBg,
           fontSize: 28,
           fontWeight: FontWeight.bold,
         ),
-      ),
-    );
-  }
-}
-
-class _MetricBadge extends StatelessWidget {
-  const _MetricBadge({
-    required this.mainText,
-    required this.subText,
-    this.isHighlighted = false,
-  });
-  final String mainText;
-  final String subText;
-  final bool isHighlighted;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141926).withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF27314A)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            mainText,
-            style: TextStyle(
-              color: isHighlighted
-                  ? const Color(0xFFFBBF24)
-                  : const Color(0xFF38BDF8),
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          Text(
-            subText,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeaturePill extends StatelessWidget {
-  const _FeaturePill({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161C2C),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF232D46)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: const Color(0xFF38BDF8)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }

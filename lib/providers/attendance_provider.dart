@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/class_attendance_model.dart';
 import '../data/models/event_attendance_model.dart';
+import '../data/models/vip_attendance_model.dart';
 import '../data/repositories/attendance_repository.dart';
 
 final attendanceRepositoryProvider = Provider<IAttendanceRepository>((ref) {
@@ -18,4 +19,13 @@ final eventAttendanceProvider =
 final classAttendanceProvider =
     FutureProvider.family<ClassAttendanceData, String>((ref, classId) {
   return ref.read(attendanceRepositoryProvider).fetchClassAttendance(classId);
+});
+
+/// Informe VIP mensual de una organización: alumnos con pase activo y su
+/// check-in por clase en el mes. La clave es `(organizationId, mes)`.
+final orgVipAttendanceProvider =
+    FutureProvider.family<VipAttendanceData, (String, DateTime)>((ref, key) {
+  return ref
+      .read(attendanceRepositoryProvider)
+      .fetchOrgVipAttendance(key.$1, key.$2);
 });

@@ -72,10 +72,24 @@ class _ClassAttendanceViewState extends ConsumerState<ClassAttendanceView> {
 
   Future<void> _export(BuildContext context, ClassAttendanceData data) async {
     try {
-      await ClassAttendanceExporter.exportToExcel(
-        data.students,
-        widget.classTitle,
-      );
+      final sessions = [...data.sessions]
+        ..sort((a, b) => a.startAt.compareTo(b.startAt));
+      if (_generalScope || _selectedSessionId == null || sessions.isEmpty) {
+        await ClassAttendanceExporter.exportMonthly(
+          data: data,
+          classTitle: widget.classTitle,
+        );
+      } else {
+        final session = sessions.firstWhere(
+          (s) => s.sessionId == _selectedSessionId,
+          orElse: () => sessions.last,
+        );
+        await ClassAttendanceExporter.exportSession(
+          data: data,
+          session: session,
+          classTitle: widget.classTitle,
+        );
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

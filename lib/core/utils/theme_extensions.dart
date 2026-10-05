@@ -32,4 +32,22 @@ extension ThemeExtensions on BuildContext {
       Theme.of(this).brightness == Brightness.dark
           ? Colors.grey
           : const Color(0xFF6B7280);
+
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+
+  /// Superficie de cabeceras (barras, encabezados de tabla).
+  Color get surfaceHeader =>
+      isDarkMode ? const Color(0xFF171B26) : Colors.white;
+
+  /// Superficie base algo más oscura/clara que el fondo.
+  Color get surfaceDeep =>
+      isDarkMode ? const Color(0xFF141824) : const Color(0xFFF1F3F7);
+
+  /// Relleno de campos de texto.
+  Color get surfaceInput =>
+      isDarkMode ? const Color(0xFF181D2D) : Colors.white;
+
+  /// Bordes sutiles para separadores y contornos.
+  Color get borderSubtle =>
+      isDarkMode ? const Color(0xFF222738) : const Color(0xFFDDDDDD);
 }

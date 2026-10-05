@@ -8,12 +8,15 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/theme/theme_transition.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/layout_mode_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/fullscreen_image_viewer.dart';
 import '../../../shared/widgets/error_banner.dart';
 import '../organization/views/my_invitations_view.dart';
 
@@ -297,7 +300,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           loading: () => const Center(
               child: CircularProgressIndicator(color: AppColors.primary)),
           error: (e, _) => Center(
-            child: AppBanner(message: 'Error: $e'),
+            child: AppBanner(message: friendlyError(e)),
           ),
           data: (profile) {
             if (profile == null) {
@@ -326,24 +329,36 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 Stack(
                   alignment: Alignment.bottomRight,
                   children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: context.cardBg,
-                      backgroundImage: avatarUrl != null
-                          ? NetworkImage(avatarUrl)
-                          : null,
-                      child: avatarUrl == null
-                          ? Text(
-                              profile.firstName.isNotEmpty
-                                  ? profile.firstName[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
+                    GestureDetector(
+                      onTap: avatarUrl == null
+                          ? null
+                          : () => FullscreenImageViewer.show(
+                                context,
+                                avatarUrl,
+                                tag: 'profile-avatar',
                               ),
-                            )
-                          : null,
+                      child: Hero(
+                        tag: 'profile-avatar',
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: context.cardBg,
+                          backgroundImage: avatarUrl != null
+                              ? NetworkImage(avatarUrl)
+                              : null,
+                          child: avatarUrl == null
+                              ? Text(
+                                  profile.firstName.isNotEmpty
+                                      ? profile.firstName[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
                     ),
                     GestureDetector(
                       onTap: _pickAvatar,
@@ -468,26 +483,36 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               children: [
                 Divider(color: context.divider),
                 const SizedBox(height: 16),
-                SwitchListTile(
-                  title: Text('Modo oscuro',
-                      style: TextStyle(color: context.textOnBg, fontSize: 15)),
-                  subtitle: Text(
-                    ref.watch(themeModeProvider) == ThemeMode.dark
-                        ? 'Activado'
-                        : 'Desactivado',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                Builder(
+                  builder: (tileContext) => SwitchListTile(
+                    title: Text('Modo oscuro',
+                        style: TextStyle(color: context.textOnBg, fontSize: 15)),
+                    subtitle: Text(
+                      ref.watch(themeModeProvider) == ThemeMode.dark
+                          ? 'Activado'
+                          : 'Desactivado',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                    secondary: Icon(
+                      ref.watch(themeModeProvider) == ThemeMode.dark
+                          ? Icons.dark_mode
+                          : Icons.light_mode,
+                      color: AppColors.primary,
+                    ),
+                    value: ref.watch(themeModeProvider) == ThemeMode.dark,
+                    onChanged: (_) {
+                      final box =
+                          tileContext.findRenderObject() as RenderBox?;
+                      final origin = box != null
+                          ? box.localToGlobal(
+                              Offset(box.size.width - 32, box.size.height / 2),
+                            )
+                          : MediaQuery.sizeOf(context).center(Offset.zero);
+                      animateThemeToggle(context, ref, origin: origin);
+                    },
+                    activeThumbColor: AppColors.primary,
+                    contentPadding: EdgeInsets.zero,
                   ),
-                  secondary: Icon(
-                    ref.watch(themeModeProvider) == ThemeMode.dark
-                        ? Icons.dark_mode
-                        : Icons.light_mode,
-                    color: AppColors.primary,
-                  ),
-                  value: ref.watch(themeModeProvider) == ThemeMode.dark,
-                  onChanged: (_) =>
-                      ref.read(themeModeProvider.notifier).toggle(),
-                  activeThumbColor: AppColors.primary,
-                  contentPadding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 8),
                 _buildModeSection(context, ref),

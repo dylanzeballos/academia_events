@@ -2,15 +2,16 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../calendar/widgets/column/timeline_scale.dart';
 import 'class_create_view.dart';
-import 'class_detail_view.dart';
 
 class ClassListView extends ConsumerStatefulWidget {
   const ClassListView({super.key});
@@ -94,9 +95,9 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
     final canManage = myRole?.canManageClasses ?? false;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F121A),
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF141824),
+        backgroundColor: context.surfaceHeader,
         elevation: 0,
         title: const Text(
           'Horario',
@@ -132,7 +133,14 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
       body: scheduleEntriesAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => Center(
-          child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              friendlyError(e),
+              style: const TextStyle(color: Colors.white),
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
         data: (entries) {
           if (entries.isEmpty) {
@@ -160,9 +168,9 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                   // ── Cabecera: HORA + Días ──
                   Container(
                     height: 52,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF171B26),
-                      border: Border(bottom: BorderSide(color: Color(0xFF222738), width: 1.2)),
+                    decoration: BoxDecoration(
+                      color: context.surfaceHeader,
+                      border: Border(bottom: BorderSide(color: context.divider, width: 1.2)),
                     ),
                     child: Row(
                       children: [
@@ -546,11 +554,7 @@ class _DarkClassCard extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () async {
-        ref.read(selectedClassIdProvider.notifier).select(danceClass.id);
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ClassDetailView()),
-        );
+        await context.push('${AppRoutes.classDetail}/${danceClass.id}');
         ref.invalidate(orgClassesProvider);
         ref.invalidate(orgWeeklyScheduleEntriesProvider);
       },
