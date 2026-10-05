@@ -4,6 +4,17 @@ import '../constants/app_constants.dart';
 class AppTheme {
   AppTheme._();
 
+  /// Transiciones de página consistentes en todas las plataformas.
+  static const PageTransitionsTheme _pageTransitions = PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.iOS: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+    },
+  );
+
   // ─── Dark theme ─────────────────────────────
   static ThemeData get dark => ThemeData(
         useMaterial3: true,
@@ -96,6 +107,31 @@ class AppTheme {
           elevation: 0,
           centerTitle: false,
         ),
+        pageTransitionsTheme: _pageTransitions,
+        dialogTheme: DialogThemeData(
+          backgroundColor: const Color(0xFF1B1B2F),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFF2E2E4E),
+          contentTextStyle: TextStyle(color: Colors.white),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: const Color(0xFF1B1B2F),
+          side: const BorderSide(color: Color(0xFF2E2E4E)),
+          labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Color(0xFF2E2E4E),
+          thickness: 1,
+        ),
+        listTileTheme: const ListTileThemeData(iconColor: Colors.grey),
       );
 
   // ─── Light theme ────────────────────────────
@@ -190,5 +226,29 @@ class AppTheme {
           elevation: 0,
           centerTitle: false,
         ),
+        pageTransitionsTheme: _pageTransitions,
+        dialogTheme: DialogThemeData(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          contentTextStyle: TextStyle(color: Colors.white),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: Colors.white,
+          side: const BorderSide(color: Color(0xFFE0E0E0)),
+          labelStyle: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Color(0xFFE0E0E0),
+          thickness: 1,
+        ),
+        listTileTheme: const ListTileThemeData(iconColor: Color(0xFF6B7280)),
       );
 }

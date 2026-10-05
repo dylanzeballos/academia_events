@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'core/config/supabase_config.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_transition.dart';
 import 'providers/theme_provider.dart';
 
 Future<void> main() async {
@@ -34,24 +35,31 @@ class AcademiaApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
 
-    return MaterialApp.router(
-      debugShowCheckedModeBanner: false,
-      title: 'Academia Events',
-      locale: const Locale('es'),
-      supportedLocales: const [
-        Locale('es'),
-        Locale('es', 'BO'),
-        Locale('en'),
-      ],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: themeMode,
-      routerConfig: router,
+    return RepaintBoundary(
+      key: themeRootBoundaryKey,
+      child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        title: 'Academia Events',
+        locale: const Locale('es'),
+        supportedLocales: const [
+          Locale('es'),
+          Locale('es', 'BO'),
+          Locale('en'),
+        ],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: themeMode,
+        // Transición suave de colores al cambiar de tema (redundante con el
+        // revelado circular, pero sirve de respaldo y suaviza el resto).
+        themeAnimationDuration: const Duration(milliseconds: 450),
+        themeAnimationCurve: Curves.easeInOut,
+        routerConfig: router,
+      ),
     );
   }
 }
