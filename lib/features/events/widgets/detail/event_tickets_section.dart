@@ -89,7 +89,9 @@ class EventTicketsSection extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '${ticket.price <= 0 ? "Gratis" : "${ticket.currency} ${ticket.price.toStringAsFixed(2)}"}',
+                      ticket.price <= 0
+                          ? 'Gratis'
+                          : '${ticket.currency} ${ticket.price.toStringAsFixed(2)}',
                       style: TextStyle(
                         color: accentColor,
                         fontWeight: FontWeight.bold,

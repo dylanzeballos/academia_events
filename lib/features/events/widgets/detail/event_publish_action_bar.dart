@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../data/models/event_model.dart';
 import '../../../../providers/events_provider.dart';
+import '../../../../shared/widgets/app_feedback.dart';
 
 class EventPublishActionBar extends ConsumerStatefulWidget {
   const EventPublishActionBar({super.key, required this.event});
@@ -62,15 +63,11 @@ class _EventPublishActionBarState
       ref.invalidate(weekEventsProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Evento publicado exitosamente!')),
-        );
+        AppFeedback.success(context, 'Evento publicado correctamente.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al publicar evento: $e')),
-        );
+        AppFeedback.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);

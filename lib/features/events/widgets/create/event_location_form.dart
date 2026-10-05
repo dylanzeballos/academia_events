@@ -66,7 +66,7 @@ class EventLocationForm extends ConsumerWidget {
             onChanged: onDepartmentChanged,
           ),
           loading: () => const LinearProgressIndicator(),
-          error: (_, __) => const SizedBox.shrink(),
+          error: (_, _) => const SizedBox.shrink(),
         ),
         const SizedBox(height: 12),
 
@@ -86,7 +86,7 @@ class EventLocationForm extends ConsumerWidget {
                   onChanged: onProvinceChanged,
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
         if (selectedDepartmentId != null) const SizedBox(height: 12),
 
@@ -106,7 +106,7 @@ class EventLocationForm extends ConsumerWidget {
                   onChanged: onMunicipalityChanged,
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
         if (selectedProvinceId != null) const SizedBox(height: 12),
 
@@ -126,7 +126,7 @@ class EventLocationForm extends ConsumerWidget {
                   onChanged: onCityChanged,
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
         const SizedBox(height: 16),
 

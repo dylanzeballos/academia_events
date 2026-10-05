@@ -8,6 +8,9 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_ticket_model.dart';
 import '../../../providers/checkin_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 
 class ClassTicketsTab extends ConsumerWidget {
   const ClassTicketsTab({super.key});
@@ -56,36 +59,21 @@ class ClassTicketsTab extends ConsumerWidget {
 
     return ticketsAsync.when(
       loading: () => const LoadingIndicator(),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => AppErrorState(
+        message: friendlyError(e),
+        onRetry: () => ref.invalidate(myClassTicketsProvider),
+      ),
       data: (tickets) {
         final groups = _classNextTickets(tickets);
 
         if (groups.isEmpty) {
           final hasAnyTicket = tickets.isNotEmpty;
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.school_outlined, size: 64, color: Colors.grey[600]),
-                const SizedBox(height: 16),
-                Text(
-                  hasAnyTicket ? 'Sin tickets próximos' : 'Sin tickets de clases',
-                  style: TextStyle(
-                    color: context.textOnBg,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  hasAnyTicket
-                      ? 'Ya usaste o expiraron tus tickets. El próximo aparecerá aquí al generarse.'
-                      : 'Compra un pase de tu clase inscrita para obtener tus tickets.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-              ],
-            ),
+          return AppEmptyState(
+            icon: Icons.school_outlined,
+            title: hasAnyTicket ? 'Sin tickets próximos' : 'Sin tickets de clases',
+            message: hasAnyTicket
+                ? 'Ya usaste o expiraron tus tickets. El próximo aparecerá aquí al generarse.'
+                : 'Compra un pase de tu clase inscrita para obtener tus tickets.',
           );
         }
 

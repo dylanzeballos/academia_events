@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/ticket_type_model.dart';
 import '../../../providers/ticket_provider.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import 'ticket_qr_screen.dart';
 
 class PurchaseTicketsScreen extends ConsumerStatefulWidget {
@@ -58,8 +59,9 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
     if (selected == null) return;
 
     if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa el nombre para cada una de las entradas')),
+      AppFeedback.warning(
+        context,
+        'Ingresa el nombre para cada una de las entradas.',
       );
       return;
     }
@@ -81,9 +83,7 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo completar la compra: $e')),
-      );
+      AppFeedback.error(context, friendlyError(e));
     } finally {
       if (mounted) setState(() => _isBuying = false);
     }
@@ -113,22 +113,31 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                 children: [
                   const Text('Tipo de entrada', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  ...types.map((type) => RadioListTile<TicketTypeModel>(
-                        value: type,
-                        groupValue: _selected,
-                        onChanged: type.hasStock
-                            ? (value) => setState(() {
-                                  _selected = value;
-                                  _onQuantityChanged(1);
-                                })
-                            : null,
-                        title: Text(type.name),
-                        subtitle: Text(
-                          type.hasStock
-                              ? '${type.price.toStringAsFixed(2)} ${type.currency} · ${type.available} disponibles'
-                              : 'Agotado',
-                        ),
-                      )),
+                  RadioGroup<TicketTypeModel>(
+                    groupValue: _selected,
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _selected = value;
+                        _onQuantityChanged(1);
+                      });
+                    },
+                    child: Column(
+                      children: [
+                        for (final type in types)
+                          RadioListTile<TicketTypeModel>(
+                            value: type,
+                            enabled: type.hasStock,
+                            title: Text(type.name),
+                            subtitle: Text(
+                              type.hasStock
+                                  ? '${type.price.toStringAsFixed(2)} ${type.currency} · ${type.available} disponibles'
+                                  : 'Agotado',
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                   const Divider(height: 32),
                   const Text('Cantidad', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
