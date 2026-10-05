@@ -7,6 +7,8 @@ import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/layout_mode_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../widgets/detail/event_detail_header.dart';
 import '../widgets/detail/event_location_section.dart';
 import '../widgets/detail/event_publish_action_bar.dart';
@@ -14,6 +16,7 @@ import '../widgets/detail/event_schedule_card.dart';
 import '../widgets/detail/event_ticket_action_bar.dart';
 import '../widgets/detail/event_tickets_section.dart';
 import 'event_attendance_view.dart';
+import 'event_access_points_view.dart';
 
 class EventDetailView extends ConsumerWidget {
   const EventDetailView({super.key, required this.eventId});
@@ -75,6 +78,23 @@ class EventDetailView extends ConsumerWidget {
           if (isAcademyMode)
             eventAsync.maybeWhen(
               data: (event) => IconButton(
+                tooltip: 'Puntos de acceso',
+                icon: const Icon(Icons.meeting_room_outlined),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => EventAccessPointsView(
+                      eventId: event.id,
+                      organizationId: event.organizationId,
+                      eventTitle: event.title,
+                    ),
+                  ),
+                ),
+              ),
+              orElse: () => const SizedBox.shrink(),
+            ),
+          if (isAcademyMode)
+            eventAsync.maybeWhen(
+              data: (event) => IconButton(
                 tooltip: 'Ver asistencia',
                 icon: const Icon(Icons.assessment_outlined),
                 onPressed: () => Navigator.of(context).push(
@@ -100,7 +120,10 @@ class EventDetailView extends ConsumerWidget {
       ),
       body: eventAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(eventDetailProvider(eventId)),
+        ),
         data: (event) => _EventDetailContent(
           event: event,
           isAcademyMode: isAcademyMode,

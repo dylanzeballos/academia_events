@@ -8,6 +8,9 @@ import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 
 class EventsListView extends ConsumerWidget {
   const EventsListView({super.key});
@@ -16,7 +19,7 @@ class EventsListView extends ConsumerWidget {
     final result = await context.push<bool>(AppRoutes.eventCreate);
     // Si se creó exitosamente o se regresó de la pantalla, forzamos recarga inmediata
     if (result == true || context.mounted) {
-      ref.refresh(orgEventsProvider);
+      ref.invalidate(orgEventsProvider);
     }
   }
 
@@ -25,10 +28,12 @@ class EventsListView extends ConsumerWidget {
     WidgetRef ref,
     String eventId,
   ) async {
-    final result = await context.push<bool>(AppRoutes.eventDetail, extra: eventId);
+    final result = await context.push<bool>(
+      '${AppRoutes.eventDetail}/$eventId',
+    );
     // Si se publicó, editó o eliminó el evento, forzamos recarga inmediata
     if (result == true || context.mounted) {
-      ref.refresh(orgEventsProvider);
+      ref.invalidate(orgEventsProvider);
     }
   }
 
@@ -50,58 +55,25 @@ class EventsListView extends ConsumerWidget {
       ),
       body: eventsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Error: $e'),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => ref.refresh(orgEventsProvider),
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(orgEventsProvider),
         ),
         data: (events) {
           if (events.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.event_outlined, size: 64, color: Colors.grey[600]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sin eventos',
-                    style: TextStyle(
-                      color: context.textOnBg,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Organiza y publica tu primer evento.',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  if (canManage) ...[
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      onPressed: () => _navigateToCreate(context, ref),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Crear evento'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+            return AppEmptyState(
+              icon: Icons.event_outlined,
+              title: 'Sin eventos',
+              message: canManage
+                  ? 'Organiza y publica tu primer evento.'
+                  : 'Todavía no hay eventos para mostrar.',
+              actionLabel: canManage ? 'Crear evento' : null,
+              onAction: canManage ? () => _navigateToCreate(context, ref) : null,
             );
           }
 
           return RefreshIndicator(
-            onRefresh: () async => ref.refresh(orgEventsProvider),
+            onRefresh: () async => ref.invalidate(orgEventsProvider),
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: events.length,
