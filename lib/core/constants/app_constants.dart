@@ -73,6 +73,12 @@ class AppRoutes {
   static const String studentClasses = '/student/classes';
   static const String academyCheckin = '/academy/checkin';
   static const String studentProfile = '/student/profile';
+  // Detalle de una clase inscrita (estudiante).
+  static const String myClassDetail = '/mi-clase';
+  static const String myClassDetailPattern = '/mi-clase/:id';
+  // Detalle de inscripción a una clase publicada (estudiante).
+  static const String enrollClassDetail = '/inscribir';
+  static const String enrollClassDetailPattern = '/inscribir/:id';
 
   static const String academyDashboard = '/academy';
   static const String academyEvents = '/academy/events';
@@ -80,19 +86,25 @@ class AppRoutes {
   static const String academyTeachers = '/academy/teachers';
   static const String academyTickets = '/academy/tickets';
   static const String academyProfile = '/academy/profile';
+  static const String platformAdmin = '/admin';
 
   static const String organizations = '/organizations';
   static const String organizationsCreate = '/organizations/create';
   static const String organizationsDetail = '/organizations/detail';
+  static const String organizationsDetailPattern = '/organizations/detail/:id';
   static const String myInvitations = '/invitations';
 
   static const String classList = '/classes';
   static const String classCreate = '/classes/create';
   static const String classDetail = '/classes/detail';
+  static const String classDetailPattern = '/classes/detail/:id';
 
   static const String eventsList = '/events';
   static const String eventCreate = '/events/create';
+  // Base para navegar (push) al detalle.
   static const String eventDetail = '/events/detail';
+  // Patrón de ruta (usado por el router; `:id` es el parámetro).
+  static const String eventDetailPattern = '/events/detail/:id';
 
   // Public event discovery routes
   static const String publicEvents = '/eventos';

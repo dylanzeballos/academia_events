@@ -24,6 +24,8 @@ import '../../features/classes/views/class_list_view.dart';
 import '../../features/classes/views/class_create_view.dart';
 import '../../features/classes/views/class_detail_view.dart';
 import '../../features/enrollment/views/my_classes_view.dart';
+import '../../features/enrollment/views/my_class_detail_view.dart';
+import '../../features/enrollment/views/class_enroll_detail_view.dart';
 
 import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
@@ -36,9 +38,11 @@ import '../../features/public/views/organization_detail_view.dart';
 
 import '../../features/tickets/views/student_tickets_view.dart';
 import '../../features/checkin/views/checkin_screen.dart';
+import '../../features/admin/views/admin_dashboard_view.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/layout_mode_provider.dart';
+import '../../data/models/profile_model.dart';
 
 class _StudentShell extends ConsumerStatefulWidget {
   const _StudentShell({required this.navigationShell});
@@ -247,6 +251,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (onAuthRoute) {
+        if (ref.read(currentUserRoleProvider).whenOrNull(data: (role) => role) ==
+            UserRole.platformAdmin) {
+          return AppRoutes.platformAdmin;
+        }
         final mode = ref.read(effectiveLayoutModeProvider);
         return mode == AppLayoutMode.academy
             ? AppRoutes.academyDashboard
@@ -255,6 +263,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final roleAsync = ref.read(currentUserRoleProvider);
       if (roleAsync.isLoading) return null;
+
+      if (state.matchedLocation.startsWith(AppRoutes.platformAdmin) &&
+          roleAsync.whenOrNull(data: (role) => role) != UserRole.platformAdmin) {
+        return AppRoutes.studentHome;
+      }
+
+      if (roleAsync.whenOrNull(data: (role) => role) == UserRole.platformAdmin &&
+          (state.matchedLocation.startsWith('/student') ||
+              state.matchedLocation.startsWith('/academy'))) {
+        return AppRoutes.platformAdmin;
+      }
 
       final mode = ref.read(effectiveLayoutModeProvider);
       final onStudentShell = state.matchedLocation.startsWith('/student');
@@ -282,6 +301,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.updatePassword,
         builder: (_, _) => const UpdatePasswordView(),
       ),
+      GoRoute(
+        path: AppRoutes.platformAdmin,
+        builder: (_, _) => const AdminDashboardView(),
+      ),
 
       // Callback para OAuth en web (Google login)
       GoRoute(
@@ -298,8 +321,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const OrganizationCreateView(),
       ),
       GoRoute(
-        path: AppRoutes.organizationsDetail,
-        builder: (_, _) => const OrganizationDetailView(),
+        path: AppRoutes.organizationsDetailPattern,
+        builder: (context, state) => OrganizationDetailView(
+          organizationId: state.pathParameters['id'],
+        ),
       ),
       GoRoute(
         path: AppRoutes.myInvitations,
@@ -316,8 +341,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ClassCreateView(),
       ),
       GoRoute(
-        path: AppRoutes.classDetail,
-        builder: (_, _) => const ClassDetailView(),
+        path: AppRoutes.classDetailPattern,
+        builder: (context, state) => ClassDetailView(
+          classId: state.pathParameters['id'],
+        ),
       ),
 
       // Eventos routes
@@ -330,9 +357,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const EventCreateView(),
       ),
       GoRoute(
-        path: AppRoutes.eventDetail,
+        path: AppRoutes.eventDetailPattern,
         builder: (context, state) {
-          final eventId = state.extra as String;
+          final eventId =
+              state.pathParameters['id'] ?? state.extra as String? ?? '';
           return EventDetailView(eventId: eventId);
         },
       ),
@@ -365,6 +393,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.academyCheckin,
         builder: (_, _) => const CheckinScreen(),
+      ),
+
+      // Detalle de una clase inscrita (estudiante)
+      GoRoute(
+        path: AppRoutes.myClassDetailPattern,
+        builder: (context, state) => MyClassDetailView(
+          enrollmentId: state.pathParameters['id'],
+        ),
+      ),
+
+      // Detalle de inscripción a una clase publicada (estudiante)
+      GoRoute(
+        path: AppRoutes.enrollClassDetailPattern,
+        builder: (context, state) => ClassEnrollDetailView(
+          classId: state.pathParameters['id'],
+        ),
       ),
 
       StatefulShellRoute.indexedStack(
