@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/theme_extensions.dart';
+
 class ScheduleHoursColumn extends StatelessWidget {
   const ScheduleHoursColumn({
     super.key,
@@ -15,17 +17,17 @@ class ScheduleHoursColumn extends StatelessWidget {
     return Container(
       width: width,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        color: Color(0xFF141824),
-        border: Border(right: BorderSide(color: Color(0xFF222738), width: 1.2)),
+      decoration: BoxDecoration(
+        color: context.surfaceDeep,
+        border: Border(right: BorderSide(color: context.divider, width: 1.2)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             '${hour.toString().padLeft(2, '0')}:00',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: context.textOnBg,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
             ),
@@ -33,7 +35,7 @@ class ScheduleHoursColumn extends StatelessWidget {
           Text(
             '${(hour + 1).toString().padLeft(2, '0')}:00',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.35),
+              color: context.textMuted,
               fontSize: 9.0,
               fontWeight: FontWeight.w600,
             ),

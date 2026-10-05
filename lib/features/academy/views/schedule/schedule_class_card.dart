@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/theme_extensions.dart';
 import '../../../../providers/dance_class_provider.dart';
-import '../../../classes/views/class_detail_view.dart';
 
 class ScheduleClassCard extends ConsumerWidget {
   const ScheduleClassCard({
@@ -24,18 +26,14 @@ class ScheduleClassCard extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () async {
-        ref.read(selectedClassIdProvider.notifier).select(danceClass.id);
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ClassDetailView()),
-        );
+        await context.push('${AppRoutes.classDetail}/${danceClass.id}');
         ref.invalidate(orgClassesProvider);
         ref.invalidate(orgWeeklyScheduleEntriesProvider);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFF161B26),
+          color: context.surfaceInput,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: themeColor.withValues(alpha: 0.5),
@@ -80,7 +78,7 @@ class ScheduleClassCard extends ConsumerWidget {
                 Text(
                   schedule.startTime.substring(0, 5),
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
+                    color: context.textMuted,
                     fontSize: 8.0,
                     fontWeight: FontWeight.w700,
                   ),
@@ -95,8 +93,8 @@ class ScheduleClassCard extends ConsumerWidget {
                 danceClass.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: context.textOnBg,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w800,
                   height: 1.15,

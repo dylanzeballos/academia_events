@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/theme_extensions.dart';
 import '../../../../providers/dance_class_provider.dart';
 import 'schedule_class_card.dart';
 
@@ -46,8 +47,8 @@ class ScheduleDayColumn extends StatelessWidget {
     if (match == null) {
       return Container(
         width: width,
-        decoration: const BoxDecoration(
-          border: Border(right: BorderSide(color: Color(0xFF181D2A), width: 0.7)),
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: context.divider, width: 0.7)),
         ),
         child: Center(
           child: IconButton(
@@ -56,7 +57,7 @@ class ScheduleDayColumn extends StatelessWidget {
             icon: Icon(
               Icons.add,
               size: 14,
-              color: Colors.white.withValues(alpha: 0.04),
+              color: context.textOnBg.withValues(alpha: 0.06),
             ),
             onPressed: onAddClass,
           ),
@@ -69,8 +70,8 @@ class ScheduleDayColumn extends StatelessWidget {
 
     return Container(
       width: width,
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Color(0xFF181D2A), width: 0.7)),
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: context.divider, width: 0.7)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 3),
       child: ScheduleClassCard(
