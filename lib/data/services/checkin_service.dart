@@ -72,12 +72,14 @@ class CheckInService {
     required String tokenHash,
     required String eventId,
     String? deviceId,
+    String? accessPointId,
   }) async {
     try {
       final result = await supabase.rpc('register_event_check_in', params: {
         'p_token_hash': tokenHash,
         'p_event_id': eventId,
         'p_device_id': deviceId,
+        'p_access_point_id': accessPointId,
       });
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {

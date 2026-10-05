@@ -16,6 +16,7 @@ abstract interface class ICheckInRepository {
     required String tokenHash,
     required String eventId,
     String? deviceId,
+    String? accessPointId,
   });
 
   Future<CheckInResultModel> registerClassCheckIn({
@@ -58,11 +59,13 @@ class CheckInRepository implements ICheckInRepository {
     required String tokenHash,
     required String eventId,
     String? deviceId,
+    String? accessPointId,
   }) async {
     final raw = await _service.registerEventCheckIn(
       tokenHash: tokenHash,
       eventId: eventId,
       deviceId: deviceId,
+      accessPointId: accessPointId,
     );
     return CheckInResultModel.fromJson(raw);
   }
