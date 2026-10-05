@@ -255,7 +255,7 @@ class _PreviewContent extends ConsumerWidget {
                   FilledButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      context.push(AppRoutes.eventDetail, extra: event.id);
+                      context.push('${AppRoutes.eventDetail}/${event.id}');
                     },
                     style: FilledButton.styleFrom(
                       backgroundColor: color,

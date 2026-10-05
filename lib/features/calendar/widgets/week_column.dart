@@ -153,9 +153,6 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshRightEdge());
     if (widget.autoScrollToEarliest) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEarliest());
-      Future.delayed(const Duration(milliseconds: 350), () {
-        if (mounted && widget.autoScrollToEarliest) _scrollToEarliest();
-      });
     }
   }
 
@@ -376,12 +373,13 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                 ),
               ],
             ),
-            Positioned(
-              top: 0,
-              bottom: 0,
-              right: 0,
-              child: RightSlideHint(visible: showSlideHint),
-            ),
+            if (showSlideHint)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: RightSlideHint(visible: showSlideHint),
+              ),
           ],
         );
       },

@@ -35,15 +35,13 @@ class SelectedWeekNotifier extends Notifier<DateTime> {
   @override
   DateTime build() {
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    // Ancla al lunes de la semana actual: la vista de semana muestra SIEMPRE
-    // los 7 días (lun a dom) y las flechas saltan de lunes a lunes.
-    return today.subtract(Duration(days: today.weekday - 1));
+    // La ventana visible arranca en el día de referencia (hoy o el día
+    // seleccionado), mostrando 7 días consecutivos.
+    return DateTime(now.year, now.month, now.day);
   }
 
   void setWeek(DateTime week) {
-    final day = DateTime(week.year, week.month, week.day);
-    state = day.subtract(Duration(days: day.weekday - 1));
+    state = DateTime(week.year, week.month, week.day);
   }
 
   void nextWeek() => state = state.add(const Duration(days: 7));
