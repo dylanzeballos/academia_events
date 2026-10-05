@@ -10,10 +10,13 @@ import '../../../data/models/class_model.dart';
 import '../../../data/models/dance_class_session_model.dart';
 import '../../../data/models/event_model.dart';
 import '../../../data/services/checkin_service.dart';
+import '../../../data/services/event_access_service.dart';
+import '../../../core/config/supabase_config.dart';
 import '../../../providers/checkin_provider.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/events_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../widgets/checkin_result_card.dart';
 import '../widgets/scanner_page.dart';
 
@@ -33,6 +36,10 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
   String? _eventId;
   String? _classId;
   String? _sessionId;
+  String? _accessPointId;
+  Future<List<Map<String, dynamic>>>? _accessPointsFuture;
+  bool _accessPointsLoaded = false;
+  bool _accessRequired = false;
 
   bool _busy = false;
   CheckInResultModel? _result;
@@ -49,9 +56,9 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
       next.maybeWhen(
         data: (events) {
           if (_eventId == null && events.isNotEmpty) {
-            _eventId = events.first.id;
+            _setEvent(events.first.id);
           } else if (_eventId != null && !events.any((e) => e.id == _eventId)) {
-            _eventId = null;
+            _setEvent(null);
           }
         },
         orElse: () {},
@@ -75,12 +82,34 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
     });
   }
 
+  void _setEvent(String? id) {
+    if (_eventId == id) return;
+    void update() {
+      _eventId = id;
+      _accessPointId = null;
+      _accessRequired = false;
+      _accessPointsLoaded = id == null;
+      _accessPointsFuture = id == null
+          ? null
+          : const EventAccessService().fetchPoints(id);
+    }
+    if (mounted) {
+      setState(update);
+    } else {
+      update();
+    }
+  }
+
   void _selectMode(_CheckinMode mode) {
     if (_mode == mode) return;
     setState(() {
       _mode = mode;
       _result = null;
       _eventId = null;
+      _accessPointId = null;
+      _accessPointsFuture = null;
+      _accessPointsLoaded = false;
+      _accessRequired = false;
       _classId = null;
       _sessionId = null;
     });
@@ -119,7 +148,7 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         controller.dispose();
       }
     } catch (e) {
-      if (mounted) _showSnack('No se pudo leer la imagen: $e');
+      if (mounted) _showSnack(friendlyError(e));
     }
   }
 
@@ -146,7 +175,11 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
     try {
       final repo = ref.read(checkInRepositoryProvider);
       final result = _mode == _CheckinMode.event
-          ? await repo.registerEventCheckIn(tokenHash: token, eventId: eventId!)
+          ? await repo.registerEventCheckIn(
+              tokenHash: token,
+              eventId: eventId!,
+              accessPointId: _accessPointId,
+            )
           : await repo.registerClassCheckIn(tokenHash: token, sessionId: sessionId!);
       if (!mounted) return;
       setState(() => _result = result);
@@ -209,7 +242,9 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
 
     final canScan = _busy ||
         (_mode == _CheckinMode.event
-            ? _eventId == null
+            ? _eventId == null ||
+                !_accessPointsLoaded ||
+                (_accessRequired && _accessPointId == null)
             : _sessionId == null);
 
     return ListView(
@@ -264,22 +299,37 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         if (_mode == _CheckinMode.event) ...[
           eventsAsync.when(
             loading: () => const LoadingIndicator(),
-            error: (e, _) => Text('Error cargando eventos: $e'),
+            error: (e, _) => Text(friendlyError(e)),
             data: (events) => _EventDropdown(
               events: events,
               value: _eventId,
               onChanged: (id) {
-                setState(() {
-                  _eventId = id;
-                  _result = null;
-                });
+                _setEvent(id);
+                setState(() => _result = null);
               },
             ),
           ),
+          if (_eventId != null) ...[
+            const SizedBox(height: 12),
+            _AccessPointSelector(
+              key: ValueKey(_eventId),
+              future: _accessPointsFuture!,
+              selectedId: _accessPointId,
+              onSelected: (id) => setState(() => _accessPointId = id),
+              onLoaded: (required) {
+                if (!_accessPointsLoaded || _accessRequired != required) {
+                  setState(() {
+                    _accessRequired = required;
+                    _accessPointsLoaded = true;
+                  });
+                }
+              },
+            ),
+          ],
         ] else ...[
           classesAsync.when(
             loading: () => const LoadingIndicator(),
-            error: (e, _) => Text('Error cargando clases: $e'),
+            error: (e, _) => Text(friendlyError(e)),
             data: (classes) => _ClassDropdown(
               classes: classes,
               value: _classId,
@@ -298,7 +348,7 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
           else
             sessionsAsync.when(
               loading: () => const LoadingIndicator(),
-              error: (e, _) => Text('Error cargando sesiones: $e'),
+              error: (e, _) => Text(friendlyError(e)),
               data: (sessions) {
                 final nextId = sessions.isEmpty ? null : sessions.first.id;
                 if (nextId != null && _sessionId != nextId) {
@@ -392,6 +442,83 @@ class _EventDropdown extends StatelessWidget {
       onChanged: onChanged,
     );
   }
+}
+
+class _AccessPointSelector extends StatelessWidget {
+  const _AccessPointSelector({
+    super.key,
+    required this.future,
+    required this.selectedId,
+    required this.onSelected,
+    required this.onLoaded,
+  });
+
+  final Future<List<Map<String, dynamic>>> future;
+  final String? selectedId;
+  final ValueChanged<String?> onSelected;
+  final ValueChanged<bool> onLoaded;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<Map<String, dynamic>>>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const LinearProgressIndicator();
+          }
+          if (snapshot.hasError) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => onLoaded(true));
+            return Text('No se pudieron consultar tus accesos: ${snapshot.error}');
+          }
+          final points = snapshot.data ?? const [];
+          final required = points.isNotEmpty;
+          WidgetsBinding.instance.addPostFrameCallback((_) => onLoaded(required));
+          if (!required) return const SizedBox.shrink();
+
+          final userId = supabase.auth.currentUser?.id;
+          final authorized = points.where((point) {
+            if (point['is_active'] != true) return false;
+            final assignments = (point['event_access_point_staff'] as List? ?? const [])
+                .cast<Map<String, dynamic>>();
+            return assignments.any((assignment) {
+              final member = assignment['organization_members'];
+              if (member is Map) {
+                return member['user_id']?.toString() == userId && member['is_active'] == true;
+              }
+              if (member is List) {
+                return member.any((entry) => entry is Map &&
+                    entry['user_id']?.toString() == userId && entry['is_active'] == true);
+              }
+              return false;
+            });
+          }).toList();
+
+          if (authorized.isEmpty) {
+            return const Card(
+              child: ListTile(
+                leading: Icon(Icons.lock_outline),
+                title: Text('Acceso requerido'),
+                subtitle: Text('No tienes un punto de acceso activo asignado para este evento.'),
+              ),
+            );
+          }
+          return DropdownButtonFormField<String>(
+            initialValue: authorized.any((row) => row['id'] == selectedId) ? selectedId : null,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Punto de acceso autorizado',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              for (final point in authorized)
+                DropdownMenuItem(
+                  value: point['id'].toString(),
+                  child: Text(point['name']?.toString() ?? 'Acceso'),
+                ),
+            ],
+            onChanged: onSelected,
+          );
+        },
+      );
 }
 
 class _ClassDropdown extends StatelessWidget {
