@@ -30,6 +30,7 @@ class EventsService {
         ''')
         .or('start_at.lte.$endIso,end_at.gte.$startIso')
         .eq('status', 'published')
+        .eq('moderation_status', 'approved')
         .order('start_at');
 
     return List<Map<String, dynamic>>.from(response);
