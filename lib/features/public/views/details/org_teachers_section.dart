@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/theme_extensions.dart';
+
 class OrgTeachersSection extends StatelessWidget {
   const OrgTeachersSection({super.key});
 
@@ -39,10 +41,10 @@ class OrgTeachersSection extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Equipo de Maestros',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: context.textOnBg,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
@@ -50,7 +52,7 @@ class OrgTeachersSection extends StatelessWidget {
                 Text(
                   'Instructores profesionales certificados',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: context.textMuted,
                     fontSize: 12,
                   ),
                 ),
@@ -80,16 +82,16 @@ class OrgTeachersSection extends StatelessWidget {
                 width: 130,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF131722),
+                  color: context.cardBg,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF1E2538)),
+                  border: Border.all(color: context.divider),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: const Color(0xFF1E2538),
+                      backgroundColor: context.surfaceInput,
                       backgroundImage:
                           CachedNetworkImageProvider(t['avatar']!),
                     ),
@@ -98,8 +100,8 @@ class OrgTeachersSection extends StatelessWidget {
                       t['name']!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: context.textOnBg,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -119,7 +121,7 @@ class OrgTeachersSection extends StatelessWidget {
                       t['experience']!,
                       maxLines: 1,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: context.textMuted,
                         fontSize: 9,
                       ),
                     ),

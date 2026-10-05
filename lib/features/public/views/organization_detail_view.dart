@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_model.dart';
 import '../../../../data/models/organization_image_model.dart';
 import '../../../../providers/organization_provider.dart';
@@ -47,16 +48,16 @@ class _PublicOrganizationDetailViewState
     final galleryAsync = ref.watch(organizationImagesProvider(organizationId));
 
     return organizationAsync.when(
-      loading: () => const Scaffold(
-        backgroundColor: Color(0xFF0A0D14),
-        body: Center(child: CircularProgressIndicator()),
+      loading: () => Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: const Center(child: CircularProgressIndicator()),
       ),
       error: (error, _) => Scaffold(
-        backgroundColor: const Color(0xFF0A0D14),
+        backgroundColor: context.scaffoldBg,
         body: Center(
           child: Text(
             'No se pudo cargar la organización: $error',
-            style: const TextStyle(color: Colors.white70),
+            style: TextStyle(color: context.textOnBg),
           ),
         ),
       ),
@@ -95,9 +96,9 @@ class _PublicOrganizationDetailViewState
     ].join(' · ');
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0D14),
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0D14),
+        backgroundColor: context.scaffoldBg,
         elevation: 0,
         title: Text(
           name,
@@ -105,7 +106,7 @@ class _PublicOrganizationDetailViewState
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white70),
+            icon: Icon(Icons.search, color: context.textOnBg),
             onPressed: () {},
           ),
         ],
@@ -138,8 +139,8 @@ class _PublicOrganizationDetailViewState
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                gradient: LinearGradient(
+                  colors: [context.surfaceHeader, context.surfaceDeep],
                 ),
                 border: Border.all(
                   color: const Color(0xFF06B6D4).withValues(alpha: 0.35),
@@ -193,10 +194,10 @@ class _PublicOrganizationDetailViewState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Horario Semanal de Clases',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: context.textOnBg,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -205,7 +206,7 @@ class _PublicOrganizationDetailViewState
                               Text(
                                 'Ver días, horas y profesores disponibles',
                                 style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.55),
+                                  color: context.textMuted,
                                   fontSize: 11.5,
                                 ),
                               ),
