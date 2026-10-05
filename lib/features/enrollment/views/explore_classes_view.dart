@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_model.dart';
 import '../../../providers/class_enrollment_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../widgets/organization_classes_carousel.dart';
-import 'class_enroll_detail_view.dart';
 
 /// Exploración de clases por organización: carrusel de organizaciones con
 /// clases publicadas → listado de clases publicadas de la seleccionada →
@@ -35,7 +36,7 @@ class _ExploreClassesViewState extends ConsumerState<ExploreClassesView> {
       appBar: AppBar(title: const Text('Explorar clases')),
       body: orgsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(friendlyError(e))),
         data: (orgs) {
           // Si no hay una org seleccionada y ya hay orgs, preseleccionar la
           // primera (incluye orgs sin logo).
@@ -74,7 +75,7 @@ class _ExploreClassesViewState extends ConsumerState<ExploreClassesView> {
               const SizedBox(height: 8),
               classesAsync.when(
                 loading: () => const LoadingIndicator(),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                error: (e, _) => Center(child: Text(friendlyError(e))),
                 data: (classes) {
                   if (selectedOrgId == null) {
                     return Text(
@@ -107,11 +108,7 @@ class _ExploreClassesViewState extends ConsumerState<ExploreClassesView> {
   }
 
   void _onClassTap(ClassModel danceClass) {
-    // Marcar clase seleccionada y navegar al detalle de inscripción.
-    ref.read(selectedEnrollClassIdProvider.notifier).select(danceClass.id);
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ClassEnrollDetailView()),
-    );
+    context.push('${AppRoutes.enrollClassDetail}/${danceClass.id}');
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
 
 class ClassCreateView extends ConsumerStatefulWidget {
@@ -67,9 +68,9 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
     final state = ref.watch(createClassProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F121A),
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF141824),
+        backgroundColor: context.surfaceHeader,
         title: const Text('Crear Horario de Clase'),
       ),
       body: SingleChildScrollView(
@@ -81,12 +82,12 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
             children: [
               TextFormField(
                 controller: _titleController,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: context.textOnBg),
                 decoration: InputDecoration(
                   labelText: 'Título de la clase (ej: Salsa Cubana)',
-                  labelStyle: const TextStyle(color: Colors.white60),
+                  labelStyle: TextStyle(color: context.textMuted),
                   filled: true,
-                  fillColor: const Color(0xFF181D2D),
+                  fillColor: context.surfaceInput,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa el nombre' : null,
@@ -96,20 +97,20 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
               TextFormField(
                 controller: _descController,
                 maxLines: 2,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: context.textOnBg),
                 decoration: InputDecoration(
                   labelText: 'Descripción (ej: Nivel básico, traer ropa cómoda)',
-                  labelStyle: const TextStyle(color: Colors.white60),
+                  labelStyle: TextStyle(color: context.textMuted),
                   filled: true,
-                  fillColor: const Color(0xFF181D2D),
+                  fillColor: context.surfaceInput,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
               const SizedBox(height: 18),
 
-              const Text(
+              Text(
                 'DÍAS EN LOS QUE SE IMPARTE',
-                style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold, fontSize: 12),
               ),
               const SizedBox(height: 8),
 
@@ -143,14 +144,14 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                       height: 40,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFE85D04) : const Color(0xFF181D2D),
+                        color: isSelected ? const Color(0xFFE85D04) : context.surfaceInput,
                         shape: BoxShape.circle,
-                        border: Border.all(color: isSelected ? Colors.transparent : Colors.white24),
+                        border: Border.all(color: isSelected ? Colors.transparent : context.borderSubtle),
                       ),
                       child: Text(
                         d.$2,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white60,
+                          color: isSelected ? Colors.white : context.textMuted,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),
@@ -165,10 +166,10 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                 children: [
                   Expanded(
                     child: ListTile(
-                      tileColor: const Color(0xFF181D2D),
+                      tileColor: context.surfaceInput,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      title: const Text('Hora Inicio', style: TextStyle(color: Colors.white60, fontSize: 12)),
-                      subtitle: Text(_startTime.format(context), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      title: Text('Hora Inicio', style: TextStyle(color: context.textMuted, fontSize: 12)),
+                      subtitle: Text(_startTime.format(context), style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
                       trailing: const Icon(Icons.access_time, color: Color(0xFFE85D04)),
                       onTap: () => _pickTime(true),
                     ),
@@ -176,10 +177,10 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ListTile(
-                      tileColor: const Color(0xFF181D2D),
+                      tileColor: context.surfaceInput,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      title: const Text('Hora Fin', style: TextStyle(color: Colors.white60, fontSize: 12)),
-                      subtitle: Text(_endTime.format(context), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      title: Text('Hora Fin', style: TextStyle(color: context.textMuted, fontSize: 12)),
+                      subtitle: Text(_endTime.format(context), style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
                       trailing: const Icon(Icons.access_time, color: Color(0xFFE85D04)),
                       onTap: () => _pickTime(false),
                     ),
@@ -194,12 +195,12 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                     child: TextFormField(
                       controller: _priceController,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: context.textOnBg),
                       decoration: InputDecoration(
                         labelText: 'Precio (BOB)',
-                        labelStyle: const TextStyle(color: Colors.white60),
+                        labelStyle: TextStyle(color: context.textMuted),
                         filled: true,
-                        fillColor: const Color(0xFF181D2D),
+                        fillColor: context.surfaceInput,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
@@ -209,12 +210,12 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                     child: TextFormField(
                       controller: _capacityController,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: context.textOnBg),
                       decoration: InputDecoration(
                         labelText: 'Cupos (Opcional)',
-                        labelStyle: const TextStyle(color: Colors.white60),
+                        labelStyle: TextStyle(color: context.textMuted),
                         filled: true,
-                        fillColor: const Color(0xFF181D2D),
+                        fillColor: context.surfaceInput,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
@@ -241,7 +242,7 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                                 endTime: _formatTime(_endTime),
                                 selectedDays: _selectedDays,
                               );
-                          if (ok && mounted) Navigator.pop(context);
+                          if (ok && context.mounted) Navigator.pop(context);
                         },
                   child: state.isLoading
                       ? const CircularProgressIndicator(color: Colors.white)

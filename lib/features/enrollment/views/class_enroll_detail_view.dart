@@ -7,13 +7,32 @@ import '../../../data/models/class_model.dart';
 import '../../../data/models/class_enrollment_model.dart';
 import '../../../providers/class_enrollment_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_feedback.dart';
 
 /// Detalle de una clase publicada para que el estudiante se inscriba.
-class ClassEnrollDetailView extends ConsumerWidget {
-  const ClassEnrollDetailView({super.key});
+class ClassEnrollDetailView extends ConsumerStatefulWidget {
+  const ClassEnrollDetailView({super.key, this.classId});
+
+  /// Si se provee, selecciona la clase al abrir la vista.
+  final String? classId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClassEnrollDetailView> createState() =>
+      _ClassEnrollDetailViewState();
+}
+
+class _ClassEnrollDetailViewState extends ConsumerState<ClassEnrollDetailView> {
+  @override
+  void initState() {
+    super.initState();
+    final id = widget.classId;
+    if (id != null && id.isNotEmpty) {
+      ref.read(selectedEnrollClassIdProvider.notifier).select(id);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final classAsync = ref.watch(selectedEnrollClassProvider);
     final enrollmentsAsync = ref.watch(myEnrollmentsProvider);
 
@@ -21,7 +40,7 @@ class ClassEnrollDetailView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Detalle de clase')),
       body: classAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(friendlyError(e))),
         data: (danceClass) {
           if (danceClass == null) {
             return const Center(child: Text('Clase no encontrada.'));

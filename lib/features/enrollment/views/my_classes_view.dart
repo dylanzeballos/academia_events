@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/date_formatter.dart';
@@ -7,7 +8,8 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/dance_class_session_model.dart';
 import '../../../providers/class_enrollment_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
-import 'my_class_detail_view.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import 'explore_classes_view.dart';
 
 /// "Mis Clases": lista las inscripciones del estudiante agrupadas por clase,
@@ -26,18 +28,9 @@ class MyClassesView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Mis Clases')),
       body: groupsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Error: $e'),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () => ref.invalidate(myClassesWithSessionsProvider),
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(myClassesWithSessionsProvider),
         ),
         data: (groups) {
           if (groups.isEmpty) {
@@ -64,13 +57,8 @@ class MyClassesView extends ConsumerWidget {
                 return _EnrollmentCard(
                   group: group,
                   onTap: () {
-                    ref
-                        .read(selectedEnrolledClassIdProvider.notifier)
-                        .select(group.enrollment.id);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MyClassDetailView(),
-                      ),
+                    context.push(
+                      '${AppRoutes.myClassDetail}/${group.enrollment.id}',
                     );
                   },
                 );
