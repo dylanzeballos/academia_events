@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/organization_provider.dart';
-import '../../../shared/widgets/error_banner.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/fullscreen_image_viewer.dart';
 import 'organization_create_view.dart';
-import 'organization_detail_view.dart';
 
 class OrganizationListView extends ConsumerWidget {
   const OrganizationListView({super.key});
@@ -34,8 +35,9 @@ class OrganizationListView extends ConsumerWidget {
       ),
       body: orgsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(
-          child: AppBanner(message: 'Error: $e'),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(myOrganizationsProvider),
         ),
         data: (orgs) {
           if (orgs.isEmpty) {
@@ -67,14 +69,8 @@ class OrganizationListView extends ConsumerWidget {
                   role: role.displayName,
                   isVerified: org.isVerified,
                   onTap: () {
-                    ref
-                        .read(selectedOrganizationIdProvider.notifier)
-                        .select(org.id);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const OrganizationDetailView(),
-                      ),
+                    context.push(
+                      '${AppRoutes.organizationsDetail}/${org.id}',
                     );
                   },
                 );
