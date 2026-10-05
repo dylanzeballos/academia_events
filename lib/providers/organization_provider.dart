@@ -67,6 +67,14 @@ final organizationImagesProvider =
   },
 );
 
+// ─── Estilos de baile declarados de la organización ─
+
+final organizationDanceCategoryIdsProvider =
+    FutureProvider.family<List<String>, String>((ref, orgId) {
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.fetchOrganizationDanceCategoryIds(orgId);
+});
+
 // ─── Miembros de la organización seleccionada ───────
 
 final organizationMembersProvider =

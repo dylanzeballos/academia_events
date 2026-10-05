@@ -290,6 +290,33 @@ class OrganizationService {
     }).eq('id', orgId);
   }
 
+  // ─── Estilos de baile de la organización ─────────────
+
+  Future<List<String>> fetchOrganizationDanceCategoryIds(String orgId) async {
+    final rows = await supabase
+        .from('organization_dance_categories')
+        .select('dance_category_id')
+        .eq('organization_id', orgId);
+    return (rows as List)
+        .map((row) => (row as Map<String, dynamic>)['dance_category_id'] as String)
+        .toList();
+  }
+
+  Future<void> setOrganizationDanceCategories(
+    String orgId,
+    List<String> danceCategoryIds,
+  ) async {
+    await supabase
+        .from('organization_dance_categories')
+        .delete()
+        .eq('organization_id', orgId);
+    if (danceCategoryIds.isEmpty) return;
+    await supabase.from('organization_dance_categories').insert([
+      for (final id in danceCategoryIds)
+        {'organization_id': orgId, 'dance_category_id': id},
+    ]);
+  }
+
   // ─── Members ───────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> fetchMembers(String orgId) async {

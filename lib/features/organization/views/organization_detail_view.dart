@@ -13,6 +13,9 @@ import '../../../data/models/organization_image_model.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../providers/geographic_provider.dart';
 import '../../../providers/attendance_provider.dart';
+import '../../../providers/categories_provider.dart';
+import '../../../providers/public_events_provider.dart'
+    show organizationsWithEventsProvider;
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
@@ -46,7 +49,13 @@ class _OrganizationDetailViewState
     _tabCtrl = TabController(length: 3, vsync: this);
     final id = widget.organizationId;
     if (id != null && id.isNotEmpty) {
-      ref.read(selectedOrganizationIdProvider.notifier).select(id);
+      // Riverpod no permite modificar providers durante el build del árbol de
+      // widgets (initState ocurre en plena construcción). Posponer la
+      // selección hasta después del frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(selectedOrganizationIdProvider.notifier).select(id);
+      });
     }
   }
 
@@ -165,6 +174,7 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
   String? _coverExtension;
   LatLng? _selectedLatLng;
   final List<XFile> _pendingGalleryImages = [];
+  final Set<String> _selectedDanceIds = {};
 
   @override
   void initState() {
@@ -186,6 +196,21 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
         widget.organization.latitude!,
         widget.organization.longitude!,
       );
+    }
+    _loadDanceCategories();
+  }
+
+  Future<void> _loadDanceCategories() async {
+    try {
+      final ids = await ref
+          .read(organizationRepositoryProvider)
+          .fetchOrganizationDanceCategoryIds(widget.organization.id);
+      if (!mounted) return;
+      setState(() => _selectedDanceIds
+        ..clear()
+        ..addAll(ids));
+    } catch (_) {
+      // Si falla, se deja la selección vacía; el usuario puede reintentar.
     }
   }
 
@@ -258,9 +283,16 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
         );
       }
 
+      await repo.setOrganizationDanceCategories(
+        orgId,
+        _selectedDanceIds.toList(),
+      );
+
       ref.invalidate(selectedOrganizationProvider);
       ref.invalidate(myOrganizationsProvider);
       ref.invalidate(organizationImagesProvider(orgId));
+      ref.invalidate(organizationDanceCategoryIdsProvider(orgId));
+      ref.invalidate(organizationsWithEventsProvider);
       setState(() {
         _editing = false;
         _logoBytes = null;
@@ -380,6 +412,14 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
     final resolvedCoverAsync = ref.watch(orgLogoUrlProvider(org.coverImageUrl));
     final resolvedCover = resolvedCoverAsync.whenOrNull(data: (url) => url);
     final galleryAsync = ref.watch(organizationImagesProvider(org.id));
+    final danceCategoriesAsync = ref.watch(danceCategoriesProvider);
+    final danceCategories = danceCategoriesAsync.value;
+    final selectedStyleNames = danceCategories == null
+        ? ''
+        : danceCategories
+            .where((c) => _selectedDanceIds.contains(c.id))
+            .map((c) => c.name)
+            .join(', ');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -634,6 +674,50 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                 prefixIcon: Icon(Icons.home_outlined),
               ),
             ),
+            const SizedBox(height: 16),
+            Text(
+              'Estilos de baile',
+              style: TextStyle(
+                color: context.textOnBg,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Elige los estilos que ofrece la academia. Sirven para el filtro '
+              'de estilos aunque no tenga eventos.',
+              style: TextStyle(color: context.textMuted, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            danceCategoriesAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              error: (_, _) => Text(
+                'No se pudieron cargar los estilos.',
+                style: TextStyle(color: context.textMuted, fontSize: 12),
+              ),
+              data: (categories) => Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final category in categories)
+                    FilterChip(
+                      label: Text(category.name),
+                      selected: _selectedDanceIds.contains(category.id),
+                      onSelected: (selected) => setState(() {
+                        if (selected) {
+                          _selectedDanceIds.add(category.id);
+                        } else {
+                          _selectedDanceIds.remove(category.id);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: _pickLocation,
@@ -679,6 +763,8 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
               _InfoRow(label: 'Lugar', value: org.locationName!),
             if (org.address != null && org.address!.isNotEmpty)
               _InfoRow(label: 'Dirección', value: org.address!),
+            if (selectedStyleNames.isNotEmpty)
+              _InfoRow(label: 'Estilos', value: selectedStyleNames),
             if (org.latitude != null && org.longitude != null)
               _InfoRow(
                 label: 'Coordenadas',

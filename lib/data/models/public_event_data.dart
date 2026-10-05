@@ -220,6 +220,10 @@ class OrganizationWithEventCount {
     this.bannerUrl,
     this.description,
     this.danceGenres = const [],
+    this.danceCategoryIds = const [],
+    this.departmentId,
+    this.provinceId,
+    this.municipalityId,
     this.cityId,
     this.eventCount = 0,
   });
@@ -230,6 +234,10 @@ class OrganizationWithEventCount {
   final String? bannerUrl;
   final String? description;
   final List<String> danceGenres;
+  final List<String> danceCategoryIds;
+  final String? departmentId;
+  final String? provinceId;
+  final String? municipalityId;
   final String? cityId;
   final int eventCount;
 
@@ -240,6 +248,10 @@ class OrganizationWithEventCount {
     String? bannerUrl,
     String? description,
     List<String>? danceGenres,
+    List<String>? danceCategoryIds,
+    String? departmentId,
+    String? provinceId,
+    String? municipalityId,
     String? cityId,
     int? eventCount,
   }) {
@@ -250,6 +262,10 @@ class OrganizationWithEventCount {
       bannerUrl: bannerUrl ?? this.bannerUrl,
       description: description ?? this.description,
       danceGenres: danceGenres ?? this.danceGenres,
+      danceCategoryIds: danceCategoryIds ?? this.danceCategoryIds,
+      departmentId: departmentId ?? this.departmentId,
+      provinceId: provinceId ?? this.provinceId,
+      municipalityId: municipalityId ?? this.municipalityId,
       cityId: cityId ?? this.cityId,
       eventCount: eventCount ?? this.eventCount,
     );
