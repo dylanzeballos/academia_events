@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/config/supabase_config.dart';
 import '../models/class_attendance_model.dart';
 import '../models/event_attendance_model.dart';
+import '../models/vip_attendance_model.dart';
 
 class AttendanceException implements Exception {
   const AttendanceException(this.message);
@@ -35,6 +36,26 @@ class AttendanceService {
         'p_class_id': classId,
       });
       return ClassAttendanceData.fromJson(
+        Map<String, dynamic>.from(result as Map),
+      );
+    } on PostgrestException catch (e) {
+      throw AttendanceException(_friendlyError(e.message));
+    }
+  }
+
+  Future<VipAttendanceData> fetchOrgVipAttendance(
+    String organizationId,
+    DateTime month,
+  ) async {
+    try {
+      final result = await supabase.rpc('fetch_org_vip_attendance', params: {
+        'p_organization_id': organizationId,
+        'p_month': DateTime(month.year, month.month, 1)
+            .toIso8601String()
+            .split('T')
+            .first,
+      });
+      return VipAttendanceData.fromJson(
         Map<String, dynamic>.from(result as Map),
       );
     } on PostgrestException catch (e) {
