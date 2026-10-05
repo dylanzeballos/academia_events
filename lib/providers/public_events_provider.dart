@@ -177,7 +177,11 @@ class EventFiltersNotifier extends Notifier<EventFilterState> {
   }
 
   void setOrganizationId(String? organizationId) {
-    state = state.copyWith(organizationId: organizationId, page: 1);
+    state = state.copyWith(
+      organizationId: organizationId,
+      clearOrganization: organizationId == null,
+      page: 1,
+    );
   }
 }
 

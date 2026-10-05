@@ -76,6 +76,7 @@ class EventFilterState extends Equatable {
     bool clearLocation = false,
     bool clearDate = false,
     bool clearPrice = false,
+    bool clearOrganization = false,
   }) {
     return EventFilterState(
       searchQuery: searchQuery ?? this.searchQuery,
@@ -85,7 +86,9 @@ class EventFilterState extends Equatable {
       provinceId: clearLocation ? null : (provinceId ?? this.provinceId),
       municipalityId: clearLocation ? null : (municipalityId ?? this.municipalityId),
       cityId: clearLocation ? null : (cityId ?? this.cityId),
-      organizationId: organizationId ?? this.organizationId,
+      organizationId: clearOrganization
+          ? null
+          : (organizationId ?? this.organizationId),
       dateFrom: clearDate ? null : (dateFrom ?? this.dateFrom),
       dateTo: clearDate ? null : (dateTo ?? this.dateTo),
       priceMin: clearPrice ? null : (priceMin ?? this.priceMin),
