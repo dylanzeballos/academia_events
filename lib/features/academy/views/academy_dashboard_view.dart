@@ -7,6 +7,8 @@ import '../../../data/repositories/organization_repository.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 
 // Componentes modulares
 import 'dashboard/dashboard_empty_orgs.dart';
@@ -47,7 +49,9 @@ class _AcademyDashboardViewState extends ConsumerState {
             child: CircularProgressIndicator(color: AppColors.primary),
           ),
         ),
-        error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+        error: (e, _) => Scaffold(
+          body: AppErrorState(message: friendlyError(e)),
+        ),
         data: (orgs) {
           if (orgs.isEmpty) {
             return const Scaffold(body: Center(child: DashboardEmptyOrgs()));
@@ -77,7 +81,7 @@ class _AcademyDashboardViewState extends ConsumerState {
       appBar: AppBar(title: const Text('Panel')),
       body: orgsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => AppErrorState(message: friendlyError(e)),
         data: (orgs) {
           if (orgs.isEmpty) {
             return const DashboardEmptyOrgs();
@@ -123,7 +127,7 @@ class _AcademyDashboardViewState extends ConsumerState {
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Text(
-                      'Error: $e',
+                      friendlyError(e),
                       style: const TextStyle(color: Colors.grey),
                     ),
                     data: (stats) => DashboardStatsGrid(

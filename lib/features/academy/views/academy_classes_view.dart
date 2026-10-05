@@ -8,6 +8,7 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../classes/views/class_create_view.dart';
 import 'schedule/schedule_day_column.dart';
 import 'schedule/schedule_header.dart';
@@ -117,9 +118,9 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
         if (mounted) context.go(AppRoutes.academyDashboard);
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF0F121A),
+        backgroundColor: context.scaffoldBg,
         appBar: AppBar(
-        backgroundColor: const Color(0xFF141824),
+        backgroundColor: context.surfaceHeader,
         elevation: 0,
         title: const Text(
           'Horario Semanal',
@@ -148,7 +149,7 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
           child: scheduleEntriesAsync.when(
           loading: () => const LoadingIndicator(),
           error: (e, _) => Center(
-            child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+            child: Text(friendlyError(e), style: const TextStyle(color: Colors.white)),
           ),
           data: (entries) {
             if (entries.isEmpty) return _buildEmptyState(context, canManage);
@@ -204,11 +205,11 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
                           Container(
                             height: headerHeight,
                             alignment: Alignment.center,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF171B26),
+                            decoration: BoxDecoration(
+                              color: context.surfaceHeader,
                               border: Border(
-                                right: BorderSide(color: Color(0xFF222738), width: 1.2),
-                                bottom: BorderSide(color: Color(0xFF222738), width: 1.2),
+                                right: BorderSide(color: context.divider, width: 1.2),
+                                bottom: BorderSide(color: context.divider, width: 1.2),
                               ),
                             ),
                             child: const Text(

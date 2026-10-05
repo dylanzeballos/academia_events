@@ -6,6 +6,9 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 
 class AcademyTeachersView extends ConsumerWidget {
   const AcademyTeachersView({super.key});
@@ -20,27 +23,16 @@ class AcademyTeachersView extends ConsumerWidget {
       ),
       body: instructorsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(orgInstructorsProvider),
+        ),
         data: (instructors) {
           if (instructors.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.people_outline, size: 64, color: Colors.grey[600]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sin instructores',
-                    style: TextStyle(color: context.textOnBg, fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Invita instructores desde la\nsección de miembros.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ],
-              ),
+            return const AppEmptyState(
+              icon: Icons.people_outline,
+              title: 'Sin instructores',
+              message: 'Invita instructores desde la sección de miembros.',
             );
           }
 

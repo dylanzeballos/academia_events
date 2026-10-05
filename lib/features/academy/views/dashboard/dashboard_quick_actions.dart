@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_member_model.dart';
-import '../../../../data/repositories/organization_repository.dart';
 import '../../../../providers/dance_class_provider.dart';
 import '../../../../providers/organization_provider.dart';
+import '../../../../shared/widgets/app_feedback.dart';
 import '../../../classes/views/class_create_view.dart';
 
 class DashboardQuickActions extends ConsumerWidget {
@@ -75,6 +75,7 @@ class DashboardQuickActions extends ConsumerWidget {
   void _showInviteDialog(BuildContext context, WidgetRef ref) {
     final emailCtrl = TextEditingController();
     String selectedRole = 'check_in_staff';
+    bool sending = false;
 
     showDialog(
       context: context,
@@ -122,48 +123,59 @@ class DashboardQuickActions extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: sending ? null : () => Navigator.pop(ctx),
               child: const Text('Cancelar'),
             ),
-            TextButton(
-              onPressed: () async {
-                final email = emailCtrl.text.trim();
-                if (email.isEmpty || !email.contains('@')) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Ingresa un email válido')),
-                  );
-                  return;
-                }
+            FilledButton(
+              onPressed: sending
+                  ? null
+                  : () async {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        AppFeedback.warning(ctx, 'Ingresa un correo válido.');
+                        return;
+                      }
 
-                final orgId = ref.read(selectedOrganizationIdProvider);
-                if (orgId == null) return;
+                      final orgId = ref.read(selectedOrganizationIdProvider);
+                      if (orgId == null) return;
 
-                final repo = ref.read(organizationRepositoryProvider);
-                try {
-                  await repo.sendInvitation(
-                    orgId: orgId,
-                    email: email,
-                    role: selectedRole,
-                  );
-                  ref.invalidate(orgInvitationsProvider);
-                  if (ctx.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Invitación enviada a $email')),
-                    );
-                  }
-                } catch (e) {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text(
-                'Enviar invitación',
-                style: TextStyle(color: AppColors.primary),
-              ),
+                      setDialogState(() => sending = true);
+                      try {
+                        await ref
+                            .read(organizationRepositoryProvider)
+                            .sendInvitation(
+                              orgId: orgId,
+                              email: email,
+                              role: selectedRole,
+                            );
+                        ref.invalidate(orgInvitationsProvider);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          AppFeedback.success(
+                            context,
+                            'Invitación enviada a $email.',
+                          );
+                        }
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          AppFeedback.error(ctx, friendlyError(e));
+                        }
+                      } finally {
+                        if (ctx.mounted) {
+                          setDialogState(() => sending = false);
+                        }
+                      }
+                    },
+              child: sending
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Enviar invitación'),
             ),
           ],
         ),

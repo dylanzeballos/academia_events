@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../providers/dance_class_provider.dart';
-import '../../../classes/views/class_detail_view.dart';
 
 class UpcomingSessionsList extends ConsumerWidget {
   const UpcomingSessionsList({super.key});
@@ -59,11 +59,7 @@ class UpcomingSessionsList extends ConsumerWidget {
 
               return ListTile(
                 onTap: () async {
-                  ref.read(selectedClassIdProvider.notifier).select(danceClass.id);
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ClassDetailView()),
-                  );
+                  await context.push('${AppRoutes.classDetail}/${danceClass.id}');
                   ref.invalidate(orgWeeklyScheduleEntriesProvider);
                   ref.invalidate(orgClassesProvider);
                 },

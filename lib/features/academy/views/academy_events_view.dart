@@ -7,6 +7,9 @@ import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../events/views/event_attendance_view.dart';
 
 final orgEventsProvider = FutureProvider((ref) async {
@@ -31,30 +34,16 @@ class AcademyEventsView extends ConsumerWidget {
       ),
       body: eventsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(orgEventsProvider),
+        ),
         data: (events) {
           if (events.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.event_outlined, size: 64, color: Colors.grey[600]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sin eventos',
-                    style: TextStyle(
-                      color: context.textOnBg,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Crea tu primer evento para empezar.',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ],
-              ),
+            return const AppEmptyState(
+              icon: Icons.event_outlined,
+              title: 'Sin eventos',
+              message: 'Crea tu primer evento para empezar.',
             );
           }
 
@@ -78,8 +67,7 @@ class AcademyEventsView extends ConsumerWidget {
                       ListTile(
                         contentPadding: const EdgeInsets.all(12),
                         onTap: () => context.push(
-                          AppRoutes.eventDetail,
-                          extra: event.id,
+                          '${AppRoutes.eventDetail}/${event.id}',
                         ),
                         leading: CircleAvatar(
                           backgroundColor:
