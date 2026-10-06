@@ -31,6 +31,10 @@ abstract interface class IOrganizationRepository {
   Future<void> updateOrganization(String orgId, Map<String, dynamic> data);
   Future<void> deleteOrganization(String orgId);
 
+  Future<List<String>> fetchOrganizationDanceCategoryIds(String orgId);
+  Future<void> setOrganizationDanceCategories(
+      String orgId, List<String> danceCategoryIds);
+
   Future<List<OrganizationMemberWithProfile>> fetchMembers(String orgId);
   Future<void> addMember({
     required String orgId,
@@ -199,6 +203,15 @@ class OrganizationRepository implements IOrganizationRepository {
   @override
   Future<void> deleteOrganization(String orgId) =>
       _service.deleteOrganization(orgId);
+
+  @override
+  Future<List<String>> fetchOrganizationDanceCategoryIds(String orgId) =>
+      _service.fetchOrganizationDanceCategoryIds(orgId);
+
+  @override
+  Future<void> setOrganizationDanceCategories(
+          String orgId, List<String> danceCategoryIds) =>
+      _service.setOrganizationDanceCategories(orgId, danceCategoryIds);
 
   @override
   Future<List<OrganizationMemberWithProfile>> fetchMembers(

@@ -101,6 +101,11 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
                 ],
               ),
             ),
+            if (!_showList && selectedDayEvents.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: OrganizationCarouselSearchBar(),
+              ),
             if (!_showList) _WeekNavigator(weekDays: weekDays),
             const EventFiltersBar(),
             Divider(height: 1, color: context.divider),
@@ -132,10 +137,6 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
                     return Column(
                       children: [
                         Expanded(child: calendar),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                          child: const OrganizationCarouselSearchBar(),
-                        ),
                         SizedBox(
                           height: 160,
                           child: OrganizationCarousel(

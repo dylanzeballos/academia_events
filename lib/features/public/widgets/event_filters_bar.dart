@@ -26,6 +26,7 @@ class EventFiltersBar extends ConsumerWidget {
   final bool dense;
 
   static const String _allDanceValue = '__all_dance__';
+  static const String _allValue = '__all__';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -83,6 +84,30 @@ class EventFiltersBar extends ConsumerWidget {
         padding: EdgeInsets.symmetric(horizontal: dense ? 12 : 16),
         child: Row(
           children: [
+            // ── Departamento (selección única) ──────────────────────
+            _PillMenu<String>(
+              tooltip: 'Filtrar por ubicación',
+              onSelected: (value) => ref
+                  .read(eventFiltersProvider.notifier)
+                  .setDepartmentId(value == _allValue ? null : value),
+              itemBuilder: (context) => [
+                _radioItem(_allValue, filter.departmentId == null, 'Todas'),
+                for (final department in departments)
+                  _radioItem(
+                    department.id,
+                    department.id == filter.departmentId,
+                    department.name,
+                  ),
+              ],
+              child: _FilterPill(
+                icon: Icons.location_on_outlined,
+                label: departmentLabel,
+                dense: dense,
+                active: filter.departmentId != null,
+              ),
+            ),
+            const SizedBox(width: 8),
+
             // ── Categorías de baile (multi-selección) ───────────────
             _PillMenu<String>(
               tooltip: 'Filtrar por estilo de baile',
@@ -118,14 +143,14 @@ class EventFiltersBar extends ConsumerWidget {
 
             // ── Organización (selección única) ──────────────────────
             if (showOrganizationFilter) ...[
-              _PillMenu<String?>(
+              _PillMenu<String>(
                 tooltip: 'Filtrar por academia',
                 enabled: orgs.isNotEmpty,
                 onSelected: (value) => ref
                     .read(eventFiltersProvider.notifier)
-                    .setOrganizationId(value),
+                    .setOrganizationId(value == _allValue ? null : value),
                 itemBuilder: (context) => [
-                  _radioItem(null, selectedOrgName == null, 'Todas'),
+                  _radioItem(_allValue, selectedOrgName == null, 'Todas'),
                   for (final o in orgs)
                     _radioItem(o.id, o.id == filter.organizationId, o.name),
                 ],
@@ -138,28 +163,6 @@ class EventFiltersBar extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
             ],
-
-            // ── Departamento (selección única) ──────────────────────
-            _PillMenu<String?>(
-              tooltip: 'Filtrar por ubicación',
-              onSelected: (value) =>
-                  ref.read(eventFiltersProvider.notifier).setDepartmentId(value),
-              itemBuilder: (context) => [
-                _radioItem(null, filter.departmentId == null, 'Todas'),
-                for (final department in departments)
-                  _radioItem(
-                    department.id,
-                    department.id == filter.departmentId,
-                    department.name,
-                  ),
-              ],
-              child: _FilterPill(
-                icon: Icons.location_on_outlined,
-                label: departmentLabel,
-                dense: dense,
-                active: filter.departmentId != null,
-              ),
-            ),
 
             // ── Limpiar filtros ─────────────────────────────────────
             if (filter.hasActiveFilters) ...[
@@ -181,8 +184,8 @@ class EventFiltersBar extends ConsumerWidget {
     );
   }
 
-  PopupMenuItem<String?> _radioItem(String? value, bool selected, String label) {
-    return PopupMenuItem<String?>(
+  PopupMenuItem<T> _radioItem<T>(T value, bool selected, String label) {
+    return PopupMenuItem<T>(
       value: value,
       child: Row(
         children: [

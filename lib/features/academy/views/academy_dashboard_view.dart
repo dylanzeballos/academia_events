@@ -32,13 +32,18 @@ class _AcademyDashboardViewState extends ConsumerState {
     final orgsAsync = ref.watch(myOrganizationsProvider);
 
     ref.listen(myOrganizationsProvider, (prev, next) {
-      next.whenData((orgs) {
-        if (orgs.isNotEmpty &&
-            ref.read(selectedOrganizationIdProvider) == null) {
-          ref
-              .read(selectedOrganizationIdProvider.notifier)
-              .select(orgs.first.organization.id);
-        }
+      // No modificar providers durante el build: posponer la selección
+      // hasta después del frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        next.whenData((orgs) {
+          if (orgs.isNotEmpty &&
+              ref.read(selectedOrganizationIdProvider) == null) {
+            ref
+                .read(selectedOrganizationIdProvider.notifier)
+                .select(orgs.first.organization.id);
+          }
+        });
       });
     });
 

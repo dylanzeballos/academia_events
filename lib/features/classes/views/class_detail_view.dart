@@ -36,7 +36,12 @@ class _ClassDetailViewState extends ConsumerState<ClassDetailView>
     _tabCtrl = TabController(length: 3, vsync: this);
     final id = widget.classId;
     if (id != null && id.isNotEmpty) {
-      ref.read(selectedClassIdProvider.notifier).select(id);
+      // No modificar providers durante initState (el árbol se está
+      // construyendo): posponer hasta después del frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(selectedClassIdProvider.notifier).select(id);
+      });
     }
   }
 

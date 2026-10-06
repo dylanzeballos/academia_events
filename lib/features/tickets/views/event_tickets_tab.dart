@@ -38,10 +38,15 @@ class EventTicketsTab extends ConsumerWidget {
           );
         }
 
+        // padding cero: el SingleChildScrollView del padre ya aporta el suyo.
+        // Con padding propio dentro del scroll ilimitado, los ListView se
+        // dimensionan sin límite y revientan en "RenderFlex overflowed".
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(userGroupedTicketsProvider),
           child: ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             itemCount: eventGroups.length,
             separatorBuilder: (_, _) => const SizedBox(height: 14),
             itemBuilder: (context, index) {

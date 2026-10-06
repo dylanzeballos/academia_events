@@ -41,7 +41,12 @@ class _EventAccessPointsViewState extends State<EventAccessPointsView> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text('Accesos · ${widget.eventTitle}')),
+        // Clave de Hero única: esta vista se navega con MaterialPageRoute
+        // dentro del mismo subtree que otras pantallas con FAB (detalle del
+        // evento, listas). Sin key, los dos FAB comparten el hero tag por
+        // defecto y al hacer pop estalla "multiple heroes ... same tag".
         floatingActionButton: FloatingActionButton.extended(
+          key: const Key('fab_crear_acceso'),
           onPressed: () => _editPoint(),
           icon: const Icon(Icons.add),
           label: const Text('Crear acceso'),

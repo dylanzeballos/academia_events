@@ -284,6 +284,8 @@ class PublicEventsService {
         .from('organizations')
         .select('''
           id, name, logo_url, description,
+          department_id, province_id, municipality_id,
+          organization_dance_categories(dance_categories(id, name)),
           events(
             id, status, visibility, cover_image_url,
             event_dance_categories(dance_categories(name))
@@ -315,7 +317,24 @@ class PublicEventsService {
         final firstEvent = publishedEvents.isNotEmpty
             ? publishedEvents.first as Map<String, dynamic>
             : null;
-        final danceGenres = <String>{};
+
+        // Estilos declarados explícitamente por la academia (BD).
+        final declaredRelations =
+            (row['organization_dance_categories'] as List?) ?? const [];
+        final declaredCategoryIds = <String>[];
+        final declaredGenreNames = <String>{};
+        for (final relation in declaredRelations) {
+          final danceCategory =
+              (relation as Map<String, dynamic>)['dance_categories']
+                  as Map<String, dynamic>?;
+          final id = danceCategory?['id'] as String?;
+          final name = danceCategory?['name'] as String?;
+          if (id != null && id.isNotEmpty) declaredCategoryIds.add(id);
+          if (name != null && name.isNotEmpty) declaredGenreNames.add(name);
+        }
+
+        // Respaldo: estilos derivados de eventos/clases publicados.
+        final derivedGenres = <String>{};
         for (final event in publishedEvents) {
           final relations =
               (event as Map<String, dynamic>)['event_dance_categories']
@@ -325,22 +344,31 @@ class PublicEventsService {
                 (relation as Map<String, dynamic>)['dance_categories']
                     as Map<String, dynamic>?;
             final name = danceCategory?['name'] as String?;
-            if (name != null && name.isNotEmpty) danceGenres.add(name);
-          }
-          for (final danceClass in classes) {
-            final classData = danceClass as Map<String, dynamic>;
-            if (classData['status'] != 'published') continue;
-            final title = classData['title'] as String?;
-            if (title != null && title.isNotEmpty) danceGenres.add(title);
+            if (name != null && name.isNotEmpty) derivedGenres.add(name);
           }
         }
+        for (final danceClass in classes) {
+          final classData = danceClass as Map<String, dynamic>;
+          if (classData['status'] != 'published') continue;
+          final title = classData['title'] as String?;
+          if (title != null && title.isNotEmpty) derivedGenres.add(title);
+        }
+
+        final genreNames = declaredGenreNames.isNotEmpty
+            ? declaredGenreNames.toList()
+            : derivedGenres.toList();
+
         orgMap[orgId] = OrganizationWithEventCount(
           id: orgId,
           name: row['name'] as String,
           logoUrl: _publicLogoUrl(row['logo_url'] as String?),
           bannerUrl: firstEvent?['cover_image_url'] as String?,
           description: row['description'] as String?,
-          danceGenres: danceGenres.toList(),
+          danceGenres: genreNames,
+          danceCategoryIds: declaredCategoryIds,
+          departmentId: row['department_id'] as String?,
+          provinceId: row['province_id'] as String?,
+          municipalityId: row['municipality_id'] as String?,
           eventCount: publishedEventCount,
         );
       }

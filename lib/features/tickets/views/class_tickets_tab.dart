@@ -77,10 +77,15 @@ class ClassTicketsTab extends ConsumerWidget {
           );
         }
 
+        // padding cero + shrinkWrap: esta pestaña vive dentro de un
+        // SingleChildScrollView; sin esto el ListView se dimensiona con
+        // altura ilimitada y causa "RenderFlex overflowed" al cambiar de tema.
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(myClassTicketsProvider),
           child: ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             itemCount: groups.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
