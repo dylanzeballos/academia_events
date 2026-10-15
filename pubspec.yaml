@@ -33,6 +33,10 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+ 
+ # Animaciones
+  lottie: ^3.3.0
+
   # UI
   cupertino_icons: ^1.0.8
   cached_network_image: ^3.4.1

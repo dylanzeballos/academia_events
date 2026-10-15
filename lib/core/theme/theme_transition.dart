@@ -8,22 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/theme_provider.dart';
 
-/// Key del [RepaintBoundary] raíz, usado para capturar la pantalla actual
-/// antes de cambiar de tema.
 final GlobalKey themeRootBoundaryKey = GlobalKey();
 
-/// Cambia entre tema claro y oscuro con un "revelado" circular que nace desde
-/// [origin] (por ejemplo, el centro del botón pulsado).
-///
-/// Si la captura de pantalla no está disponible (p. ej. algunas plataformas),
-/// cambia el tema igualmente y la animación base del tema se encarga.
 Future<void> animateThemeToggle(
   BuildContext context,
   WidgetRef ref, {
   required Offset origin,
   Duration duration = const Duration(milliseconds: 520),
 }) async {
-  // 1. Capturar la pantalla actual (tema anterior).
   Uint8List? screenshot;
   try {
     final boundary = themeRootBoundaryKey.currentContext?.findRenderObject();
@@ -37,7 +29,6 @@ Future<void> animateThemeToggle(
     screenshot = null;
   }
 
-  // 2. Cambiar el tema.
   final current = ref.read(themeModeProvider);
   ref
       .read(themeModeProvider.notifier)
@@ -45,7 +36,6 @@ Future<void> animateThemeToggle(
 
   if (screenshot == null || !context.mounted) return;
 
-  // 3. Superponer la captura anterior y retirarla con un círculo creciente.
   final overlay = Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
 
@@ -71,8 +61,6 @@ double _maxRadiusFrom(Offset origin, Size size) {
   return math.sqrt(dx * dx + dy * dy);
 }
 
-/// Botón de cambio de tema reutilizable (con revelado circular). Se puede
-/// colocar en cualquier AppBar o barra de acciones.
 class ThemeToggleButton extends ConsumerWidget {
   const ThemeToggleButton({super.key, this.color});
 
@@ -177,7 +165,6 @@ class _ThemeRevealOverlayState extends State<_ThemeRevealOverlay>
   }
 }
 
-/// Deja visible todo excepto un círculo creciente (el "revelado").
 class _InverseCircleClipper extends CustomClipper<Path> {
   _InverseCircleClipper({required this.center, required this.radius});
 
