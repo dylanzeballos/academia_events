@@ -10,7 +10,7 @@ import '../../../../providers/dance_class_provider.dart';
 import '../../../../providers/organization_provider.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_feedback.dart';
-import '../../../classes/views/class_create_view.dart';
+import '../../../organization/classes/views/class_create_view.dart';
 
 class DashboardQuickActions extends ConsumerWidget {
   const DashboardQuickActions({super.key, required this.canManage});
@@ -109,10 +109,12 @@ class DashboardQuickActions extends ConsumerWidget {
                 ),
                 items: MemberRole.values
                     .where((r) => !r.isOwner)
-                    .map((r) => DropdownMenuItem(
-                          value: r.value,
-                          child: Text(r.displayName),
-                        ))
+                    .map(
+                      (r) => DropdownMenuItem(
+                        value: r.value,
+                        child: Text(r.displayName),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) {
                   if (v != null) {
@@ -125,7 +127,10 @@ class DashboardQuickActions extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: sending ? null : () => Navigator.pop(ctx),
-              child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: context.textMuted),
+              ),
             ),
             AppButton(
               label: 'Enviar invitación',
@@ -139,20 +144,23 @@ class DashboardQuickActions extends ConsumerWidget {
                   final orgId = ref.read(selectedOrganizationIdProvider);
                   if (orgId == null) return;
 
-                  await ref.read(organizationRepositoryProvider).inviteMember(
-                        organizationId: orgId,
+                  // Método real del repositorio de organizaciones
+                  await ref
+                      .read(organizationRepositoryProvider)
+                      .sendInvitation(
+                        orgId: orgId,
                         email: email,
                         role: selectedRole,
                       );
 
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
-                    AppFeedback.showSuccess(context, 'Invitación enviada');
+                    AppFeedback.success(context, 'Invitación enviada');
                   }
                 } catch (e) {
                   if (ctx.mounted) {
                     setDialogState(() => sending = false);
-                    AppFeedback.showError(context, friendlyError(e));
+                    AppFeedback.error(context, friendlyError(e));
                   }
                 }
               },

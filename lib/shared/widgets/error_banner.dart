@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../core/constants/app_constants.dart';
+import 'package:academia_events/core/constants/app_constants.dart';
+import 'package:academia_events/core/theme/app_colors.dart';
 
 enum BannerType { error, warning, info, success }
 
-/// Banner de estado (error, aviso, info, éxito) reutilizable en cualquier formulario.
 class AppBanner extends StatelessWidget {
   const AppBanner({
     super.key,

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:academia_events/core/constants/app_constants.dart';
+import 'package:academia_events/core/theme/app_colors.dart';
+import 'package:academia_events/core/utils/theme_extensions.dart';
 
-import '../../core/constants/app_constants.dart';
-import '../../core/utils/theme_extensions.dart';
-
-/// Estado vacío reutilizable: ícono, título, mensaje y acción opcional.
 class AppEmptyState extends StatelessWidget {
   const AppEmptyState({
     super.key,
@@ -53,7 +52,7 @@ class AppEmptyState extends StatelessWidget {
                 message!,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: context.textOnBg.withValues(alpha: 0.7),
+                  color: context.textMuted,
                   fontSize: 13,
                 ),
               ),
@@ -62,6 +61,10 @@ class AppEmptyState extends StatelessWidget {
               const SizedBox(height: 20),
               FilledButton.icon(
                 onPressed: onAction,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
                 icon: const Icon(Icons.add, size: 18),
                 label: Text(actionLabel!),
               ),

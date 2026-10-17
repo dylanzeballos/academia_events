@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-
-import '../../core/constants/app_constants.dart';
+import 'package:academia_events/core/constants/app_constants.dart';
+import 'package:academia_events/core/theme/app_colors.dart';
 
 /// Diálogo de confirmación estándar de la app.
-///
-/// Devuelve `true` si el usuario confirma y `false` si cancela o cierra.
 Future<bool> showAppConfirm(
   BuildContext context, {
   required String title,
@@ -45,10 +43,6 @@ Future<bool> showAppConfirm(
   return result ?? false;
 }
 
-/// Diálogo de confirmación que además pide un texto (p. ej. un motivo).
-///
-/// Devuelve el texto introducido si se confirma, o `null` si se cancela.
-/// Si [isRequired] es `true`, no permite confirmar con el campo vacío.
 Future<String?> showAppPrompt(
   BuildContext context, {
   required String title,

@@ -1,9 +1,10 @@
+// lib/core/router/app_nav_shells.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../theme/app_colors.dart';
-import '../theme/theme_extensions.dart';
+import 'package:academia_events/core/theme/app_colors.dart';
+import 'package:academia_events/core/utils/theme_extensions.dart';
 
 class StudentShell extends ConsumerWidget {
   const StudentShell({super.key, required this.navigationShell});
@@ -91,18 +92,10 @@ class InstagramNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedColor = AppColors.primary;
-    final unselectedColor = context.textMuted;
-
     return Container(
       decoration: BoxDecoration(
         color: context.cardBg,
-        border: Border(
-          top: BorderSide(
-            color: context.divider,
-            width: 0.5,
-          ),
-        ),
+        border: Border(top: BorderSide(color: context.divider, width: 0.5)),
       ),
       child: SafeArea(
         top: false,
@@ -122,7 +115,7 @@ class InstagramNavBar extends StatelessWidget {
                       Icon(
                         isSelected ? activeIcons[i] : inactiveIcons[i],
                         size: 24,
-                        color: isSelected ? selectedColor : unselectedColor,
+                        color: isSelected ? AppColors.primary : context.textMuted,
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -130,7 +123,7 @@ class InstagramNavBar extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                          color: isSelected ? selectedColor : unselectedColor,
+                          color: isSelected ? AppColors.primary : context.textMuted,
                         ),
                       ),
                     ],

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:academia_events/core/constants/app_constants.dart';
+import 'package:academia_events/core/theme/app_colors.dart';
+import 'package:academia_events/core/utils/theme_extensions.dart';
 
-import '../../core/constants/app_constants.dart';
-import '../../core/utils/theme_extensions.dart';
-
-/// Estado de error reutilizable con acción de reintento.
 class AppErrorState extends StatelessWidget {
   const AppErrorState({
     super.key,
@@ -24,13 +23,13 @@ class AppErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_off_rounded, size: 44, color: AppColors.error),
+            const Icon(Icons.cloud_off_rounded, size: 44, color: AppColors.error),
             const SizedBox(height: 14),
             Text(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: context.textOnBg.withValues(alpha: 0.85),
+                color: context.textMuted,
                 fontSize: 14,
               ),
             ),
@@ -38,6 +37,10 @@ class AppErrorState extends StatelessWidget {
               const SizedBox(height: 18),
               OutlinedButton.icon(
                 onPressed: onRetry,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                ),
                 icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: Text(retryLabel),
               ),

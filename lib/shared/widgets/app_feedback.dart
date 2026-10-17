@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-import '../../core/constants/app_constants.dart';
+import 'package:academia_events/core/constants/app_constants.dart';
+import 'package:academia_events/core/theme/app_colors.dart';
 
 /// Mensajes de feedback consistentes (SnackBar flotante con ícono y color).
 abstract final class AppFeedback {

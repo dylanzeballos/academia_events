@@ -1,53 +1,40 @@
+// lib/core/router/app_router.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../constants/app_constants.dart';
-import '../theme/theme_extensions.dart';
+import 'package:academia_events/core/constants/app_constants.dart';
+import 'package:academia_events/core/utils/theme_extensions.dart';
 import 'app_nav_shells.dart';
 import 'auth_callback_page.dart';
 
-import '../../data/models/profile_model.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/layout_mode_provider.dart';
+import 'package:academia_events/data/models/profile_model.dart';
+import 'package:academia_events/providers/auth_provider.dart';
+import 'package:academia_events/providers/layout_mode_provider.dart';
 
-// Vistas de Autenticación
-import '../../features/auth/views/forgot_password_view.dart';
-import '../../features/auth/views/login_view.dart';
-import '../../features/auth/views/register_view.dart';
-import '../../features/auth/views/update_password_view.dart';
+// ── Auth
+import 'package:academia_events/feature/auth/views/forgot_password_view.dart';
+import 'package:academia_events/feature/auth/views/login_view.dart';
+import 'package:academia_events/feature/auth/views/register_view.dart';
+import 'package:academia_events/feature/auth/views/update_password_view.dart';
 
-// Vistas Principales y Estudiante
-import '../../features/calendar/week_calendar_view.dart';
-import '../../features/profile/profile_view.dart';
-import '../../features/tickets/views/student_tickets_view.dart';
-import '../../features/enrollment/views/my_classes_view.dart';
-import '../../features/enrollment/views/my_class_detail_view.dart';
-import '../../features/enrollment/views/class_enroll_detail_view.dart';
+// ── Features Public / Estudiante
+import 'package:academia_events/feature/public/calendar/views/calendar_view.dart';
+import 'package:academia_events/feature/public/tickets/views/tickets_view.dart';
+import 'package:academia_events/feature/public/classes/views/student_classes_view.dart';
+import 'package:academia_events/feature/public/profile/views/profile_view.dart';
+import 'package:academia_events/feature/public/profile/views/my_invitations_view.dart';
+import 'package:academia_events/feature/public/tickets/views/purchase_tickets_screen.dart';
 
-// Vistas de Academia y Admin
-import '../../feature/organization/dashboard/views/academy_dashboard_view.dart';
-import '../../features/academy/views/academy_events_view.dart';
-import '../../features/academy/views/academy_classes_view.dart';
-import '../../features/academy/views/academy_teachers_view.dart';
-import '../../features/checkin/views/checkin_screen.dart';
-import '../../features/admin/views/admin_dashboard_view.dart';
-
-// Vistas de Organizaciones, Clases y Eventos
-import '../../features/organization/views/organization_list_view.dart';
-import '../../features/organization/views/organization_detail_view.dart';
-import '../../features/organization/views/organization_create_view.dart';
-import '../../features/organization/views/my_invitations_view.dart';
-import '../../features/classes/views/class_list_view.dart';
-import '../../features/classes/views/class_create_view.dart';
-import '../../features/classes/views/class_detail_view.dart';
-import '../../features/events/views/events_list_view.dart';
-import '../../features/events/views/event_create_view.dart';
-import '../../features/events/views/event_detail_view.dart';
-import '../../features/public/views/public_events_view.dart';
-import '../../features/public/views/public_event_detail_view.dart';
-import '../../features/public/views/organization_detail_view.dart';
+// ── Features Organization / Academia
+import 'package:academia_events/feature/organization/dashboard/views/academy_dashboard_view.dart';
+import 'package:academia_events/feature/organization/events/views/events_list_view.dart';
+import 'package:academia_events/feature/organization/events/views/event_create_view.dart';
+import 'package:academia_events/feature/organization/events/views/event_detail_view.dart';
+import 'package:academia_events/feature/organization/classes/views/organization_classes_view.dart';
+import 'package:academia_events/feature/organization/classes/views/class_create_view.dart';
+import 'package:academia_events/feature/organization/members/views/organization_members_view.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthStateNotifier(ref);
@@ -57,49 +44,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.studentHome,
     redirect: (context, state) => _handleRedirect(ref, state),
     routes: [
-      // ── Auth & Admin ──────────────────────────────────────────────────
+      // ── Auth ──────────────────────────────────────────────────────────
       GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginView()),
       GoRoute(path: AppRoutes.register, builder: (_, _) => const RegisterView()),
       GoRoute(path: AppRoutes.forgotPassword, builder: (_, _) => const ForgotPasswordView()),
       GoRoute(path: AppRoutes.updatePassword, builder: (_, _) => const UpdatePasswordView()),
-      GoRoute(path: AppRoutes.platformAdmin, builder: (_, _) => const AdminDashboardView()),
       GoRoute(path: '/auth/callback', builder: (_, _) => const AuthCallbackPage()),
 
-      // ── Organizaciones ────────────────────────────────────────────────
-      GoRoute(path: AppRoutes.organizations, builder: (_, _) => const OrganizationListView()),
-      GoRoute(path: AppRoutes.organizationsCreate, builder: (_, _) => const OrganizationCreateView()),
-      GoRoute(
-        path: AppRoutes.organizationsDetailPattern,
-        builder: (context, state) => OrganizationDetailView(
-          organizationId: state.pathParameters['id'],
-        ),
-      ),
+      // ── Acciones Directas e Invitaciones ─────────────────────────────
       GoRoute(path: AppRoutes.myInvitations, builder: (_, _) => const MyInvitationsView()),
-
-      // ── Clases ────────────────────────────────────────────────────────
-      GoRoute(path: AppRoutes.classList, builder: (_, _) => const ClassListView()),
+      GoRoute(path: AppRoutes.organizationsCreate, builder: (_, _) => const Scaffold(body: Center(child: Text('Crear Organización')))),
       GoRoute(path: AppRoutes.classCreate, builder: (_, _) => const ClassCreateView()),
-      GoRoute(
-        path: AppRoutes.classDetailPattern,
-        builder: (context, state) => ClassDetailView(
-          classId: state.pathParameters['id'],
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.myClassDetailPattern,
-        builder: (context, state) => MyClassDetailView(
-          enrollmentId: state.pathParameters['id'],
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.enrollClassDetailPattern,
-        builder: (context, state) => ClassEnrollDetailView(
-          classId: state.pathParameters['id'],
-        ),
-      ),
-
-      // ── Eventos ───────────────────────────────────────────────────────
-      GoRoute(path: AppRoutes.eventsList, builder: (_, _) => const EventsListView()),
       GoRoute(path: AppRoutes.eventCreate, builder: (_, _) => const EventCreateView()),
       GoRoute(
         path: AppRoutes.eventDetailPattern,
@@ -107,36 +62,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           eventId: state.pathParameters['id'] ?? state.extra as String? ?? '',
         ),
       ),
-
-      // ── Públicas ──────────────────────────────────────────────────────
-      GoRoute(path: AppRoutes.publicEvents, builder: (_, _) => const PublicEventsView()),
       GoRoute(
-        path: AppRoutes.publicEventDetail,
-        builder: (context, state) => PublicEventDetailView(
+        path: '/events/:id/purchase',
+        builder: (context, state) => PurchaseTicketsScreen(
           eventId: state.pathParameters['id'] ?? '',
         ),
       ),
-      GoRoute(
-        path: AppRoutes.organizationPublicDetail,
-        builder: (context, state) => PublicOrganizationDetailView(
-          organizationId: state.pathParameters['id'] ?? '',
-          organizationName: state.extra as String?,
-        ),
-      ),
-      GoRoute(path: AppRoutes.academyCheckin, builder: (_, _) => const CheckinScreen()),
 
-      // ── Shell Estudiante ──────────────────────────────────────────────
+      // ── Shell Estudiante (4 Pestañas) ─────────────────────────────────
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => StudentShell(navigationShell: shell),
         branches: [
           StatefulShellBranch(routes: [
-            GoRoute(path: AppRoutes.studentHome, builder: (_, _) => const WeekCalendarView()),
+            GoRoute(path: AppRoutes.studentHome, builder: (_, _) => const CalendarView()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/student/tickets', builder: (_, _) => const StudentTicketsView()),
+            GoRoute(path: '/student/tickets', builder: (_, _) => const TicketsView()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: AppRoutes.studentClasses, builder: (_, _) => const MyClassesView()),
+            GoRoute(path: AppRoutes.studentClasses, builder: (_, _) => const StudentClassesView()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: AppRoutes.studentProfile, builder: (_, _) => const ProfileView()),
@@ -144,7 +88,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // ── Shell Academia ────────────────────────────────────────────────
+      // ── Shell Academia (5 Pestañas) ───────────────────────────────────
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => AcademyShell(navigationShell: shell),
         branches: [
@@ -152,13 +96,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             GoRoute(path: AppRoutes.academyDashboard, builder: (_, _) => const AcademyDashboardView()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: AppRoutes.academyEvents, builder: (_, _) => const AcademyEventsView()),
+            GoRoute(path: AppRoutes.academyEvents, builder: (_, _) => const EventsListView()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: AppRoutes.academyClasses, builder: (_, _) => const AcademyClassesView()),
+            GoRoute(path: AppRoutes.academyClasses, builder: (_, _) => const OrganizationClassesView()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: AppRoutes.academyTeachers, builder: (_, _) => const AcademyTeachersView()),
+            GoRoute(path: AppRoutes.academyTeachers, builder: (_, _) => const OrganizationMembersView()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: AppRoutes.academyProfile, builder: (_, _) => const ProfileView()),
@@ -167,6 +111,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
+      backgroundColor: context.scaffoldBg,
       body: Center(
         child: Text(
           'Ruta no encontrada: ${state.error}',
@@ -178,46 +123,56 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 });
 
 String? _handleRedirect(Ref ref, GoRouterState state) {
+  // Verificación directa de sesión en cliente para evitar expulsiones por refrescos
+  final session = sb.Supabase.instance.client.auth.currentSession;
+  final isAuthenticated = session != null;
+
   final authState = ref.read(authStateProvider);
-  if (authState.isLoading) return null;
+  final isPasswordRecovery =
+      authState.value?.event == sb.AuthChangeEvent.passwordRecovery;
 
-  final isAuthenticated = ref.read(authRepositoryProvider).isAuthenticated;
-  final isPasswordRecovery = authState.value?.event == sb.AuthChangeEvent.passwordRecovery;
-
-  final onAuthRoute = state.matchedLocation.startsWith('/login') ||
-      state.matchedLocation.startsWith('/register') ||
-      state.matchedLocation.startsWith('/forgot-password');
+  final loc = state.matchedLocation;
+  final onAuthRoute = loc.startsWith('/login') ||
+      loc.startsWith('/register') ||
+      loc.startsWith('/forgot-password') ||
+      loc.startsWith('/auth/callback');
 
   if (isPasswordRecovery) {
-    return state.matchedLocation == AppRoutes.updatePassword ? null : AppRoutes.updatePassword;
+    return loc == AppRoutes.updatePassword ? null : AppRoutes.updatePassword;
   }
 
+  // 1. Si no hay sesión y no estamos en auth, enviar al Login
   if (!isAuthenticated) {
     return onAuthRoute ? null : AppRoutes.login;
   }
 
-  final roleAsync = ref.read(currentUserRoleProvider);
-  if (roleAsync.isLoading) return null;
-
-  final role = roleAsync.whenOrNull(data: (r) => r);
   final mode = ref.read(effectiveLayoutModeProvider);
 
+  // 2. Si ya está autenticado pero sigue en login/register, enviarlo al home
   if (onAuthRoute) {
+    final role = ref.read(currentUserRoleProvider).whenOrNull(data: (r) => r);
     if (role == UserRole.platformAdmin) return AppRoutes.platformAdmin;
-    return mode == AppLayoutMode.academy ? AppRoutes.academyDashboard : AppRoutes.studentHome;
+    return mode == AppLayoutMode.academy
+        ? AppRoutes.academyDashboard
+        : AppRoutes.studentHome;
   }
 
-  if (state.matchedLocation.startsWith(AppRoutes.platformAdmin) && role != UserRole.platformAdmin) {
-    return AppRoutes.studentHome;
+  // 3. Control de rol de Administrador
+  final roleAsync = ref.read(currentUserRoleProvider);
+  if (!roleAsync.isLoading) {
+    final role = roleAsync.whenOrNull(data: (r) => r);
+    if (loc.startsWith(AppRoutes.platformAdmin) && role != UserRole.platformAdmin) {
+      return AppRoutes.studentHome;
+    }
+    if (role == UserRole.platformAdmin &&
+        (loc.startsWith('/student') || loc.startsWith('/academy'))) {
+      return AppRoutes.platformAdmin;
+    }
   }
 
-  if (role == UserRole.platformAdmin &&
-      (state.matchedLocation.startsWith('/student') || state.matchedLocation.startsWith('/academy'))) {
-    return AppRoutes.platformAdmin;
-  }
-
-  final onStudentShell = state.matchedLocation.startsWith('/student');
-  final onAcademyShell = state.matchedLocation.startsWith('/academy');
+  // 4. Conmutación de layouts (Estudiante vs Academia)
+  final onStudentShell = loc.startsWith('/student');
+  final onAcademyShell = loc.startsWith('/academy');
 
   if (mode == AppLayoutMode.academy && onStudentShell) {
     return AppRoutes.academyDashboard;
