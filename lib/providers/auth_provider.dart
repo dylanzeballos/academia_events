@@ -13,13 +13,31 @@ final authStateProvider = StreamProvider<sb.AuthState>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
 });
 
+/// Conserva la última sesión válida mientras Supabase renueva el token.
+/// Durante esa renovación el cliente puede exponer temporalmente una sesión
+/// nula, aunque el usuario siga autenticado.
+class AuthSessionNotifier extends Notifier<sb.Session?> {
+  @override
+  sb.Session? build() {
+    ref.listen(authStateProvider, (_, next) {
+      next.whenData((authState) {
+        if (authState.event == sb.AuthChangeEvent.signedOut) {
+          state = null;
+        } else if (authState.session != null) {
+          state = authState.session;
+        }
+      });
+    });
+    return sb.Supabase.instance.client.auth.currentSession;
+  }
+}
+
+final authSessionProvider = NotifierProvider<AuthSessionNotifier, sb.Session?>(
+  AuthSessionNotifier.new,
+);
+
 final isAuthenticatedProvider = Provider<bool>((ref) {
-  return ref.watch(authStateProvider).maybeWhen(
-        data: (state) =>
-            state.event == sb.AuthChangeEvent.signedIn ||
-            state.event == sb.AuthChangeEvent.tokenRefreshed,
-        orElse: () => ref.read(authRepositoryProvider).isAuthenticated,
-      );
+  return ref.watch(authSessionProvider) != null;
 });
 
 class AppAuthState {
@@ -53,10 +71,7 @@ class AuthController extends Notifier<AppAuthState> {
 
   IAuthRepository get _repo => ref.read(authRepositoryProvider);
 
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       await _repo.signIn(email: email, password: password);
@@ -91,8 +106,7 @@ class AuthController extends Notifier<AppAuthState> {
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _repo.signUp(
-          email: email, password: password, fullName: fullName);
+      await _repo.signUp(email: email, password: password, fullName: fullName);
       state = state.copyWith(isLoading: false);
     } on sb.AuthException catch (e) {
       state = state.copyWith(isLoading: false, error: e.message);
@@ -118,7 +132,9 @@ class AuthController extends Notifier<AppAuthState> {
       state = state.copyWith(isLoading: false, error: e.message);
     } catch (_) {
       state = state.copyWith(
-          isLoading: false, error: 'No se pudo enviar el correo.');
+        isLoading: false,
+        error: 'No se pudo enviar el correo.',
+      );
     }
   }
 
@@ -140,15 +156,16 @@ class AuthController extends Notifier<AppAuthState> {
   void clearError() => state = state.copyWith(clearError: true);
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AppAuthState>(() {
-  return AuthController();
-});
+final authControllerProvider = NotifierProvider<AuthController, AppAuthState>(
+  () {
+    return AuthController();
+  },
+);
 
 final currentProfileProvider = FutureProvider<ProfileModel?>((ref) async {
-  ref.watch(authStateProvider);
+  ref.watch(authSessionProvider);
   final repo = ref.watch(authRepositoryProvider);
-  if (!repo.isAuthenticated) return null;
+  if (ref.read(authSessionProvider) == null) return null;
   return repo.fetchCurrentProfile();
 });
 
@@ -161,8 +178,8 @@ final resolvedAvatarUrlProvider = Provider<String?>((ref) {
 });
 
 final currentUserRoleProvider = FutureProvider<UserRole>((ref) async {
-  ref.watch(authStateProvider);
+  ref.watch(authSessionProvider);
   final repo = ref.watch(authRepositoryProvider);
-  if (!repo.isAuthenticated) return UserRole.student;
+  if (ref.read(authSessionProvider) == null) return UserRole.student;
   return repo.fetchUserRole();
 });
