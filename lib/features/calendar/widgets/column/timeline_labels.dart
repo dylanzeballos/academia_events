@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/theme_extensions.dart';
 import 'timeline_scale.dart';
 
 class TimelineLabels extends StatelessWidget {
@@ -34,7 +35,7 @@ class TimelineLabels extends StatelessWidget {
           child: Text(
             '${hour.toString().padLeft(2, '0')}:00',
             textAlign: TextAlign.right,
-            style: const TextStyle(color: Colors.grey, fontSize: 10),
+            style: TextStyle(color: context.textMuted, fontSize: 10),
           ),
         ),
       );

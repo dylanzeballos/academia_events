@@ -1,8 +1,8 @@
-// lib/features/events/widgets/event_tickets_section.dart
-
+// lib/features/events/widgets/detail/event_tickets_section.dart
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
 
@@ -64,7 +64,7 @@ class EventTicketsSection extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             ticket.description!,
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            style: TextStyle(color: context.textMuted, fontSize: 12),
                           ),
                         ],
                         const SizedBox(height: 4),
@@ -73,7 +73,7 @@ class EventTicketsSection extends StatelessWidget {
                               ? 'Agotado'
                               : 'Disponibles: ${ticket.availableQuantity}',
                           style: TextStyle(
-                            color: ticket.isSoldOut ? Colors.red : Colors.grey,
+                            color: ticket.isSoldOut ? AppColors.error : context.textMuted,
                             fontSize: 11,
                             fontWeight: ticket.isSoldOut ? FontWeight.bold : FontWeight.normal,
                           ),

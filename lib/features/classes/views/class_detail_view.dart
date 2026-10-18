@@ -1,7 +1,9 @@
+// lib/features/classes/views/class_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/dance_class_schedule_model.dart';
 import '../../../data/models/dance_class_session_model.dart';
@@ -19,7 +21,6 @@ import 'class_attendance_view.dart';
 class ClassDetailView extends ConsumerStatefulWidget {
   const ClassDetailView({super.key, this.classId});
 
-  /// Si se provee, selecciona la clase al abrir la vista (deep links).
   final String? classId;
 
   @override
@@ -36,8 +37,6 @@ class _ClassDetailViewState extends ConsumerState<ClassDetailView>
     _tabCtrl = TabController(length: 3, vsync: this);
     final id = widget.classId;
     if (id != null && id.isNotEmpty) {
-      // No modificar providers durante initState (el árbol se está
-      // construyendo): posponer hasta después del frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref.read(selectedClassIdProvider.notifier).select(id);
@@ -59,21 +58,27 @@ class _ClassDetailViewState extends ConsumerState<ClassDetailView>
 
     return classAsync.when(
       loading: () => const Scaffold(body: LoadingIndicator()),
-      error: (e, _) => Scaffold(
-        body: AppErrorState(message: friendlyError(e)),
-      ),
+      error: (e, _) => Scaffold(body: AppErrorState(message: friendlyError(e))),
       data: (danceClass) {
         if (danceClass == null) {
-          return const Scaffold(body: Center(child: Text('Clase no encontrada')));
+          return const Scaffold(
+            body: Center(child: Text('Clase no encontrada')),
+          );
         }
 
         return Scaffold(
+          backgroundColor: context.scaffoldBg,
           appBar: AppBar(
-            title: Text(danceClass.title),
+            backgroundColor: context.cardBg,
+            elevation: 0,
+            title: Text(
+              danceClass.title,
+              style: TextStyle(color: context.textOnBg),
+            ),
             actions: [
               IconButton(
                 tooltip: 'Ver asistencia',
-                icon: const Icon(Icons.assessment_outlined),
+                icon: Icon(Icons.assessment_outlined, color: context.textOnBg),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => ClassAttendanceView(
@@ -87,6 +92,8 @@ class _ClassDetailViewState extends ConsumerState<ClassDetailView>
             bottom: TabBar(
               controller: _tabCtrl,
               indicatorColor: AppColors.primary,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: context.textMuted,
               tabs: const [
                 Tab(text: 'INFO'),
                 Tab(text: 'HORARIOS'),
@@ -130,7 +137,9 @@ class _InfoTab extends ConsumerWidget {
                   : null,
               child: danceClass.coverImageUrl == null
                   ? Text(
-                      danceClass.title.isNotEmpty ? danceClass.title[0].toUpperCase() : '?',
+                      danceClass.title.isNotEmpty
+                          ? danceClass.title[0].toUpperCase()
+                          : '?',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 32,
@@ -142,7 +151,8 @@ class _InfoTab extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           _InfoRow(label: 'Nombre', value: danceClass.title),
-          if (danceClass.description != null && danceClass.description!.isNotEmpty)
+          if (danceClass.description != null &&
+              danceClass.description!.isNotEmpty)
             _InfoRow(label: 'Descripción', value: danceClass.description!),
           if (danceClass.instructorName != null)
             _InfoRow(label: 'Instructor', value: danceClass.instructorName!),
@@ -159,12 +169,14 @@ class _InfoTab extends ConsumerWidget {
           if (danceClass.startTime != null)
             _InfoRow(
               label: 'Inicio',
-              value: '${danceClass.startTime!.day}/${danceClass.startTime!.month}/${danceClass.startTime!.year}',
+              value:
+                  '${danceClass.startTime!.day}/${danceClass.startTime!.month}/${danceClass.startTime!.year}',
             ),
           if (danceClass.endTime != null)
             _InfoRow(
               label: 'Fin',
-              value: '${danceClass.endTime!.day}/${danceClass.endTime!.month}/${danceClass.endTime!.year}',
+              value:
+                  '${danceClass.endTime!.day}/${danceClass.endTime!.month}/${danceClass.endTime!.year}',
             ),
           if (canManage) ...[
             const SizedBox(height: 24),
@@ -184,9 +196,9 @@ class _InfoTab extends ConsumerWidget {
                 if (!ok || !context.mounted) return;
                 try {
                   await ref.read(danceClassRepositoryProvider).updateClass(
-                        danceClass.id,
-                        {'status': publishing ? 'published' : 'draft'},
-                      );
+                    danceClass.id,
+                    {'status': publishing ? 'published' : 'draft'},
+                  );
                   ref.invalidate(selectedClassProvider);
                   ref.invalidate(orgClassesProvider);
                   if (context.mounted) {
@@ -202,7 +214,9 @@ class _InfoTab extends ConsumerWidget {
                 }
               },
               isOutlined: true,
-              icon: danceClass.isPublished ? Icons.unpublished_outlined : Icons.publish,
+              icon: danceClass.isPublished
+                  ? Icons.unpublished_outlined
+                  : Icons.publish,
             ),
           ],
         ],
@@ -230,8 +244,9 @@ class _SchedulesTab extends ConsumerWidget {
             title: 'Sin horarios definidos',
             message: 'Crea un horario para generar las sesiones de la clase.',
             actionLabel: canManage ? 'Crear horario' : null,
-            onAction:
-                canManage ? () => _addScheduleAndGenerate(context, ref) : null,
+            onAction: canManage
+                ? () => _addScheduleAndGenerate(context, ref)
+                : null,
           );
         }
 
@@ -243,6 +258,15 @@ class _SchedulesTab extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: context.textOnBg,
+                        side: BorderSide(color: context.divider),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusMedium,
+                          ),
+                        ),
+                      ),
                       onPressed: () => _addScheduleAndGenerate(context, ref),
                       icon: const Icon(Icons.add),
                       label: const Text('Agregar horario'),
@@ -253,7 +277,12 @@ class _SchedulesTab extends ConsumerWidget {
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.onPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusMedium,
+                          ),
+                        ),
                       ),
                       onPressed: () async {
                         await _generateSessions(ref);
@@ -270,18 +299,25 @@ class _SchedulesTab extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
             ],
-            for (final s in schedules) _ScheduleTile(schedule: s, onEditCustom: (val) {
-              if (val == 'edit') _editSchedule(context, ref, s);
-              if (val == 'toggle') _toggleSchedule(context, ref, s);
-              if (val == 'delete') _deleteSchedule(context, ref, s);
-            }),
+            for (final s in schedules)
+              _ScheduleTile(
+                schedule: s,
+                onEditCustom: (val) {
+                  if (val == 'edit') _editSchedule(context, ref, s);
+                  if (val == 'toggle') _toggleSchedule(context, ref, s);
+                  if (val == 'delete') _deleteSchedule(context, ref, s);
+                },
+              ),
           ],
         );
       },
     );
   }
 
-  Future<void> _addScheduleAndGenerate(BuildContext context, WidgetRef ref) async {
+  Future<void> _addScheduleAndGenerate(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final result = await showScheduleDialog(
       context,
       classStart: ref.read(selectedClassProvider).value?.startTime,
@@ -339,29 +375,49 @@ class _SchedulesTab extends ConsumerWidget {
     if (!context.mounted) return;
     ref.invalidate(classSchedulesProvider);
     ref.invalidate(classSessionsProvider);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Horario actualizado')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Horario actualizado')));
   }
 
-  Future<void> _toggleSchedule(BuildContext context, WidgetRef ref, DanceClassScheduleModel s) async {
+  Future<void> _toggleSchedule(
+    BuildContext context,
+    WidgetRef ref,
+    DanceClassScheduleModel s,
+  ) async {
     final repo = ref.read(danceClassRepositoryProvider);
     await repo.updateSchedule(s.id, {'is_active': !s.isActive});
     ref.invalidate(classSchedulesProvider);
     ref.invalidate(classSessionsProvider);
   }
 
-  Future<void> _deleteSchedule(BuildContext context, WidgetRef ref, DanceClassScheduleModel s) async {
+  Future<void> _deleteSchedule(
+    BuildContext context,
+    WidgetRef ref,
+    DanceClassScheduleModel s,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Eliminar horario'),
-        content: Text('¿Eliminar ${s.dayName} ${s.startTime}-${s.endTime}?'),
+        backgroundColor: context.cardBg,
+        title: Text(
+          'Eliminar horario',
+          style: TextStyle(color: context.textOnBg),
+        ),
+        content: Text(
+          '¿Eliminar ${s.dayName} ${s.startTime}-${s.endTime}?',
+          style: TextStyle(color: context.textMuted),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: AppColors.error)),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -385,67 +441,85 @@ class _ScheduleTile extends ConsumerWidget {
     final s = schedule;
     final myRole = ref.watch(myOrgRoleProvider);
     final canManage = myRole?.canManageSchedules ?? false;
+
     return Card(
-              color: context.cardBg,
-              margin: const EdgeInsets.only(bottom: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                side: BorderSide(color: context.divider),
+      color: context.cardBg,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        side: BorderSide(color: context.divider),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+          child: Text(
+            s.dayName.substring(0, 2),
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        title: Text(
+          s.dayName,
+          style: TextStyle(
+            color: context.textOnBg,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${s.startTime} - ${s.endTime}',
+              style: TextStyle(color: context.textMuted, fontSize: 13),
+            ),
+            if (s.startDate != null || s.endDate != null)
+              Text(
+                '${s.startDate != null ? '${s.startDate!.day.toString().padLeft(2, '0')}/${s.startDate!.month.toString().padLeft(2, '0')}/${s.startDate!.year}' : 'desde'} - ${s.endDate != null ? '${s.endDate!.day.toString().padLeft(2, '0')}/${s.endDate!.month.toString().padLeft(2, '0')}/${s.endDate!.year}' : 'sin fin'}',
+                style: TextStyle(color: context.textMuted, fontSize: 12),
               ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                  child: Text(
-                    s.dayName.substring(0, 2),
-                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                ),
-                title: Text(
-                  s.dayName,
-                  style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.w600),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${s.startTime} - ${s.endTime}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+            if (s.locationOverride != null)
+              Text(
+                'Ubicación: ${s.locationOverride!['location_name'] ?? 'asignada'}',
+                style: TextStyle(color: context.textMuted, fontSize: 12),
+              ),
+          ],
+        ),
+        trailing: canManage
+            ? PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: context.textMuted, size: 20),
+                color: context.cardBg,
+                onSelected: onEditCustom,
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Text(
+                      'Editar',
+                      style: TextStyle(color: context.textOnBg),
                     ),
-                    if (s.startDate != null || s.endDate != null)
-                      Text(
-                        '${s.startDate != null ? '${s.startDate!.day.toString().padLeft(2, '0')}/${s.startDate!.month.toString().padLeft(2, '0')}/${s.startDate!.year}' : 'desde'} - ${s.endDate != null ? '${s.endDate!.day.toString().padLeft(2, '0')}/${s.endDate!.month.toString().padLeft(2, '0')}/${s.endDate!.year}' : 'sin fin'}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                    if (s.locationOverride != null)
-                      Text(
-                        'Ubicación: ${s.locationOverride!['location_name'] ?? 'asignada'}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                  ],
-                ),
-                trailing: canManage
-                    ? PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
-                        onSelected: onEditCustom,
-                        itemBuilder: (_) => [
-                          const PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Editar'),
-                          ),
-                          PopupMenuItem(
-                            value: 'toggle',
-                            child: Text(s.isActive ? 'Desactivar' : 'Activar'),
-                          ),
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Eliminar', style: TextStyle(color: AppColors.error)),
-                          ),
-                        ],
-                      )
-                    : null,
-              ),
-            );
+                  ),
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: Text(
+                      s.isActive ? 'Desactivar' : 'Activar',
+                      style: TextStyle(color: context.textOnBg),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      'Eliminar',
+                      style: TextStyle(color: AppColors.error),
+                    ),
+                  ),
+                ],
+              )
+            : null,
+      ),
+    );
   }
 }
 
@@ -466,17 +540,16 @@ class _SessionsTab extends ConsumerWidget {
           return AppEmptyState(
             icon: Icons.calendar_today_outlined,
             title: 'Sin sesiones generadas',
-            message:
-                'Crea horarios y genera sesiones desde la pestaña de horarios, o usa el botón de abajo.',
+            message: 'Crea horarios y genera sesiones desde la pestaña de horarios, o usa el botón de abajo.',
             actionLabel: canManage ? 'Generar sesiones' : null,
             onAction: canManage
                 ? () async {
                     final repo = ref.read(danceClassRepositoryProvider);
                     final danceClass = ref.read(selectedClassProvider).value;
                     if (danceClass == null) return;
-                    final periodStart =
-                        danceClass.startTime ?? DateTime.now();
-                    final periodEnd = danceClass.endTime ??
+                    final periodStart = danceClass.startTime ?? DateTime.now();
+                    final periodEnd =
+                        danceClass.endTime ??
                         periodStart.add(const Duration(days: 90));
                     await repo.generateSessions(
                       classId: danceClass.id,
@@ -494,10 +567,8 @@ class _SessionsTab extends ConsumerWidget {
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: sessions.length,
-          itemBuilder: (context, index) => _SessionTile(
-            session: sessions[index],
-            canManage: canManage,
-          ),
+          itemBuilder: (context, index) =>
+              _SessionTile(session: sessions[index], canManage: canManage),
         );
       },
     );
@@ -512,9 +583,12 @@ class _SessionTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateStr = '${session.sessionDate.day.toString().padLeft(2, '0')}/${session.sessionDate.month.toString().padLeft(2, '0')}/${session.sessionDate.year}';
-    final startStr = '${session.startAt.hour.toString().padLeft(2, '0')}:${session.startAt.minute.toString().padLeft(2, '0')}';
-    final endStr = '${session.endAt.hour.toString().padLeft(2, '0')}:${session.endAt.minute.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${session.sessionDate.day.toString().padLeft(2, '0')}/${session.sessionDate.month.toString().padLeft(2, '0')}/${session.sessionDate.year}';
+    final startStr =
+        '${session.startAt.hour.toString().padLeft(2, '0')}:${session.startAt.minute.toString().padLeft(2, '0')}';
+    final endStr =
+        '${session.endAt.hour.toString().padLeft(2, '0')}:${session.endAt.minute.toString().padLeft(2, '0')}';
 
     Color statusColor;
     switch (session.status) {
@@ -528,7 +602,7 @@ class _SessionTile extends ConsumerWidget {
         statusColor = AppColors.error;
         break;
       default:
-        statusColor = Colors.grey;
+        statusColor = context.textMuted;
     }
 
     return Card(
@@ -546,23 +620,27 @@ class _SessionTile extends ConsumerWidget {
             session.isCompleted
                 ? Icons.check
                 : session.isCancelled
-                    ? Icons.close
-                    : Icons.calendar_today,
+                ? Icons.close
+                : Icons.calendar_today,
             color: statusColor,
             size: 18,
           ),
         ),
         title: Text(
           dateStr,
-          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: context.textOnBg,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         subtitle: Text(
           '$startStr - $endStr',
-          style: const TextStyle(color: Colors.grey, fontSize: 13),
+          style: TextStyle(color: context.textMuted, fontSize: 13),
         ),
         trailing: canManage && session.isScheduled
             ? PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
+                icon: Icon(Icons.more_vert, color: context.textMuted, size: 20),
+                color: context.cardBg,
                 onSelected: (value) async {
                   final repo = ref.read(danceClassRepositoryProvider);
                   if (value == 'complete') {
@@ -573,16 +651,30 @@ class _SessionTile extends ConsumerWidget {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (_) => AlertDialog(
-                        title: const Text('Cancelar sesión'),
+                        backgroundColor: context.cardBg,
+                        title: Text(
+                          'Cancelar sesión',
+                          style: TextStyle(color: context.textOnBg),
+                        ),
                         content: TextField(
                           controller: reasonCtrl,
-                          decoration: const InputDecoration(hintText: 'Razón (opcional)'),
+                          style: TextStyle(color: context.textOnBg),
+                          decoration: InputDecoration(
+                            hintText: 'Razón (opcional)',
+                            hintStyle: TextStyle(color: context.textMuted),
+                          ),
                         ),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('No'),
+                          ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Cancelar', style: TextStyle(color: AppColors.error)),
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(color: AppColors.error),
+                            ),
                           ),
                         ],
                       ),
@@ -590,15 +682,29 @@ class _SessionTile extends ConsumerWidget {
                     if (confirm == true) {
                       await repo.cancelSession(
                         sessionId: session.id,
-                        reason: reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim(),
+                        reason: reasonCtrl.text.trim().isEmpty
+                            ? null
+                            : reasonCtrl.text.trim(),
                       );
                       ref.invalidate(classSessionsProvider);
                     }
                   }
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'complete', child: Text('Marcar completada')),
-                  const PopupMenuItem(value: 'cancel', child: Text('Cancelar', style: TextStyle(color: AppColors.error))),
+                  PopupMenuItem(
+                    value: 'complete',
+                    child: Text(
+                      'Marcar completada',
+                      style: TextStyle(color: context.textOnBg),
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'cancel',
+                    child: Text(
+                      'Cancelar',
+                      style: TextStyle(color: AppColors.error),
+                    ),
+                  ),
                 ],
               )
             : Container(
@@ -609,7 +715,11 @@ class _SessionTile extends ConsumerWidget {
                 ),
                 child: Text(
                   session.statusDisplayName,
-                  style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
       ),
@@ -631,7 +741,11 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: context.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 2),
           Text(value, style: TextStyle(color: context.textOnBg, fontSize: 15)),

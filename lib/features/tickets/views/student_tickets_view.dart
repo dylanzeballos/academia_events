@@ -1,7 +1,9 @@
+// lib/features/tickets/views/student_tickets_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/theme_extensions.dart';
 import 'class_tickets_tab.dart';
 import 'event_tickets_tab.dart';
 
@@ -13,13 +15,19 @@ class StudentTicketsView extends ConsumerWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: context.scaffoldBg,
         appBar: AppBar(
-          title: const Text('Mis Tickets'),
-          bottom: const TabBar(
+          backgroundColor: context.cardBg,
+          elevation: 0,
+          title: Text(
+            'Mis Tickets',
+            style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+          ),
+          bottom: TabBar(
             indicatorColor: AppColors.primary,
             labelColor: AppColors.primary,
-            unselectedLabelColor: Colors.grey,
-            tabs: [
+            unselectedLabelColor: context.textMuted,
+            tabs: const [
               Tab(
                 icon: Icon(Icons.event_outlined),
                 text: 'Eventos',

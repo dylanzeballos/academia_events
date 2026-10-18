@@ -1,8 +1,10 @@
+// lib/features/public/views/public_events_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_filter_state.dart';
 import '../../../../data/models/paginated_result.dart';
@@ -42,19 +44,14 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
     final isDesktop = MediaQuery.of(context).size.width >= 768;
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       key: _scaffoldKey,
       appBar: _buildAppBar(context, isDesktop, filter),
       drawer: isDesktop ? null : const EventFilterDrawer(),
       body: Column(
         children: [
-          // Search & Filter Bar
           _buildSearchFilterBar(context, isDesktop, filter),
-
-          // Active Filters Chips
-          if (filter.hasActiveFilters)
-            _buildActiveFiltersChips(context),
-
-          // Events List/Grid
+          if (filter.hasActiveFilters) _buildActiveFiltersChips(context),
           Expanded(
             child: eventsAsync.when(
               loading: () => const LoadingIndicator(),
@@ -83,21 +80,22 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
           ),
         ],
       ),
-      // Mobile filter button
       floatingActionButton: isDesktop
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               backgroundColor: AppColors.primary,
-              icon: const Icon(Icons.filter_list, color: Colors.white),
-              label: const Text('Filtros', style: TextStyle(color: Colors.white)),
+              icon: const Icon(Icons.filter_list, color: AppColors.onPrimary),
+              label: const Text('Filtros', style: TextStyle(color: AppColors.onPrimary)),
             ),
     );
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context, bool isDesktop, EventFilterState filter) {
     return AppBar(
-      title: const Text('Descubrir Eventos'),
+      backgroundColor: context.cardBg,
+      elevation: 0,
+      title: Text('Descubrir Eventos', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
       centerTitle: !isDesktop,
       actions: [
         if (isDesktop) ...[
@@ -107,7 +105,7 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
             onPressed: () => _showDesktopFilterDialog(context),
             icon: Stack(
               children: [
-                const Icon(Icons.filter_list),
+                Icon(Icons.filter_list, color: context.textOnBg),
                 if (filter.hasActiveFilters)
                   Positioned(
                     right: 0,
@@ -127,10 +125,9 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
           ),
           const SizedBox(width: 8),
         ],
-        // View toggle
         IconButton(
           onPressed: () => setState(() => _isGridView = !_isGridView),
-          icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+          icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, color: context.textOnBg),
           tooltip: _isGridView ? 'Vista lista' : 'Vista cuadrícula',
         ),
         const SizedBox(width: 8),
@@ -189,6 +186,7 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primary),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSmall)),
                       ),
                     ),
                   ],
@@ -204,6 +202,7 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
 
     return DropdownButton<EventSortBy>(
       value: filter.sortBy,
+      dropdownColor: context.cardBg,
       underline: const SizedBox.shrink(),
       onChanged: (value) {
         if (value != null) notifier.setSortBy(value);
@@ -298,6 +297,7 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
         return false;
       },
       child: RefreshIndicator(
+        color: AppColors.primary,
         onRefresh: () async => ref.invalidate(publicEventsProvider),
         child: _isGridView
             ? _buildGridView(context, result)
@@ -381,7 +381,7 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
             Icon(
               Icons.event_busy_outlined,
               size: 80,
-              color: Colors.grey[400],
+              color: context.textMuted,
             ),
             const SizedBox(height: 16),
             Text(
@@ -395,7 +395,7 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
             const SizedBox(height: 8),
             Text(
               'Intenta ajustar los filtros o la búsqueda',
-              style: TextStyle(color: Colors.grey[500], fontSize: 14),
+              style: TextStyle(color: context.textMuted, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -405,6 +405,7 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
               label: const Text('Limpiar filtros'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
               ),
             ),
           ],
@@ -417,6 +418,7 @@ class _PublicEventsViewState extends ConsumerState<PublicEventsView> {
     showDialog(
       context: context,
       builder: (dialogContext) => Dialog(
+        backgroundColor: context.cardBg,
         child: Container(
           width: 400,
           constraints: const BoxConstraints(maxHeight: 600),

@@ -1,3 +1,4 @@
+// lib/features/events/views/event_create_view.dart
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_feedback.dart';
@@ -27,22 +30,18 @@ class EventCreateView extends ConsumerStatefulWidget {
 class _EventCreateViewState extends ConsumerState<EventCreateView> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers básicos
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _contactPhoneController = TextEditingController();
   final _capacityController = TextEditingController();
 
-  // Controllers de Tickets (Precio y Stock opcional/ilimitado)
   final _priceController = TextEditingController(text: '0');
   final _ticketStockController = TextEditingController(text: '100');
   bool _isUnlimitedStock = false;
 
-  // Controllers de Ubicación
   final _locationNameController = TextEditingController();
   final _addressController = TextEditingController();
 
-  // Ubicación administrativa
   String? _selectedCategoryId;
   String? _selectedDepartmentId;
   String? _selectedProvinceId;
@@ -133,7 +132,10 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
     final orgId = ref.read(selectedOrganizationIdProvider);
     if (orgId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay una organización seleccionada')),
+        SnackBar(
+          content: const Text('No hay una organización seleccionada'),
+          backgroundColor: context.cardBg,
+        ),
       );
       return;
     }
@@ -156,8 +158,9 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
 
     if (endAt.isBefore(startAt)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La fecha de fin debe ser posterior al inicio'),
+        SnackBar(
+          content: const Text('La fecha de fin debe ser posterior al inicio'),
+          backgroundColor: context.cardBg,
         ),
       );
       return;
@@ -176,7 +179,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
           ? '$description\n\nContactos: $contact'
           : description;
 
-      // Cantidad de entradas: 999999 si es ilimitado para cumplir CHECK (quantity > 0)
       final ticketQuantity = _isUnlimitedStock
           ? 999999
           : (int.tryParse(_ticketStockController.text.trim()) ?? 100);
@@ -185,7 +187,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
           ? int.tryParse(_capacityController.text.trim())
           : (_isUnlimitedStock ? null : ticketQuantity);
 
-      // Estado en 'draft' (borrador) a la espera del pago de publicación
       final eventData = {
         'organization_id': orgId,
         'category_id': _selectedCategoryId,
@@ -240,7 +241,10 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       if (mounted) {
         context.pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Evento creado en borrador correctamente')),
+          SnackBar(
+            content: const Text('Evento creado en borrador correctamente'),
+            backgroundColor: context.cardBg,
+          ),
         );
       }
     } catch (e) {
@@ -255,7 +259,12 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear Evento')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text('Crear Evento', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -263,7 +272,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Portada / Banner
               ImagePickerBox(
                 label: 'Panfleto / Afiche del Evento',
                 icon: Icons.add_photo_alternate_outlined,
@@ -272,7 +280,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 20),
 
-              // 2. Información básica
               EventBasicInfoForm(
                 titleController: _titleController,
                 descriptionController: _descriptionController,
@@ -284,7 +291,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 20),
 
-              // 3. Costo y Stock de entradas
               EventTicketsEditor(
                 priceController: _priceController,
                 stockController: _ticketStockController,
@@ -295,7 +301,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 24),
 
-              // 4. Ubicación y mapa
               EventLocationForm(
                 locationNameController: _locationNameController,
                 addressController: _addressController,
@@ -330,7 +335,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 24),
 
-              // 5. Fechas y horarios
               EventScheduleForm(
                 startDate: _startDate,
                 startTime: _startTime,
@@ -340,26 +344,28 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 28),
 
-              // 6. Botón de creación
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  ),
                 ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
+                          color: AppColors.onPrimary,
                           strokeWidth: 2,
                         ),
                       )
                     : const Text(
                         'Guardar Evento',
                         style: TextStyle(
-                          color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),

@@ -1,7 +1,9 @@
+// lib/features/academy/views/dashboard/dashboard_empty_orgs.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../shared/widgets/app_button.dart';
 
@@ -31,10 +33,10 @@ class DashboardEmptyOrgs extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Crea la tuya para administrar clases, eventos, profesores y entradas.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: context.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 24),
           AppButton(

@@ -1,7 +1,9 @@
+// lib/features/enrollment/views/my_class_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/attendance_model.dart';
 import '../../../data/models/class_enrollment_model.dart';
@@ -13,12 +15,9 @@ import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../tickets/widgets/class_pass_purchase_sheet.dart';
 
-/// Detalle de una clase a la que el estudiante está inscrito: muestra sus
-/// sesiones y la asistencia registrada, y permite cancelar la inscripción.
 class MyClassDetailView extends ConsumerStatefulWidget {
   const MyClassDetailView({super.key, this.enrollmentId});
 
-  /// Si se provee, selecciona la inscripción al abrir la vista.
   final String? enrollmentId;
 
   @override
@@ -31,8 +30,6 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
     super.initState();
     final id = widget.enrollmentId;
     if (id != null && id.isNotEmpty) {
-      // No modificar providers durante initState (el árbol se está
-      // construyendo): posponer hasta después del frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref.read(selectedEnrolledClassIdProvider.notifier).select(id);
@@ -47,13 +44,28 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
     final attendanceAsync = ref.watch(enrolledClassAttendanceProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi clase')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Mi clase',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: enrollmentAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        error: (e, _) => Center(
+          child: Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
+        ),
         data: (enrollment) {
           if (enrollment == null) {
-            return const Center(child: Text('Inscripción no encontrada.'));
+            return Center(
+              child: Text(
+                'Inscripción no encontrada.',
+                style: TextStyle(color: context.textMuted),
+              ),
+            );
           }
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -62,14 +74,14 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
               const SizedBox(height: 16),
               _PassSection(enrollment: enrollment),
               const SizedBox(height: 24),
-              _SectionTitle(
+              const _SectionTitle(
                 icon: Icons.event_available,
                 title: 'Sesiones',
               ),
               const SizedBox(height: 8),
               sessionsAsync.when(
                 loading: () => const LoadingIndicator(),
-                error: (e, _) => Text(friendlyError(e)),
+                error: (e, _) => Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
                 data: (sessions) {
                   if (sessions.isEmpty) {
                     return Text(
@@ -124,18 +136,18 @@ class _Header extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             enrollment.organizationName!,
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: context.textMuted, fontSize: 14),
           ),
         ],
         if (enrollment.instructorName != null) ...[
           const SizedBox(height: 6),
           Row(
             children: [
-              Icon(Icons.person_outline, size: 14, color: Colors.grey[500]),
+              Icon(Icons.person_outline, size: 14, color: context.textMuted),
               const SizedBox(width: 6),
               Text(
                 enrollment.instructorName!,
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: context.textMuted, fontSize: 13),
               ),
             ],
           ),
@@ -147,7 +159,12 @@ class _Header extends StatelessWidget {
             color: enrollment.isCancelled
                 ? AppColors.error.withValues(alpha: 0.15)
                 : AppColors.success.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
+            border: Border.all(
+              color: enrollment.isCancelled
+                  ? AppColors.error.withValues(alpha: 0.3)
+                  : AppColors.success.withValues(alpha: 0.3),
+            ),
           ),
           child: Text(
             enrollment.statusDisplayName,
@@ -176,13 +193,12 @@ class _PassSection extends ConsumerWidget {
     return passesAsync.when(
       loading: () => const SizedBox(
         height: 80,
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       ),
       error: (_, _) => const SizedBox.shrink(),
       data: (passes) {
         final activePass = passes
-            .where((p) =>
-                p.enrollmentId == enrollment.id && p.isActive)
+            .where((p) => p.enrollmentId == enrollment.id && p.isActive)
             .firstOrNull;
 
         if (activePass != null) {
@@ -193,16 +209,21 @@ class _PassSection extends ConsumerWidget {
             backgroundColor: AppColors.primary.withValues(alpha: 0.12),
             foregroundColor: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            ),
           ),
           onPressed: () => showModalBottomSheet(
             context: context,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            backgroundColor: context.cardBg,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLarge)),
+            ),
             isScrollControlled: true,
-            builder: (_) =>
-                ClassPassPurchaseSheet(enrollment: enrollment),
+            builder: (_) => ClassPassPurchaseSheet(enrollment: enrollment),
           ),
           icon: const Icon(Icons.add_card),
-          label: const Text('Comprar pase'),
+          label: const Text('Comprar pase', style: TextStyle(fontWeight: FontWeight.bold)),
         );
       },
     );
@@ -227,10 +248,10 @@ class _ActivePassCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.verified_outlined, color: AppColors.success, size: 20),
-              const SizedBox(width: 8),
+              Icon(Icons.verified_outlined, color: AppColors.success, size: 20),
+              SizedBox(width: 8),
               Text(
                 'Pase activo',
                 style: TextStyle(
@@ -244,13 +265,13 @@ class _ActivePassCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Vence el ${_formatDate(pass.endsAt)} · quedan $daysLeft días.',
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: context.textMuted, fontSize: 13),
           ),
           if (pass.sessionCount > 0) ...[
             const SizedBox(height: 4),
             Text(
               'Incluye ${pass.sessionCount} sesiones.',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: context.textMuted, fontSize: 12),
             ),
           ],
         ],
@@ -300,7 +321,7 @@ class _SessionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final att = attendance;
     final statusColor = att == null
-        ? Colors.grey
+        ? context.textMuted
         : att.isLate
             ? AppColors.warning
             : att.isPresent
@@ -337,7 +358,7 @@ class _SessionTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${_formatTime(session.startAt)} - ${_formatTime(session.endAt)}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: context.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -347,7 +368,7 @@ class _SessionTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -356,8 +377,11 @@ class _SessionTile extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       att.statusDisplayName,
-                      style:
-                          TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -366,7 +390,7 @@ class _SessionTile extends StatelessWidget {
               Text(
                 session.isCancelled ? session.statusDisplayName : 'Pendiente',
                 style: TextStyle(
-                  color: session.isCancelled ? AppColors.error : Colors.grey,
+                  color: session.isCancelled ? AppColors.error : context.textMuted,
                   fontSize: 12,
                 ),
               ),
@@ -405,7 +429,7 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
     final canCancel = widget.enrollment.isActive;
 
     if (actionState.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     return Column(
@@ -424,6 +448,9 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
               foregroundColor: AppColors.error,
               side: const BorderSide(color: AppColors.error),
               padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+              ),
             ),
             onPressed: () => _confirmCancel(context),
             icon: const Icon(Icons.cancel_outlined),
@@ -437,18 +464,22 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: Theme.of(dialogContext).scaffoldBackgroundColor,
-        title: const Text('Cancelar inscripción'),
-        content: const Text(
+        backgroundColor: context.cardBg,
+        title: Text('Cancelar inscripción', style: TextStyle(color: context.textOnBg)),
+        content: Text(
           '¿Seguro que quieres cancelar tu inscripción a esta clase?',
+          style: TextStyle(color: context.textMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('No'),
+            child: Text('No', style: TextStyle(color: context.textMuted)),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onError,
+            ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Sí, cancelar'),
           ),
@@ -468,8 +499,10 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
       ..showSnackBar(
         SnackBar(
           content: Text(
-              success ? 'Inscripción cancelada.' : 'No se pudo cancelar.'),
+            success ? 'Inscripción cancelada.' : 'No se pudo cancelar.',
+          ),
           behavior: SnackBarBehavior.floating,
+          backgroundColor: context.cardBg,
         ),
       );
   }

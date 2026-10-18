@@ -1,3 +1,4 @@
+// lib/features/events/utils/event_attendance_exporter.dart
 import 'dart:io';
 
 import 'package:excel/excel.dart';
@@ -7,8 +8,6 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/utils/excel_report_helpers.dart';
 import '../../../data/models/event_attendance_model.dart';
 
-/// Genera el informe de ingresos de un evento con el formato del Excel
-/// demostrativo: NOMBRE · CHECK-IN · MONTO BS.
 class EventAttendanceExporter {
   EventAttendanceExporter._();
 

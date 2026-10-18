@@ -1,9 +1,19 @@
+// lib/core/router/app_router.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../constants/app_constants.dart';
+import 'package:academia_events/core/constants/app_constants.dart';
+import 'package:academia_events/core/theme/app_colors.dart';
+import 'package:academia_events/core/utils/theme_extensions.dart';
+import 'package:academia_events/data/models/profile_model.dart';
+import 'package:academia_events/providers/auth_provider.dart';
+import 'package:academia_events/providers/layout_mode_provider.dart';
+
+import 'app_nav_shells.dart';
+
+// ── Rutas exactas a las vistas del sistema anterior
 import '../../features/auth/views/forgot_password_view.dart';
 import '../../features/auth/views/login_view.dart';
 import '../../features/auth/views/register_view.dart';
@@ -33,191 +43,11 @@ import '../../features/events/views/event_detail_view.dart';
 
 import '../../features/public/views/public_events_view.dart';
 import '../../features/public/views/public_event_detail_view.dart';
-
 import '../../features/public/views/organization_detail_view.dart';
 
 import '../../features/tickets/views/student_tickets_view.dart';
 import '../../features/checkin/views/checkin_screen.dart';
 import '../../features/admin/views/admin_dashboard_view.dart';
-
-import '../../providers/auth_provider.dart';
-import '../../providers/layout_mode_provider.dart';
-import '../../data/models/profile_model.dart';
-
-class _StudentShell extends ConsumerStatefulWidget {
-  const _StudentShell({required this.navigationShell});
-  final StatefulNavigationShell navigationShell;
-
-  @override
-  ConsumerState<_StudentShell> createState() => _StudentShellState();
-}
-
-class _StudentShellState extends ConsumerState<_StudentShell> {
-  static const _activeIcons = [
-    Icons.calendar_month_rounded,
-    Icons.confirmation_number_rounded,
-    Icons.collections_bookmark_rounded,
-    Icons.person_rounded,
-  ];
-  static const _inactiveIcons = [
-    Icons.calendar_month_outlined,
-    Icons.confirmation_number_outlined,
-    Icons.collections_bookmark_outlined,
-    Icons.person_outline_rounded,
-  ];
-  static const _labels = ['Horario', 'Tickets', 'Clases', 'Perfil'];
-
-  @override
-  Widget build(BuildContext context) {
-    final shell = widget.navigationShell;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final selectedColor = AppColors.primary;
-    final unselectedColor = isDark
-        ? Colors.grey.shade600
-        : Colors.grey.shade400;
-
-    return Scaffold(
-      body: shell,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _InstagramNavBar(
-            selectedIndex: shell.currentIndex,
-            onDestinationSelected: shell.goBranch,
-            activeIcons: _activeIcons,
-            inactiveIcons: _inactiveIcons,
-            labels: _labels,
-            selectedColor: selectedColor,
-            unselectedColor: unselectedColor,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Bottom navigation bar estilo Instagram: sutil, sin labels grandes,
-/// íconos outlined/filled y una línea superior discreta.
-class _InstagramNavBar extends StatelessWidget {
-  const _InstagramNavBar({
-    required this.selectedIndex,
-    required this.onDestinationSelected,
-    required this.activeIcons,
-    required this.inactiveIcons,
-    required this.labels,
-    required this.selectedColor,
-    required this.unselectedColor,
-  });
-
-  final int selectedIndex;
-  final ValueChanged<int> onDestinationSelected;
-  final List<IconData> activeIcons;
-  final List<IconData> inactiveIcons;
-  final List<String> labels;
-  final Color selectedColor;
-  final Color unselectedColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.background : Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.08)
-                : Colors.black.withValues(alpha: 0.08),
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 56,
-          child: Row(
-            children: List.generate(activeIcons.length, (i) {
-              final isSelected = i == selectedIndex;
-              return Expanded(
-                child: InkWell(
-                  onTap: () => onDestinationSelected(i),
-                  splashColor: Colors.transparent,
-                  highlightColor: Colors.transparent,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isSelected ? activeIcons[i] : inactiveIcons[i],
-                        size: 24,
-                        color: isSelected ? selectedColor : unselectedColor,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        labels[i],
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: isSelected ? selectedColor : unselectedColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AcademyShell extends StatelessWidget {
-  const _AcademyShell({required this.navigationShell});
-  final StatefulNavigationShell navigationShell;
-
-  static const _activeIcons = [
-    Icons.dashboard_rounded,
-    Icons.event_rounded,
-    Icons.school_rounded,
-    Icons.people_rounded,
-    Icons.person_rounded,
-  ];
-  static const _inactiveIcons = [
-    Icons.dashboard_outlined,
-    Icons.event_outlined,
-    Icons.school_outlined,
-    Icons.people_outline_rounded,
-    Icons.person_outline_rounded,
-  ];
-  static const _labels = ['Panel', 'Eventos', 'Clases', 'Profes', 'Perfil'];
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final selectedColor = AppColors.primary;
-    final unselectedColor = isDark
-        ? Colors.grey.shade600
-        : Colors.grey.shade400;
-
-    return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: _InstagramNavBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: navigationShell.goBranch,
-        activeIcons: _activeIcons,
-        inactiveIcons: _inactiveIcons,
-        labels: _labels,
-        selectedColor: selectedColor,
-        unselectedColor: unselectedColor,
-      ),
-    );
-  }
-}
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthStateNotifier(ref);
@@ -225,93 +55,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     refreshListenable: notifier,
     initialLocation: AppRoutes.studentHome,
-    redirect: (context, state) {
-      final authState = ref.read(authStateProvider);
-      final isLoading = authState.isLoading;
-
-      if (isLoading) return null;
-
-      final supabaseSession = ref.read(authRepositoryProvider).isAuthenticated;
-      final isPasswordRecovery =
-          authState.value?.event == sb.AuthChangeEvent.passwordRecovery;
-
-      final onAuthRoute =
-          state.matchedLocation.startsWith('/login') ||
-          state.matchedLocation.startsWith('/register') ||
-          state.matchedLocation.startsWith('/forgot-password');
-
-      if (isPasswordRecovery) {
-        return state.matchedLocation == AppRoutes.updatePassword
-            ? null
-            : AppRoutes.updatePassword;
-      }
-
-      if (!supabaseSession) {
-        return onAuthRoute ? null : AppRoutes.login;
-      }
-
-      if (onAuthRoute) {
-        if (ref.read(currentUserRoleProvider).whenOrNull(data: (role) => role) ==
-            UserRole.platformAdmin) {
-          return AppRoutes.platformAdmin;
-        }
-        final mode = ref.read(effectiveLayoutModeProvider);
-        return mode == AppLayoutMode.academy
-            ? AppRoutes.academyDashboard
-            : AppRoutes.studentHome;
-      }
-
-      final roleAsync = ref.read(currentUserRoleProvider);
-      if (roleAsync.isLoading) return null;
-
-      if (state.matchedLocation.startsWith(AppRoutes.platformAdmin) &&
-          roleAsync.whenOrNull(data: (role) => role) != UserRole.platformAdmin) {
-        return AppRoutes.studentHome;
-      }
-
-      if (roleAsync.whenOrNull(data: (role) => role) == UserRole.platformAdmin &&
-          (state.matchedLocation.startsWith('/student') ||
-              state.matchedLocation.startsWith('/academy'))) {
-        return AppRoutes.platformAdmin;
-      }
-
-      final mode = ref.read(effectiveLayoutModeProvider);
-      final onStudentShell = state.matchedLocation.startsWith('/student');
-      final onAcademyShell = state.matchedLocation.startsWith('/academy');
-      if (mode == AppLayoutMode.academy && onStudentShell) {
-        return AppRoutes.academyDashboard;
-      }
-      if (mode == AppLayoutMode.student && onAcademyShell) {
-        return AppRoutes.studentHome;
-      }
-
-      return null;
-    },
+    redirect: (context, state) => _handleRedirect(ref, state),
     routes: [
       GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginView()),
-      GoRoute(
-        path: AppRoutes.register,
-        builder: (_, _) => const RegisterView(),
-      ),
-      GoRoute(
-        path: AppRoutes.forgotPassword,
-        builder: (_, _) => const ForgotPasswordView(),
-      ),
-      GoRoute(
-        path: AppRoutes.updatePassword,
-        builder: (_, _) => const UpdatePasswordView(),
-      ),
-      GoRoute(
-        path: AppRoutes.platformAdmin,
-        builder: (_, _) => const AdminDashboardView(),
-      ),
+      GoRoute(path: AppRoutes.register, builder: (_, _) => const RegisterView()),
+      GoRoute(path: AppRoutes.forgotPassword, builder: (_, _) => const ForgotPasswordView()),
+      GoRoute(path: AppRoutes.updatePassword, builder: (_, _) => const UpdatePasswordView()),
+      GoRoute(path: AppRoutes.platformAdmin, builder: (_, _) => const AdminDashboardView()),
 
-      // Callback para OAuth en web (Google login)
+      // Callback OAuth (Google Login)
       GoRoute(
         path: '/auth/callback',
         builder: (_, _) => const _AuthCallbackPage(),
       ),
 
+      // Organizaciones
       GoRoute(
         path: AppRoutes.organizations,
         builder: (_, _) => const OrganizationListView(),
@@ -331,7 +89,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const MyInvitationsView(),
       ),
 
-      // Clases routes
+      // Clases
       GoRoute(
         path: AppRoutes.classList,
         builder: (_, _) => const ClassListView(),
@@ -347,7 +105,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // Eventos routes
+      // Eventos
       GoRoute(
         path: AppRoutes.eventsList,
         builder: (_, _) => const EventsListView(),
@@ -359,13 +117,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.eventDetailPattern,
         builder: (context, state) {
-          final eventId =
-              state.pathParameters['id'] ?? state.extra as String? ?? '';
+          final eventId = state.pathParameters['id'] ?? state.extra as String? ?? '';
           return EventDetailView(eventId: eventId);
         },
       ),
 
-      // Public event discovery routes
+      // Public event discovery
       GoRoute(
         path: AppRoutes.publicEvents,
         builder: (_, _) => const PublicEventsView(),
@@ -377,7 +134,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return PublicEventDetailView(eventId: eventId);
         },
       ),
-
       GoRoute(
         path: AppRoutes.organizationPublicDetail,
         builder: (context, state) {
@@ -389,21 +145,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Check-in con QR (academia: staff autorizado)
+      // Check-in QR
       GoRoute(
         path: AppRoutes.academyCheckin,
         builder: (_, _) => const CheckinScreen(),
       ),
 
-      // Detalle de una clase inscrita (estudiante)
+      // Detalle e inscripción clases
       GoRoute(
         path: AppRoutes.myClassDetailPattern,
         builder: (context, state) => MyClassDetailView(
           enrollmentId: state.pathParameters['id'],
         ),
       ),
-
-      // Detalle de inscripción a una clase publicada (estudiante)
       GoRoute(
         path: AppRoutes.enrollClassDetailPattern,
         builder: (context, state) => ClassEnrollDetailView(
@@ -411,8 +165,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
+      // Shell Estudiante
       StatefulShellRoute.indexedStack(
-        builder: (_, _, shell) => _StudentShell(navigationShell: shell),
+        builder: (_, _, shell) => StudentShell(navigationShell: shell),
         branches: [
           StatefulShellBranch(
             routes: [
@@ -449,8 +204,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
+      // Shell Academia
       StatefulShellRoute.indexedStack(
-        builder: (_, _, shell) => _AcademyShell(navigationShell: shell),
+        builder: (_, _, shell) => AcademyShell(navigationShell: shell),
         branches: [
           StatefulShellBranch(
             routes: [
@@ -496,22 +252,104 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
 
-    errorBuilder: (_, state) => Scaffold(
+    errorBuilder: (context, state) => Scaffold(
+      backgroundColor: context.scaffoldBg,
       body: Center(
         child: Text(
           'Ruta no encontrada: ${state.error}',
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: context.textMuted),
         ),
       ),
     ),
   );
 });
 
+String? _handleRedirect(Ref ref, GoRouterState state) {
+  final authState = ref.read(authStateProvider);
+  if (authState.isLoading) return null;
+
+  final loc = state.matchedLocation;
+  final onAuthRoute = loc.startsWith('/login') ||
+      loc.startsWith('/register') ||
+      loc.startsWith('/forgot-password') ||
+      loc.startsWith('/auth/callback');
+
+  final isPasswordRecovery =
+      authState.value?.event == sb.AuthChangeEvent.passwordRecovery;
+  if (isPasswordRecovery) {
+    return loc == AppRoutes.updatePassword ? null : AppRoutes.updatePassword;
+  }
+
+  final currentSession = sb.Supabase.instance.client.auth.currentSession;
+  final currentUser = sb.Supabase.instance.client.auth.currentUser;
+  final isAuthenticated = currentSession != null || currentUser != null;
+
+  if (!isAuthenticated) {
+    return onAuthRoute ? null : AppRoutes.login;
+  }
+
+  final mode = ref.read(effectiveLayoutModeProvider);
+
+  if (onAuthRoute) {
+    final role = ref.read(currentUserRoleProvider).asData?.value;
+    if (role == UserRole.platformAdmin) return AppRoutes.platformAdmin;
+    return mode == AppLayoutMode.academy
+        ? AppRoutes.academyDashboard
+        : AppRoutes.studentHome;
+  }
+
+  final roleAsync = ref.read(currentUserRoleProvider);
+  final role = roleAsync.asData?.value;
+
+  if (role != null) {
+    if (loc.startsWith(AppRoutes.platformAdmin) && role != UserRole.platformAdmin) {
+      return AppRoutes.studentHome;
+    }
+    if (role == UserRole.platformAdmin &&
+        (loc.startsWith('/student') || loc.startsWith('/academy'))) {
+      return AppRoutes.platformAdmin;
+    }
+  }
+
+  final onStudentShell = loc.startsWith('/student');
+  final onAcademyShell = loc.startsWith('/academy');
+
+  if (mode == AppLayoutMode.academy && onStudentShell) {
+    return AppRoutes.academyDashboard;
+  }
+  if (mode == AppLayoutMode.student && onAcademyShell) {
+    return AppRoutes.studentHome;
+  }
+
+  return null;
+}
+
 class _AuthStateNotifier extends ChangeNotifier {
   _AuthStateNotifier(Ref ref) {
-    ref.listen(authStateProvider, (_, _) => notifyListeners());
-    ref.listen(currentUserRoleProvider, (_, _) => notifyListeners());
-    ref.listen(layoutModeProvider, (_, _) => notifyListeners());
+    // Filtro para ignorar tokenRefreshed y errores transitorios evitando el error 429
+    ref.listen(authStateProvider, (prev, next) {
+      if (next.hasError) return;
+
+      final event = next.value?.event;
+      if (event == sb.AuthChangeEvent.signedIn ||
+          event == sb.AuthChangeEvent.signedOut ||
+          event == sb.AuthChangeEvent.userUpdated ||
+          event == sb.AuthChangeEvent.passwordRecovery) {
+        notifyListeners();
+      }
+    });
+
+    ref.listen(currentUserRoleProvider, (prev, next) {
+      if (prev?.asData?.value != next.asData?.value) {
+        notifyListeners();
+      }
+    });
+
+    ref.listen(layoutModeProvider, (prev, next) {
+      if (prev != next) {
+        notifyListeners();
+      }
+    });
   }
 }
 
@@ -535,7 +373,10 @@ class _AuthCallbackPage extends ConsumerWidget {
     });
 
     return Scaffold(
-      body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      backgroundColor: context.scaffoldBg,
+      body: const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
     );
   }
 }

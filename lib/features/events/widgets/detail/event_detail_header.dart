@@ -1,8 +1,8 @@
-// lib/features/events/widgets/event_detail_header.dart
-
+// lib/features/events/widgets/detail/event_detail_header.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
 import '../../../../providers/organization_provider.dart';
@@ -48,7 +48,7 @@ class EventDetailHeader extends ConsumerWidget {
                             height: 220,
                             color: context.cardBg,
                             child: const Center(
-                              child: CircularProgressIndicator(),
+                              child: CircularProgressIndicator(color: AppColors.primary),
                             ),
                           ),
                     errorBuilder: (_, _, _) => _BannerPlaceholder(color: accentColor),
@@ -95,22 +95,21 @@ class EventDetailHeader extends ConsumerWidget {
                           tag: 'event-org-logo-${event.id}',
                           child: CircleAvatar(
                             radius: 12,
-                            backgroundColor: Colors.grey.shade300,
-                            backgroundImage:
-                              NetworkImage(organizationLogo),
+                            backgroundColor: context.divider,
+                            backgroundImage: NetworkImage(organizationLogo),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                     ] else ...[
-                      const Icon(Icons.storefront_outlined, size: 16, color: Colors.grey),
+                      Icon(Icons.storefront_outlined, size: 16, color: context.textMuted),
                       const SizedBox(width: 6),
                     ],
                     Expanded(
                       child: Text(
                         event.organizationName,
-                        style: const TextStyle(
-                          color: Colors.grey,
+                        style: TextStyle(
+                          color: context.textMuted,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -135,7 +134,7 @@ class _BannerPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 160,
-      color: color.withValues(alpha: 0.25),
+      color: color.withValues(alpha: 0.18),
       child: Center(
         child: Icon(Icons.image_outlined, color: color, size: 48),
       ),

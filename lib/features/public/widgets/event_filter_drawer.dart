@@ -1,7 +1,9 @@
+// lib/features/public/widgets/event_filter_drawer.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/geographic_model.dart';
 import '../../../../data/models/event_filter_state.dart';
@@ -22,11 +24,11 @@ class EventFilterDrawer extends ConsumerWidget {
     final citiesAsync = ref.watch(publicCitiesProvider);
 
     return Drawer(
+      backgroundColor: context.cardBg,
       width: MediaQuery.of(context).size.width * 0.85,
       child: SafeArea(
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -59,15 +61,12 @@ class EventFilterDrawer extends ConsumerWidget {
                 ],
               ),
             ),
-
-            // Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Categories
                     _buildSection(
                       context,
                       title: 'Categoría',
@@ -94,8 +93,6 @@ class EventFilterDrawer extends ConsumerWidget {
                         ),
                       ),
                     ),
-
-                    // Dance Categories
                     _buildSection(
                       context,
                       title: 'Categoría de Baile',
@@ -122,8 +119,6 @@ class EventFilterDrawer extends ConsumerWidget {
                         ),
                       ),
                     ),
-
-                    // Location Hierarchy
                     _buildSection(
                       context,
                       title: 'Ubicación',
@@ -136,8 +131,6 @@ class EventFilterDrawer extends ConsumerWidget {
                         notifier: notifier,
                       ),
                     ),
-
-                    // Date Range
                     _buildSection(
                       context,
                       title: 'Fecha',
@@ -146,8 +139,6 @@ class EventFilterDrawer extends ConsumerWidget {
                         notifier: notifier,
                       ),
                     ),
-
-                    // Price Range
                     _buildSection(
                       context,
                       title: 'Precio',
@@ -156,8 +147,6 @@ class EventFilterDrawer extends ConsumerWidget {
                         notifier: notifier,
                       ),
                     ),
-
-                    // Sort
                     _buildSection(
                       context,
                       title: 'Ordenar por',
@@ -170,8 +159,6 @@ class EventFilterDrawer extends ConsumerWidget {
                 ),
               ),
             ),
-
-            // Apply button
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -183,6 +170,7 @@ class EventFilterDrawer extends ConsumerWidget {
                   onPressed: () => Navigator.pop(context),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
@@ -268,7 +256,6 @@ class _LocationHierarchy extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
-        // Department
         departmentsAsync.when(
           loading: () => const _LoadingDropdown(),
           error: (_, _) => const SizedBox.shrink(),
@@ -288,8 +275,6 @@ class _LocationHierarchy extends ConsumerWidget {
             getLabel: (d) => d.name,
           ),
         ),
-
-        // Province
         if (filter.departmentId != null)
           provincesAsync.when(
             loading: () => const _LoadingDropdown(),
@@ -310,8 +295,6 @@ class _LocationHierarchy extends ConsumerWidget {
               getLabel: (p) => p.name,
             ),
           ),
-
-        // Municipality
         if (filter.provinceId != null)
           municipalitiesAsync.when(
             loading: () => const _LoadingDropdown(),
@@ -332,8 +315,6 @@ class _LocationHierarchy extends ConsumerWidget {
               getLabel: (m) => m.name,
             ),
           ),
-
-        // City
         if (filter.municipalityId != null)
           citiesAsync.when(
             loading: () => const _LoadingDropdown(),
@@ -354,8 +335,6 @@ class _LocationHierarchy extends ConsumerWidget {
               getLabel: (c) => c.name,
             ),
           ),
-
-        // Clear location button
         if (filter.departmentId != null ||
             filter.provinceId != null ||
             filter.municipalityId != null ||
@@ -396,9 +375,11 @@ class _DropdownField<T> extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: DropdownButtonFormField<T>(
         initialValue: _isEmpty(value) ? null : value,
+        dropdownColor: context.cardBg,
+        style: TextStyle(color: context.textOnBg),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: Colors.grey[500]),
+          labelStyle: TextStyle(color: context.textMuted),
           filled: true,
           fillColor: context.cardBg,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -414,7 +395,7 @@ class _DropdownField<T> extends StatelessWidget {
         items: items.map((item) {
           return DropdownMenuItem<T>(
             value: item,
-            child: Text(getLabel(item)),
+            child: Text(getLabel(item), style: TextStyle(color: context.textOnBg)),
           );
         }).toList(),
         onChanged: onChanged,
@@ -528,7 +509,7 @@ class _DateField extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: Colors.grey[500]),
+          labelStyle: TextStyle(color: context.textMuted),
           filled: true,
           fillColor: context.cardBg,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -540,12 +521,12 @@ class _DateField extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
             borderSide: BorderSide(color: context.divider),
           ),
-          suffixIcon: Icon(Icons.calendar_today_outlined, size: 18, color: Colors.grey[500]),
+          suffixIcon: Icon(Icons.calendar_today_outlined, size: 18, color: context.textMuted),
         ),
         child: Text(
           date != null ? '${date!.day}/${date!.month}/${date!.year}' : 'Seleccionar',
           style: TextStyle(
-            color: date != null ? context.textOnBg : Colors.grey[500],
+            color: date != null ? context.textOnBg : context.textMuted,
           ),
         ),
       ),
@@ -571,9 +552,10 @@ class _PriceRangeFilter extends ConsumerWidget {
             Expanded(
               child: TextField(
                 keyboardType: TextInputType.number,
+                style: TextStyle(color: context.textOnBg),
                 decoration: InputDecoration(
                   labelText: 'Mín',
-                  labelStyle: TextStyle(color: Colors.grey[500]),
+                  labelStyle: TextStyle(color: context.textMuted),
                   filled: true,
                   fillColor: context.cardBg,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -600,9 +582,10 @@ class _PriceRangeFilter extends ConsumerWidget {
             Expanded(
               child: TextField(
                 keyboardType: TextInputType.number,
+                style: TextStyle(color: context.textOnBg),
                 decoration: InputDecoration(
                   labelText: 'Máx',
-                  labelStyle: TextStyle(color: Colors.grey[500]),
+                  labelStyle: TextStyle(color: context.textMuted),
                   filled: true,
                   fillColor: context.cardBg,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -654,6 +637,8 @@ class _SortFilter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return DropdownButtonFormField<EventSortBy>(
       initialValue: filter.sortBy,
+      dropdownColor: context.cardBg,
+      style: TextStyle(color: context.textOnBg),
       decoration: InputDecoration(
         filled: true,
         fillColor: context.cardBg,
@@ -670,7 +655,7 @@ class _SortFilter extends ConsumerWidget {
       items: EventSortBy.values.map((sort) {
         return DropdownMenuItem<EventSortBy>(
           value: sort,
-          child: Text(_sortLabel(sort)),
+          child: Text(_sortLabel(sort), style: TextStyle(color: context.textOnBg)),
         );
       }).toList(),
       onChanged: (value) {

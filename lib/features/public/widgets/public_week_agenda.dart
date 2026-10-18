@@ -1,24 +1,13 @@
+// lib/features/public/widgets/public_week_agenda.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/public_event_model.dart';
 
-/// Agenda semanal para el calendario público: los 7 días apilados uno debajo
-/// del otro, y los eventos de cada día como chips compactos ordenados por
-/// hora.
-///
-/// A diferencia de la antigua vista en columnas (canvas de alto fijo de 24 h),
-/// cada día ocupa solo el espacio de sus eventos: los eventos largos se
-/// comprimen en un único chip y el alto total es la suma del contenido, de
-/// modo que la semana se adapta a los eventos reales.
-///
-/// - Tocar un evento abre su detalle.
-/// - Tocar la cabecera de un día ejecuta [onDaySelected] (en el calendario
-///   público abre la vista de día; en la página de una organización solo
-///   resalta el día).
 class PublicWeekAgenda extends StatelessWidget {
   const PublicWeekAgenda({
     super.key,
@@ -69,9 +58,6 @@ class PublicWeekAgenda extends StatelessWidget {
       a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-// ─────────────────────────────────────────────
-// Bloque de un día: cabecera + chips de eventos
-// ─────────────────────────────────────────────
 class _AgendaDaySection extends StatelessWidget {
   const _AgendaDaySection({
     required this.day,
@@ -143,7 +129,7 @@ class _AgendaDaySection extends StatelessWidget {
                       child: const Text(
                         'Hoy',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.onPrimary,
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
@@ -151,8 +137,7 @@ class _AgendaDaySection extends StatelessWidget {
                     ),
                   ],
                   const Spacer(),
-                  Icon(Icons.chevron_right,
-                      size: 18, color: context.textMuted),
+                  Icon(Icons.chevron_right, size: 18, color: context.textMuted),
                 ],
               ),
             ),
@@ -174,9 +159,6 @@ class _AgendaDaySection extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Chip compacto de un evento (uno por evento, sea corto o largo)
-// ─────────────────────────────────────────────
 class _AgendaEventTile extends StatelessWidget {
   const _AgendaEventTile({required this.event});
 

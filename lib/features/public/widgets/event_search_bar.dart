@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../providers/public_events_provider.dart';
 
@@ -27,10 +28,18 @@ class EventSearchBar extends ConsumerStatefulWidget {
 
 class _EventSearchBarState extends ConsumerState<EventSearchBar> {
   Timer? _debounce;
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -45,18 +54,23 @@ class _EventSearchBarState extends ConsumerState<EventSearchBar> {
   Widget build(BuildContext context) {
     final filter = ref.watch(eventFiltersProvider);
     final notifier = ref.read(eventFiltersProvider.notifier);
+    if (_controller.text != filter.searchQuery) {
+      _controller.text = filter.searchQuery;
+    }
 
     return TextField(
+      controller: _controller,
       autofocus: widget.autoFocus,
+      style: TextStyle(color: context.textOnBg, fontSize: widget.compact ? 12 : 14),
       decoration: InputDecoration(
         hintText: widget.hintText,
         hintStyle: TextStyle(
-          color: Colors.grey[500],
+          color: context.textMuted,
           fontSize: widget.compact ? 10 : 14,
         ),
         prefixIcon: Icon(
           Icons.search,
-          color: Colors.grey[500],
+          color: context.textMuted,
           size: widget.compact ? 15 : 22,
         ),
         prefixIconConstraints: widget.compact
@@ -66,10 +80,14 @@ class _EventSearchBarState extends ConsumerState<EventSearchBar> {
             ? IconButton(
                 icon: Icon(
                   Icons.clear,
-                  color: Colors.grey[500],
+                  color: context.textMuted,
                   size: widget.compact ? 15 : 22,
                 ),
-                onPressed: () => notifier.setSearchQuery(''),
+                onPressed: () {
+                  _debounce?.cancel();
+                  _controller.clear();
+                  notifier.setSearchQuery('');
+                },
                 tooltip: 'Limpiar búsqueda',
               )
             : null,

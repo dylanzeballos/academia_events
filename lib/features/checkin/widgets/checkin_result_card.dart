@@ -1,7 +1,9 @@
+// lib/features/checkin/widgets/checkin_result_card.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/check_in_result_model.dart';
 
@@ -12,21 +14,20 @@ class CheckInResultCard extends StatelessWidget {
     this.onContinue,
   });
 
-  /// Resultado devuelto por el servidor (el frontend solo muestra esto).
   final CheckInResultModel result;
   final VoidCallback? onContinue;
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = result.success ? AppColors.success : AppColors.error;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: context.cardBg,
         borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
         border: Border.all(
-          color: result.success
-              ? AppColors.success.withValues(alpha: 0.4)
-              : AppColors.error.withValues(alpha: 0.4),
+          color: statusColor.withValues(alpha: 0.4),
         ),
       ),
       child: Column(
@@ -34,7 +35,7 @@ class CheckInResultCard extends StatelessWidget {
           Icon(
             result.success ? Icons.check_circle : Icons.cancel,
             size: 64,
-            color: result.success ? AppColors.success : AppColors.error,
+            color: statusColor,
           ),
           const SizedBox(height: 12),
           Text(
@@ -51,10 +52,16 @@ class CheckInResultCard extends StatelessWidget {
           if (onContinue != null) ...[
             const SizedBox(height: 20),
             FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                ),
+              ),
               onPressed: onContinue,
               icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Escanear otro'),
+              label: const Text('Escanear otro', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ],
@@ -66,7 +73,7 @@ class CheckInResultCard extends StatelessWidget {
     return Text(
       result.reason ?? 'QR no válido.',
       textAlign: TextAlign.center,
-      style: const TextStyle(color: Colors.grey, fontSize: 14),
+      style: TextStyle(color: context.textMuted, fontSize: 14),
     );
   }
 
@@ -91,7 +98,7 @@ class CheckInResultCard extends StatelessWidget {
           Text(
             DateFormat('EEE d MMM yyyy', 'es').format(result.sessionDate!.toLocal()),
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: context.textMuted, fontSize: 13),
           ),
         ],
         const SizedBox(height: 16),
@@ -111,7 +118,7 @@ class CheckInResultCard extends StatelessWidget {
           Text(
             'Registrado el ${DateFormat('HH:mm', 'es').format(result.checkedInAt!.toLocal())}',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
+            style: TextStyle(color: context.textMuted, fontSize: 12),
           ),
         ],
       ],
@@ -136,12 +143,12 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: Colors.grey),
+          Icon(icon, size: 16, color: context.textMuted),
           const SizedBox(width: 8),
           Text(
             '$label: ',
-            style: const TextStyle(
-              color: Colors.grey,
+            style: TextStyle(
+              color: context.textMuted,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),

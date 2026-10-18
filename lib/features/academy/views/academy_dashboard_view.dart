@@ -1,7 +1,8 @@
+// lib/features/academy/views/academy_dashboard_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/repositories/organization_repository.dart';
 import '../../../providers/dance_class_provider.dart';
@@ -10,7 +11,6 @@ import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
 
-// Componentes modulares
 import 'dashboard/dashboard_empty_orgs.dart';
 import 'dashboard/dashboard_org_selector.dart';
 import 'dashboard/dashboard_quick_actions.dart';
@@ -21,24 +21,20 @@ class AcademyDashboardView extends ConsumerStatefulWidget {
   const AcademyDashboardView({super.key});
 
   @override
-  ConsumerState createState() =>
-      _AcademyDashboardViewState();
+  ConsumerState<AcademyDashboardView> createState() => _AcademyDashboardViewState();
 }
 
-class _AcademyDashboardViewState extends ConsumerState {
+class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
   @override
   Widget build(BuildContext context) {
     final selectedOrgId = ref.watch(selectedOrganizationIdProvider);
     final orgsAsync = ref.watch(myOrganizationsProvider);
 
     ref.listen(myOrganizationsProvider, (prev, next) {
-      // No modificar providers durante el build: posponer la selección
-      // hasta después del frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         next.whenData((orgs) {
-          if (orgs.isNotEmpty &&
-              ref.read(selectedOrganizationIdProvider) == null) {
+          if (orgs.isNotEmpty && ref.read(selectedOrganizationIdProvider) == null) {
             ref
                 .read(selectedOrganizationIdProvider.notifier)
                 .select(orgs.first.organization.id);
@@ -49,28 +45,33 @@ class _AcademyDashboardViewState extends ConsumerState {
 
     if (selectedOrgId == null) {
       return orgsAsync.when(
-        loading: () => const Scaffold(
-          body: Center(
+        loading: () => Scaffold(
+          backgroundColor: context.scaffoldBg,
+          body: const Center(
             child: CircularProgressIndicator(color: AppColors.primary),
           ),
         ),
         error: (e, _) => Scaffold(
+          backgroundColor: context.scaffoldBg,
           body: AppErrorState(message: friendlyError(e)),
         ),
         data: (orgs) {
           if (orgs.isEmpty) {
-            return const Scaffold(body: Center(child: DashboardEmptyOrgs()));
+            return Scaffold(
+              backgroundColor: context.scaffoldBg,
+              body: const Center(child: DashboardEmptyOrgs()),
+            );
           }
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted &&
-                ref.read(selectedOrganizationIdProvider) == null) {
+            if (mounted && ref.read(selectedOrganizationIdProvider) == null) {
               ref
                   .read(selectedOrganizationIdProvider.notifier)
                   .select(orgs.first.organization.id);
             }
           });
-          return const Scaffold(
-            body: Center(
+          return Scaffold(
+            backgroundColor: context.scaffoldBg,
+            body: const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             ),
           );
@@ -83,7 +84,15 @@ class _AcademyDashboardViewState extends ConsumerState {
     final canManage = myRole?.canManageMembers ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Panel')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Panel',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: orgsAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => AppErrorState(message: friendlyError(e)),
@@ -92,7 +101,6 @@ class _AcademyDashboardViewState extends ConsumerState {
             return const DashboardEmptyOrgs();
           }
 
-          // Búsqueda segura: sin firstWhere ni orElse
           OrganizationWithRole? currentOrgWithRole;
           for (final o in orgs) {
             if (o.organization.id == selectedOrgId) {
@@ -103,6 +111,7 @@ class _AcademyDashboardViewState extends ConsumerState {
           currentOrgWithRole ??= orgs.first;
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async {
               ref.invalidate(orgStatsProvider);
               ref.invalidate(orgClassesProvider);
@@ -114,7 +123,6 @@ class _AcademyDashboardViewState extends ConsumerState {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Selector de Organización
                   DashboardOrgSelector(
                     orgs: orgs,
                     selectedOrgId: selectedOrgId,
@@ -126,14 +134,12 @@ class _AcademyDashboardViewState extends ConsumerState {
                     },
                   ),
                   const SizedBox(height: 16),
-
-                  // 2. Métricas interactivas
                   statsAsync.when(
                     loading: () =>
-                        const Center(child: CircularProgressIndicator()),
+                        const Center(child: CircularProgressIndicator(color: AppColors.primary)),
                     error: (e, _) => Text(
                       friendlyError(e),
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(color: context.textMuted),
                     ),
                     data: (stats) => DashboardStatsGrid(
                       stats: stats,
@@ -141,12 +147,8 @@ class _AcademyDashboardViewState extends ConsumerState {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // 3. Acciones Rápidas
                   DashboardQuickActions(canManage: canManage),
                   const SizedBox(height: 24),
-
-                  // 4. Próximas Sesiones del Horario
                   Text(
                     'Horario programado',
                     style: TextStyle(

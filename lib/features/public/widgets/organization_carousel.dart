@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/public_event_data.dart';
 import '../../../../providers/events_provider.dart';
@@ -64,13 +64,14 @@ class _OrganizationCarouselSearchBarState
 
     return TextField(
       controller: _controller,
+      style: TextStyle(color: context.textOnBg, fontSize: 14),
       decoration: InputDecoration(
         hintText: 'Buscar academias u organizaciones...',
-        hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-        prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
+        hintStyle: TextStyle(color: context.textMuted, fontSize: 14),
+        prefixIcon: Icon(Icons.search, color: context.textMuted),
         suffixIcon: query.isNotEmpty
             ? IconButton(
-                icon: Icon(Icons.clear, color: Colors.grey[500]),
+                icon: Icon(Icons.clear, color: context.textMuted),
                 onPressed: () {
                   _debounce?.cancel();
                   _controller.clear();
@@ -106,12 +107,6 @@ class _OrganizationCarouselSearchBarState
   }
 }
 
-/// Carrusel circular y auto-deslizante de organizaciones.
-///
-/// - Cada tarjeta muestra el logo (avatar) y el nombre.
-/// - Al tocar una tarjeta se navega a la página pública de la organización
-///   (con su semana, próximos eventos y clases próximas, sin depender de
-///   rutas protegidas por autenticación).
 class OrganizationCarousel extends ConsumerStatefulWidget {
   const OrganizationCarousel({
     super.key,
@@ -157,7 +152,6 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
     super.dispose();
   }
 
-  /// Avanza automáticamente a la siguiente tarjeta (solo si hay más de una).
   void _advance() {
     if (!mounted || !_pageController.hasClients) return;
     if (_orgsCount <= 1) return;
@@ -185,30 +179,31 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
     return orgsAsync.when(
       loading: () => SizedBox(
         height: widget.height,
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
+          ),
+        ),
       ),
       error: (_, _) => const SizedBox.shrink(),
       data: (allOrgs) {
-        // Las organizaciones sin logo muestran su inicial como respaldo.
         final showExpandedCarousel =
             widget.expandedHeight != null ||
             (weekEventsAsync.hasValue && matchingEvents.isEmpty);
         final carouselHeight =
             showExpandedCarousel && widget.expandedHeight != null
-            ? widget.expandedHeight!
-            : showExpandedCarousel
-            ? (MediaQuery.sizeOf(context).height * 0.5)
-                  .clamp(widget.height * 1.5, 360.0)
-                  .toDouble()
-            : widget.height;
-        // Organizaciones con eventos que cumplen los filtros exclusivos de
-        // eventos (categoría, precio, fecha o ciudad) en la semana elegida.
+                ? widget.expandedHeight!
+                : showExpandedCarousel
+                    ? (MediaQuery.sizeOf(context).height * 0.5)
+                        .clamp(widget.height * 1.5, 360.0)
+                        .toDouble()
+                    : widget.height;
+
         final matchingOrganizationIds = matchingEvents
             .map((event) => event.organizationId)
             .toSet();
 
-        // Filtros que solo pueden evaluarse sobre los eventos: si hay alguno
-        // activo, la academia debe tener un evento que lo cumpla.
         final requiresMatchingEvent =
             filter.categoryIds.isNotEmpty ||
             filter.priceMin != null ||
@@ -217,21 +212,18 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
             filter.dateTo != null ||
             filter.cityId != null;
 
-        // Filtro local del buscador del carrusel (nombre o género de baile).
         final searchedOrgs = query.isEmpty
             ? List<OrganizationWithEventCount>.from(allOrgs)
             : allOrgs
-                  .where(
-                    (organization) =>
-                        organization.name.toLowerCase().contains(query) ||
-                        organization.danceGenres.any(
-                          (genre) => genre.toLowerCase().contains(query),
-                        ),
-                  )
-                  .toList();
+                .where(
+                  (organization) =>
+                      organization.name.toLowerCase().contains(query) ||
+                      organization.danceGenres.any(
+                        (genre) => genre.toLowerCase().contains(query),
+                      ),
+                )
+                .toList();
 
-        // Los filtros de ubicación, academia y estilo se evalúan sobre la
-        // propia academia, así que las academias sin eventos también aparecen.
         final visibleOrgs = searchedOrgs.where((organization) {
           if (filter.organizationId != null &&
               organization.id != filter.organizationId) {
@@ -270,6 +262,7 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
           }
           return true;
         }).toList();
+
         if (visibleOrgs.isEmpty) return const SizedBox.shrink();
         _orgsCount = visibleOrgs.length;
 
@@ -343,8 +336,7 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                           return _OrgLogoItem(
                             organization: org,
                             isActive:
-                                orgIndex ==
-                                _currentPage % visibleOrgs.length,
+                                orgIndex == _currentPage % visibleOrgs.length,
                             compact: widget.compact,
                             expanded: showExpandedCarousel,
                             cardHeight: carouselHeight - 32,
@@ -388,10 +380,11 @@ class _OrgLogoItem extends StatelessWidget {
     final avatarSize = compactCard
         ? 38.0
         : expanded
-        ? 72.0
-        : compact
-        ? 30.0
-        : 50.0;
+            ? 72.0
+            : compact
+                ? 30.0
+                : 50.0;
+
     return GestureDetector(
       onTap: onTap,
       child: Center(
@@ -399,8 +392,8 @@ class _OrgLogoItem extends StatelessWidget {
           width: expanded
               ? 170
               : compact
-              ? 72
-              : 140,
+                  ? 72
+                  : 140,
           height: cardHeight,
           decoration: BoxDecoration(
             color: context.cardBg,
@@ -474,8 +467,8 @@ class _OrgLogoItem extends StatelessWidget {
                   height: compactCard
                       ? 6
                       : expanded
-                      ? 14
-                      : 10,
+                          ? 14
+                          : 10,
                 ),
                 _OrgAvatar(
                   name: organization.name,
@@ -487,10 +480,10 @@ class _OrgLogoItem extends StatelessWidget {
                   height: compactCard
                       ? 4
                       : expanded
-                      ? 8
-                      : compact
-                      ? 2
-                      : 5,
+                          ? 8
+                          : compact
+                              ? 2
+                              : 5,
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: expanded ? 10 : 6),
@@ -504,10 +497,10 @@ class _OrgLogoItem extends StatelessWidget {
                       fontSize: compactCard
                           ? 14
                           : expanded
-                          ? 18
-                          : compact
-                          ? 7
-                          : 15,
+                              ? 18
+                              : compact
+                                  ? 7
+                                  : 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -524,7 +517,7 @@ class _OrgLogoItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: context.textOnBg.withValues(alpha: 0.65),
+                        color: context.textMuted,
                         fontSize: compactCard ? 10 : 11,
                         height: 1.15,
                       ),
@@ -550,7 +543,7 @@ class _CardBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: 0.82),
+        color: context.cardBg.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.7)),
       ),
@@ -586,16 +579,12 @@ class _BannerFallback extends StatelessWidget {
       child: Icon(
         Icons.groups_rounded,
         size: 34,
-        color: Colors.white.withValues(alpha: 0.75),
+        color: context.textOnBg.withValues(alpha: 0.8),
       ),
     );
   }
 }
 
-/// Avatar redondeado del logo de la organización.
-///
-/// Si no hay logo o la imagen falla al cargar, muestra la inicial de la
-/// organización sobre un fondo de color (nunca un campo vacío).
 class _OrgAvatar extends StatelessWidget {
   const _OrgAvatar({
     required this.name,

@@ -1,214 +1,131 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// lib/features/organization/utils/vip_attendance_exporter.dart
+import 'dart:io';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/display_labels.dart';
-import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/organization_invitation_model.dart';
-import '../../../providers/organization_provider.dart';
-import '../../../shared/widgets/app_button.dart';
-import '../../../shared/widgets/app_confirm_dialog.dart';
-import '../../../shared/widgets/app_error_state.dart';
-import '../../../shared/widgets/app_feedback.dart';
+import 'package:excel/excel.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
-class MyInvitationsView extends ConsumerWidget {
-  const MyInvitationsView({super.key});
+import '../../../core/utils/excel_report_helpers.dart';
+import '../../../data/models/vip_attendance_model.dart';
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final invitationsAsync = ref.watch(myInvitationsProvider);
+/// Genera el informe VIP mensual de la organización con el formato del Excel
+/// demostrativo:
+///   NOMBRES · ESTADO DE INSCRIPCION · TOTAL DE SESIONES · SESIONES ASISTIDAS ·
+///   una columna por clase · INGRESO ECONOMICO.
+class VipAttendanceExporter {
+  VipAttendanceExporter._();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mis Invitaciones'),
-      ),
-      body: invitationsAsync.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => AppErrorState(
-          message: friendlyError(e),
-          onRetry: () => ref.invalidate(myInvitationsProvider),
-        ),
-        data: (invitations) {
-          if (invitations.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.mail_outline, size: 64, color: Colors.grey[600]),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Sin invitaciones pendientes',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                ],
-              ),
-            );
-          }
+  static const List<String> _months = [
+    'ENERO',
+    'FEBRERO',
+    'MARZO',
+    'ABRIL',
+    'MAYO',
+    'JUNIO',
+    'JULIO',
+    'AGOSTO',
+    'SEPTIEMBRE',
+    'OCTUBRE',
+    'NOVIEMBRE',
+    'DICIEMBRE',
+  ];
 
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(myInvitationsProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: invitations.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) =>
-                  _InvitationCard(invitation: invitations[index]),
-            ),
-          );
-        },
+  static Future<void> export(VipAttendanceData data) async {
+    final excel = buildExcel(data);
+    final bytes = excel.encode();
+    if (bytes == null) {
+      throw const VipExportException('No se pudo generar el archivo.');
+    }
+    final dir = await getTemporaryDirectory();
+    final file = File(
+      '${dir.path}/Informe_VIP_${data.monthStart.year}'
+      '_${data.monthStart.month.toString().padLeft(2, '0')}.xlsx',
+    );
+    await file.writeAsBytes(bytes);
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Informe VIP mensual',
       ),
     );
   }
+
+  static Excel buildExcel(VipAttendanceData data) {
+    final classes = [...data.classes]
+      ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+
+    final excel = Excel.createExcel();
+    const sheetName = 'Informe VIP';
+    final sheet = excel[sheetName];
+    final defaultSheet = excel.getDefaultSheet();
+    if (defaultSheet != null && defaultSheet != sheetName) {
+      excel.delete(defaultSheet);
+    }
+
+    final columns = 4 + classes.length + 1;
+    final title =
+        'INFORME DE SESION VIP MES ${_monthLabel(data.monthStart)}';
+    ExcelReportHelpers.writeTitle(sheet, title, columns);
+
+    final headers = <String>[
+      'NOMBRES',
+      'ESTADO DE INSCRIPCION',
+      'TOTAL DE SESIONES',
+      'SESIONES ASISTIDAS',
+      for (final c in classes) c.title.toUpperCase(),
+      'INGRESO ECONOMICO',
+    ];
+    ExcelReportHelpers.writeHeader(sheet, 1, headers);
+
+    var row = 2;
+    for (final student in data.students) {
+      var col = 0;
+      ExcelReportHelpers.setText(sheet, row, col++, student.fullName);
+      ExcelReportHelpers.setText(sheet, row, col++, 'VIP');
+      ExcelReportHelpers.setNumber(sheet, row, col++, classes.length);
+      ExcelReportHelpers.setNumber(
+        sheet,
+        row,
+        col++,
+        data.attendedClasses(student.userId),
+      );
+      for (final klass in classes) {
+        final mark = data.markFor(student.userId, klass.id);
+        ExcelReportHelpers.setText(
+          sheet,
+          row,
+          col++,
+          mark == null ? '' : ExcelReportHelpers.formatDateTime(mark),
+        );
+      }
+      ExcelReportHelpers.setNumber(
+        sheet,
+        row,
+        col,
+        data.incomeFor(student.userId),
+      );
+      row++;
+    }
+
+    sheet.setColumnWidth(0, 24);
+    sheet.setColumnWidth(1, 18);
+    sheet.setColumnWidth(2, 16);
+    sheet.setColumnWidth(3, 18);
+    for (var i = 0; i < classes.length; i++) {
+      sheet.setColumnWidth(4 + i, 20);
+    }
+    sheet.setColumnWidth(4 + classes.length, 18);
+
+    return excel;
+  }
+
+  static String _monthLabel(DateTime date) =>
+      '${_months[date.month - 1]} ${date.year}';
 }
 
-class _InvitationCard extends ConsumerWidget {
-  const _InvitationCard({required this.invitation});
-
-  final OrganizationInvitationModel invitation;
-
+class VipExportException implements Exception {
+  const VipExportException(this.message);
+  final String message;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final roleDisplay = _roleDisplayName(invitation.role);
-
-    return Card(
-      color: context.cardBg,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                  child: const Icon(Icons.business_outlined,
-                      color: AppColors.primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        invitation.organizationName ?? 'Organizacion',
-                        style: TextStyle(
-                          color: context.textOnBg,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (invitation.inviterName != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          'Invitado por ${invitation.inviterName}',
-                          style: const TextStyle(
-                              color: Colors.grey, fontSize: 12),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                'Rol: $roleDisplay',
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: 'Aceptar',
-                    onPressed: () => _accept(context, ref),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: AppButton(
-                    label: 'Rechazar',
-                    isOutlined: true,
-                    color: AppColors.error,
-                    onPressed: () => _decline(context, ref),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _accept(BuildContext context, WidgetRef ref) async {
-    final ok = await showAppConfirm(
-      context,
-      title: 'Aceptar invitación',
-      message:
-          '¿Unirte a ${invitation.organizationName ?? 'la organización'}?',
-      confirmLabel: 'Aceptar',
-      icon: Icons.group_add_outlined,
-    );
-    if (!ok) return;
-    final repo = ref.read(organizationRepositoryProvider);
-    try {
-      final result = await repo.acceptInvitation(invitation.id);
-      if (result['error'] != null) {
-        if (context.mounted) {
-          AppFeedback.error(context, friendlyError(result['error']));
-        }
-        return;
-      }
-      ref.invalidate(myInvitationsProvider);
-      ref.invalidate(myOrganizationsProvider);
-      if (context.mounted) {
-        AppFeedback.success(context, 'Te uniste a la organización.');
-      }
-    } catch (e) {
-      if (context.mounted) AppFeedback.error(context, friendlyError(e));
-    }
-  }
-
-  Future<void> _decline(BuildContext context, WidgetRef ref) async {
-    final ok = await showAppConfirm(
-      context,
-      title: 'Rechazar invitación',
-      message:
-          '¿Rechazar la invitación de ${invitation.organizationName ?? 'esta organización'}?',
-      confirmLabel: 'Rechazar',
-      isDangerous: true,
-    );
-    if (!ok) return;
-    try {
-      await ref
-          .read(organizationRepositoryProvider)
-          .declineInvitation(invitation.id);
-      ref.invalidate(myInvitationsProvider);
-      if (context.mounted) {
-        AppFeedback.info(context, 'Invitación rechazada.');
-      }
-    } catch (e) {
-      if (context.mounted) AppFeedback.error(context, friendlyError(e));
-    }
-  }
-
-  String _roleDisplayName(String role) => DisplayLabels.role(role);
+  String toString() => message;
 }

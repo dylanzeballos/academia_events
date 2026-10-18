@@ -1,8 +1,10 @@
+// lib/features/events/views/events_list_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
@@ -17,7 +19,6 @@ class EventsListView extends ConsumerWidget {
 
   Future<void> _navigateToCreate(BuildContext context, WidgetRef ref) async {
     final result = await context.push<bool>(AppRoutes.eventCreate);
-    // Si se creó exitosamente o se regresó de la pantalla, forzamos recarga inmediata
     if (result == true || context.mounted) {
       ref.invalidate(orgEventsProvider);
     }
@@ -31,7 +32,6 @@ class EventsListView extends ConsumerWidget {
     final result = await context.push<bool>(
       '${AppRoutes.eventDetail}/$eventId',
     );
-    // Si se publicó, editó o eliminó el evento, forzamos recarga inmediata
     if (result == true || context.mounted) {
       ref.invalidate(orgEventsProvider);
     }
@@ -44,11 +44,14 @@ class EventsListView extends ConsumerWidget {
     final canManage = myRole?.canManageClasses ?? false;
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Eventos'),
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text('Eventos', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: context.textMuted),
             onPressed: () => ref.refresh(orgEventsProvider),
           ),
         ],
@@ -73,6 +76,7 @@ class EventsListView extends ConsumerWidget {
           }
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async => ref.invalidate(orgEventsProvider),
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -94,7 +98,7 @@ class EventsListView extends ConsumerWidget {
           ? FloatingActionButton(
               onPressed: () => _navigateToCreate(context, ref),
               backgroundColor: AppColors.primary,
-              child: const Icon(Icons.add, color: Colors.white),
+              child: const Icon(Icons.add, color: AppColors.onPrimary),
             )
           : null,
     );
@@ -157,23 +161,21 @@ class _EventTile extends StatelessWidget {
                       children: [
                         if (event.categoryName != null) ...[
                           Icon(Icons.category_outlined,
-                              size: 12, color: Colors.grey[500]),
+                              size: 12, color: context.textMuted),
                           const SizedBox(width: 4),
                           Text(
                             event.categoryName!,
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 12),
+                            style: TextStyle(color: context.textMuted, fontSize: 12),
                           ),
                           const SizedBox(width: 8),
                         ],
                         if (event.capacity != null) ...[
                           Icon(Icons.people_outline,
-                              size: 12, color: Colors.grey[500]),
+                              size: 12, color: context.textMuted),
                           const SizedBox(width: 4),
                           Text(
                             '${event.capacity} pers.',
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 12),
+                            style: TextStyle(color: context.textMuted, fontSize: 12),
                           ),
                         ],
                       ],
@@ -186,13 +188,13 @@ class _EventTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: event.isPublished
                       ? AppColors.success.withValues(alpha: 0.15)
-                      : Colors.grey.withValues(alpha: 0.15),
+                      : context.textMuted.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   event.isPublished ? 'Publicado' : 'Borrador',
                   style: TextStyle(
-                    color: event.isPublished ? AppColors.success : Colors.grey,
+                    color: event.isPublished ? AppColors.success : context.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),

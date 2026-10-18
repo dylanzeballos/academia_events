@@ -1,3 +1,4 @@
+// lib/features/profile/profile_view.dart
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/theme/theme_transition.dart';
@@ -56,14 +58,15 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
     final repo = ref.read(authRepositoryProvider);
     await repo.updateProfile(
-      firstName: _firstNameCtrl.text,
-      lastName: _lastNameCtrl.text,
-      phone: _phoneCtrl.text,
+      firstName: _firstNameCtrl.text.trim(),
+      lastName: _lastNameCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
     );
 
     ref.invalidate(currentProfileProvider);
     if (mounted) {
       setState(() => _editing = false);
+      AppFeedback.success(context, 'Perfil actualizado correctamente.');
     }
   }
 
@@ -81,15 +84,12 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     final ext = image.path.split('.').last;
 
     final repo = ref.read(authRepositoryProvider);
-    // Guardar el PATH del bucket en BD, nunca una URL firmada: las URLs
-    // firmadas expiran (1 h) y rompen la imagen. La URL mostrable se
-    // resuelve en resolvedAvatarUrlProvider.
     final path = await repo.uploadAvatar(bytes, extension: ext);
 
     await repo.updateProfile(
-      firstName: _firstNameCtrl.text,
-      lastName: _lastNameCtrl.text,
-      phone: _phoneCtrl.text,
+      firstName: _firstNameCtrl.text.trim(),
+      lastName: _lastNameCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
       avatarPath: path,
     );
     ref.invalidate(currentProfileProvider);
@@ -100,19 +100,19 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: context.cardBg,
-        title: Text('Cerrar sesión',
-            style: TextStyle(color: context.textOnBg)),
-        content: const Text('¿Estás seguro de que quieres salir?',
-            style: TextStyle(color: Colors.grey)),
+        title: Text('Cerrar sesión', style: TextStyle(color: context.textOnBg)),
+        content: Text(
+          '¿Estás seguro de que quieres salir?',
+          style: TextStyle(color: context.textMuted),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Salir',
-                style: TextStyle(color: AppColors.error)),
+            child: const Text('Salir', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -125,15 +125,13 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   void _onModeChanged(BuildContext context, WidgetRef ref, AppLayoutMode mode) {
     if (mode == ref.read(effectiveLayoutModeProvider)) return;
 
-    // Capturar el router ANTES de cambiar el estado: si el redirect del
-    // router navega primero, este contexto se desmonta y usarlo lanzaría
-    // un GoException. Con la referencia directa al GoRouter es seguro
-    // navegar explícitamente y la UI se actualiza al instante.
     final router = GoRouter.of(context);
     ref.read(layoutModeProvider.notifier).set(mode);
-    router.go(mode == AppLayoutMode.academy
-        ? AppRoutes.academyDashboard
-        : AppRoutes.studentHome);
+    router.go(
+      mode == AppLayoutMode.academy
+          ? AppRoutes.academyDashboard
+          : AppRoutes.studentHome,
+    );
   }
 
   Widget _buildCreateOrgCard(BuildContext context) {
@@ -158,10 +156,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Crea tu organización y conviértete en su propietario para '
             'administrar clases, eventos, profesores y entradas.',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            style: TextStyle(color: context.textMuted, fontSize: 12),
           ),
           const SizedBox(height: 10),
           AppButton(
@@ -200,8 +198,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     final orgs = orgsAsync.whenOrNull(data: (orgs) => orgs);
     final hasOrgs = orgs != null && orgs.isNotEmpty;
 
-    // ── Sin organizaciones: no mostrar el switch de modo ──────────
-    // Solo el CTA para crear su organización e invitaciones.
     if (!hasOrgs) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -222,7 +218,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       );
     }
 
-    // ── Con organizaciones: switch Usuario / Organización ─────────
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -258,9 +253,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               _onModeChanged(context, ref, selection.first),
           showSelectedIcon: false,
           style: ButtonStyle(
-            // Sin relleno: fondo transparente en claro y oscuro.
-            backgroundColor:
-                const WidgetStatePropertyAll(Colors.transparent),
+            backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
             overlayColor: const WidgetStatePropertyAll(Colors.transparent),
             side: WidgetStateProperty.resolveWith((states) {
               final isSelected = states.contains(WidgetState.selected);
@@ -295,18 +288,22 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     final profileAsync = ref.watch(currentProfileProvider);
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: profileAsync.when(
           loading: () => const Center(
-              child: CircularProgressIndicator(color: AppColors.primary)),
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
           error: (e, _) => Center(
             child: AppBanner(message: friendlyError(e)),
           ),
           data: (profile) {
             if (profile == null) {
-              return const Center(
-                child: Text('No se pudo cargar el perfil',
-                    style: TextStyle(color: Colors.grey)),
+              return Center(
+                child: Text(
+                  'No se pudo cargar el perfil',
+                  style: TextStyle(color: context.textMuted),
+                ),
               );
             }
             _initFields(profile);
@@ -368,10 +365,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.camera_alt,
                           size: 16,
-                          color: context.textOnBg,
+                          color: AppColors.onPrimary,
                         ),
                       ),
                     ),
@@ -389,7 +386,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 const SizedBox(height: 4),
                 Text(
                   profile.phoneNumber ?? 'Sin teléfono',
-                  style: const TextStyle(color: Colors.grey),
+                  style: TextStyle(color: context.textMuted),
                 ),
               ],
             ),
@@ -436,30 +433,36 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   TextFormField(
                     controller: _firstNameCtrl,
                     enabled: _editing,
+                    style: TextStyle(color: context.textOnBg),
                     validator: AppValidators.firstName,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Nombre',
-                      prefixIcon: Icon(Icons.person_outline),
+                      labelStyle: TextStyle(color: context.textMuted),
+                      prefixIcon: const Icon(Icons.person_outline),
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _lastNameCtrl,
                     enabled: _editing,
+                    style: TextStyle(color: context.textOnBg),
                     validator: AppValidators.lastName,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Apellido',
-                      prefixIcon: Icon(Icons.person_outline),
+                      labelStyle: TextStyle(color: context.textMuted),
+                      prefixIcon: const Icon(Icons.person_outline),
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phoneCtrl,
                     enabled: _editing,
+                    style: TextStyle(color: context.textOnBg),
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Teléfono',
-                      prefixIcon: Icon(Icons.phone_outlined),
+                      labelStyle: TextStyle(color: context.textMuted),
+                      prefixIcon: const Icon(Icons.phone_outlined),
                     ),
                   ),
                   if (_editing) ...[
@@ -485,13 +488,15 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 const SizedBox(height: 16),
                 Builder(
                   builder: (tileContext) => SwitchListTile(
-                    title: Text('Modo oscuro',
-                        style: TextStyle(color: context.textOnBg, fontSize: 15)),
+                    title: Text(
+                      'Modo oscuro',
+                      style: TextStyle(color: context.textOnBg, fontSize: 15),
+                    ),
                     subtitle: Text(
                       ref.watch(themeModeProvider) == ThemeMode.dark
                           ? 'Activado'
                           : 'Desactivado',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(color: context.textMuted, fontSize: 12),
                     ),
                     secondary: Icon(
                       ref.watch(themeModeProvider) == ThemeMode.dark
@@ -501,8 +506,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     ),
                     value: ref.watch(themeModeProvider) == ThemeMode.dark,
                     onChanged: (_) {
-                      final box =
-                          tileContext.findRenderObject() as RenderBox?;
+                      final box = tileContext.findRenderObject() as RenderBox?;
                       final origin = box != null
                           ? box.localToGlobal(
                               Offset(box.size.width - 32, box.size.height / 2),

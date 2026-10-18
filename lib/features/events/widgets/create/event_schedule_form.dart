@@ -1,6 +1,8 @@
+// lib/features/events/widgets/create/event_schedule_form.dart
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/theme_extensions.dart';
 
 class EventScheduleForm extends StatelessWidget {
   const EventScheduleForm({
@@ -23,33 +25,39 @@ class EventScheduleForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
+        Text(
           'Fecha y Hora',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: context.textOnBg,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 8),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.calendar_today, color: AppColors.primary),
-          title: const Text('Inicio del evento'),
+          title: Text('Inicio del evento', style: TextStyle(color: context.textOnBg)),
           subtitle: Text(
             '${startDate.day}/${startDate.month}/${startDate.year} - ${startTime.format(context)}',
+            style: TextStyle(color: context.textMuted),
           ),
-          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: context.textMuted),
           onTap: () => onPickDateTime(isStart: true),
         ),
-        const Divider(),
+        Divider(color: context.divider),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.event_busy, color: AppColors.primary),
-          title: const Text('Fin del evento'),
+          title: Text('Fin del evento', style: TextStyle(color: context.textOnBg)),
           subtitle: Text(
             '${endDate.day}/${endDate.month}/${endDate.year} - ${endTime.format(context)}',
+            style: TextStyle(color: context.textMuted),
           ),
-          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: context.textMuted),
           onTap: () => onPickDateTime(isStart: false),
         ),
-        const Divider(),
+        Divider(color: context.divider),
       ],
     );
   }

@@ -1,3 +1,4 @@
+// lib/features/organization/views/organization_detail_view.dart
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -7,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/models/organization_image_model.dart';
@@ -30,7 +32,6 @@ import 'organization_membership_view.dart';
 class OrganizationDetailView extends ConsumerStatefulWidget {
   const OrganizationDetailView({super.key, this.organizationId});
 
-  /// Si se provee, selecciona la organización al abrir la vista.
   final String? organizationId;
 
   @override
@@ -49,9 +50,6 @@ class _OrganizationDetailViewState
     _tabCtrl = TabController(length: 3, vsync: this);
     final id = widget.organizationId;
     if (id != null && id.isNotEmpty) {
-      // Riverpod no permite modificar providers durante el build del árbol de
-      // widgets (initState ocurre en plena construcción). Posponer la
-      // selección hasta después del frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref.read(selectedOrganizationIdProvider.notifier).select(id);
@@ -97,7 +95,12 @@ class _OrganizationDetailViewState
   Widget build(BuildContext context) {
     final orgId = ref.watch(selectedOrganizationIdProvider);
     if (orgId == null) {
-      return const Scaffold(body: Center(child: Text('Sin organización')));
+      return Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: Center(
+          child: Text('Sin organización', style: TextStyle(color: context.textMuted)),
+        ),
+      );
     }
 
     final orgAsync = ref.watch(selectedOrganizationProvider);
@@ -110,23 +113,32 @@ class _OrganizationDetailViewState
       ),
       data: (org) {
         if (org == null) {
-          return const Scaffold(
-              body: Center(child: Text('Organización no encontrada')));
+          return Scaffold(
+            backgroundColor: context.scaffoldBg,
+            body: Center(
+              child: Text('Organización no encontrada', style: TextStyle(color: context.textMuted)),
+            ),
+          );
         }
 
         return Scaffold(
+          backgroundColor: context.scaffoldBg,
           appBar: AppBar(
-            title: Text(org.name),
+            backgroundColor: context.cardBg,
+            elevation: 0,
+            title: Text(org.name, style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
             actions: [
               IconButton(
                 tooltip: 'Informe VIP mensual',
-                icon: const Icon(Icons.summarize_outlined),
+                icon: Icon(Icons.summarize_outlined, color: context.textOnBg),
                 onPressed: _exportVipReport,
               ),
             ],
             bottom: TabBar(
               controller: _tabCtrl,
               indicatorColor: AppColors.primary,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: context.textMuted,
               tabs: const [
                 Tab(text: 'INFO'),
                 Tab(text: 'MIEMBROS'),
@@ -209,9 +221,7 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
       setState(() => _selectedDanceIds
         ..clear()
         ..addAll(ids));
-    } catch (_) {
-      // Si falla, se deja la selección vacía; el usuario puede reintentar.
-    }
+    } catch (_) {}
   }
 
   @override
@@ -249,16 +259,15 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
         'province_id': ref.read(selectedProvinceIdProvider),
         'municipality_id': ref.read(selectedMunicipalityIdProvider),
         'location_name': _locationNameCtrl.text.trim().isEmpty
-          ? null
-          : _locationNameCtrl.text.trim(),
+            ? null
+            : _locationNameCtrl.text.trim(),
         'address': _addressCtrl.text.trim().isEmpty
-          ? null
-          : _addressCtrl.text.trim(),
+            ? null
+            : _addressCtrl.text.trim(),
         'latitude': _selectedLatLng?.latitude,
         'longitude': _selectedLatLng?.longitude,
       });
 
-      // Upload logo if changed
       if (_logoBytes != null && _logoExtension != null) {
         await repo.uploadLogoForOrg(
           orgId: orgId,
@@ -375,14 +384,19 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar imagen'),
-        content: const Text('Esta imagen se eliminará de la galería.'),
+        backgroundColor: context.cardBg,
+        title: Text('Eliminar imagen', style: TextStyle(color: context.textOnBg)),
+        content: Text('Esta imagen se eliminará de la galería.', style: TextStyle(color: context.textMuted)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onError,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Eliminar'),
           ),
@@ -426,47 +440,47 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-            GestureDetector(
-              onTap: _editing ? _pickCover : null,
-              child: Container(
-                height: 150,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                  image: _coverBytes != null
-                      ? DecorationImage(
-                          image: MemoryImage(_coverBytes!), fit: BoxFit.cover)
-                      : resolvedCover != null
-                          ? DecorationImage(
-                              image: NetworkImage(resolvedCover),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                ),
-                child: (_coverBytes == null && resolvedCover == null)
-                    ? const Center(
-                        child: Icon(Icons.panorama_outlined,
-                            size: 44, color: AppColors.primary),
-                      )
-                    : _editing
-                        ? const Align(
-                            alignment: Alignment.bottomRight,
-                            child: Padding(
-                              padding: EdgeInsets.all(10),
-                              child: CircleAvatar(
-                                radius: 17,
-                                backgroundColor: AppColors.primary,
-                                child: Icon(Icons.edit,
-                                    size: 17, color: Colors.white),
-                              ),
-                            ),
+          GestureDetector(
+            onTap: _editing ? _pickCover : null,
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                border: Border.all(color: context.divider),
+                image: _coverBytes != null
+                    ? DecorationImage(
+                        image: MemoryImage(_coverBytes!), fit: BoxFit.cover)
+                    : resolvedCover != null
+                        ? DecorationImage(
+                            image: NetworkImage(resolvedCover),
+                            fit: BoxFit.cover,
                           )
                         : null,
               ),
+              child: (_coverBytes == null && resolvedCover == null)
+                  ? const Center(
+                      child: Icon(Icons.panorama_outlined,
+                          size: 44, color: AppColors.primary),
+                    )
+                  : _editing
+                      ? const Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: EdgeInsets.all(10),
+                            child: CircleAvatar(
+                              radius: 17,
+                              backgroundColor: AppColors.primary,
+                              child: Icon(Icons.edit,
+                                  size: 17, color: AppColors.onPrimary),
+                            ),
+                          ),
+                        )
+                      : null,
             ),
-            const SizedBox(height: 20),
-          // Logo
+          ),
+          const SizedBox(height: 20),
           Center(
             child: GestureDetector(
               onTap: _editing ? _pickLogo : null,
@@ -499,10 +513,10 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.camera_alt,
                         size: 16,
-                        color: context.textOnBg,
+                        color: AppColors.onPrimary,
                       ),
                     ),
                 ],
@@ -535,18 +549,18 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
           galleryAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
             ),
             error: (error, _) => Text(
               'No se pudo cargar la galería: $error',
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(color: context.textMuted),
             ),
             data: (images) => images.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.only(bottom: 8),
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
                       'Todavía no hay imágenes adicionales.',
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(color: context.textMuted),
                     ),
                   )
                 : GridView.builder(
@@ -567,111 +581,138 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                     ),
                   ),
           ),
-              if (_pendingGalleryImages.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  '${_pendingGalleryImages.length} imagen(es) pendiente(s) de guardar',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                const SizedBox(height: 8),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 1,
-                  ),
-                  itemCount: _pendingGalleryImages.length,
-                  itemBuilder: (context, index) {
-                    final image = _pendingGalleryImages[index];
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.file(File(image.path), fit: BoxFit.cover),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: IconButton(
-                            onPressed: () => setState(
-                              () => _pendingGalleryImages.removeAt(index),
-                            ),
-                            icon: const Icon(Icons.close),
-                            color: Colors.white,
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.black54,
-                              padding: const EdgeInsets.all(4),
-                            ),
-                          ),
+          if (_pendingGalleryImages.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              '${_pendingGalleryImages.length} imagen(es) pendiente(s) de guardar',
+              style: TextStyle(color: context.textMuted, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 1,
+              ),
+              itemCount: _pendingGalleryImages.length,
+              itemBuilder: (context, index) {
+                final image = _pendingGalleryImages[index];
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.file(File(image.path), fit: BoxFit.cover),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: IconButton(
+                        onPressed: () => setState(
+                          () => _pendingGalleryImages.removeAt(index),
                         ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                        icon: const Icon(Icons.close),
+                        color: Colors.white,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black54,
+                          padding: const EdgeInsets.all(4),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
           const SizedBox(height: 24),
 
           OrganizationShareSection(organization: org),
           const SizedBox(height: 24),
 
           if (_editing) ...[
-            // Modo edición
             TextFormField(
               controller: _nameCtrl,
+              style: TextStyle(color: context.textOnBg),
               validator: AppValidators.eventTitle,
-              decoration: const InputDecoration(labelText: 'Nombre *'),
+              decoration: InputDecoration(
+                labelText: 'Nombre *',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _legalNameCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre legal'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Nombre legal',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _descCtrl,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Descripción'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Descripción',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Email',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Teléfono'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Teléfono',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _websiteCtrl,
               keyboardType: TextInputType.url,
-              decoration: const InputDecoration(labelText: 'Website'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Website',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Ubicación',
-              style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(color: context.textMuted, fontSize: 12, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 4),
             const GeographicLocationPicker(),
             const SizedBox(height: 12),
             TextFormField(
               controller: _locationNameCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
                 labelText: 'Lugar o sede',
-                prefixIcon: Icon(Icons.place_outlined),
+                labelStyle: TextStyle(color: context.textMuted),
+                prefixIcon: const Icon(Icons.place_outlined),
               ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _addressCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
                 labelText: 'Dirección',
-                prefixIcon: Icon(Icons.home_outlined),
+                labelStyle: TextStyle(color: context.textMuted),
+                prefixIcon: const Icon(Icons.home_outlined),
               ),
             ),
             const SizedBox(height: 16),
@@ -693,7 +734,7 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
             danceCategoriesAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
               ),
               error: (_, _) => Text(
                 'No se pudieron cargar los estilos.',
@@ -705,7 +746,16 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                 children: [
                   for (final category in categories)
                     FilterChip(
-                      label: Text(category.name),
+                      selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                      checkmarkColor: AppColors.primary,
+                      label: Text(
+                        category.name,
+                        style: TextStyle(
+                          color: _selectedDanceIds.contains(category.id)
+                              ? AppColors.primary
+                              : context.textOnBg,
+                        ),
+                      ),
                       selected: _selectedDanceIds.contains(category.id),
                       onSelected: (selected) => setState(() {
                         if (selected) {
@@ -721,6 +771,11 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: _pickLocation,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.textOnBg,
+                side: BorderSide(color: context.divider),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
+              ),
               icon: const Icon(Icons.map_outlined),
               label: Text(
                 _selectedLatLng == null
@@ -753,7 +808,6 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
               ],
             ),
           ] else ...[
-            // Modo lectura
             _InfoRow(label: 'Nombre', value: org.name),
             if (org.legalName != null && org.legalName!.isNotEmpty)
               _InfoRow(label: 'Nombre legal', value: org.legalName!),
@@ -814,8 +868,8 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.grey,
+            style: TextStyle(
+              color: context.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -856,15 +910,15 @@ class _GalleryImageTile extends ConsumerWidget {
             Image.network(
               imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const ColoredBox(
-                color: Colors.black12,
-                child: Icon(Icons.broken_image_outlined),
+              errorBuilder: (_, _, _) => Container(
+                color: context.divider.withValues(alpha: 0.3),
+                child: Icon(Icons.broken_image_outlined, color: context.textMuted),
               ),
             )
           else
-            const ColoredBox(
-              color: Colors.black12,
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            Container(
+              color: context.divider.withValues(alpha: 0.3),
+              child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
             ),
           if (canDelete)
             Positioned(

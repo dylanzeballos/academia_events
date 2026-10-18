@@ -1,8 +1,10 @@
+// lib/features/academy/views/academy_events_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/organization_provider.dart';
@@ -29,8 +31,11 @@ class AcademyEventsView extends ConsumerWidget {
     final canManage = myRole?.canManageClasses ?? false;
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Eventos'),
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text('Eventos', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
       ),
       body: eventsAsync.when(
         loading: () => const LoadingIndicator(),
@@ -48,6 +53,7 @@ class AcademyEventsView extends ConsumerWidget {
           }
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async => ref.invalidate(orgEventsProvider),
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -87,8 +93,8 @@ class AcademyEventsView extends ConsumerWidget {
                         ),
                         subtitle: Text(
                           '${event.startTime.day}/${event.startTime.month}/${event.startTime.year}',
-                          style: const TextStyle(
-                            color: Colors.grey,
+                          style: TextStyle(
+                            color: context.textMuted,
                             fontSize: 12,
                           ),
                         ),
@@ -100,7 +106,7 @@ class AcademyEventsView extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: event.isPublished
                                 ? AppColors.success.withValues(alpha: 0.15)
-                                : Colors.grey.withValues(alpha: 0.15),
+                                : context.divider.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -108,7 +114,7 @@ class AcademyEventsView extends ConsumerWidget {
                             style: TextStyle(
                               color: event.isPublished
                                   ? AppColors.success
-                                  : Colors.grey,
+                                  : context.textMuted,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -143,12 +149,11 @@ class AcademyEventsView extends ConsumerWidget {
           );
         },
       ),
-
       floatingActionButton: canManage
           ? FloatingActionButton(
               onPressed: () => context.push(AppRoutes.eventCreate),
               backgroundColor: AppColors.primary,
-              child: const Icon(Icons.add, color: Colors.white),
+              child: const Icon(Icons.add, color: AppColors.onPrimary),
             )
           : null,
     );

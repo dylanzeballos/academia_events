@@ -1,7 +1,9 @@
+// lib/features/public/widgets/pagination_controls.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/paginated_result.dart';
 import '../../../../providers/public_events_provider.dart';
@@ -31,7 +33,7 @@ class PaginationControls extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Previous page
+          // Página anterior
           IconButton(
             onPressed: paginatedResult.hasPreviousPage
                 ? () {
@@ -39,22 +41,27 @@ class PaginationControls extends ConsumerWidget {
                     onPageChanged?.call(currentPage - 1);
                   }
                 : null,
-            icon: Icon(Icons.chevron_left, color: context.textOnBg),
+            icon: Icon(
+              Icons.chevron_left,
+              color: paginatedResult.hasPreviousPage
+                  ? context.textOnBg
+                  : context.textMuted.withValues(alpha: 0.4),
+            ),
             style: IconButton.styleFrom(
               backgroundColor: context.cardBg,
-              foregroundColor: context.textOnBg,
+              side: BorderSide(color: context.divider),
             ),
           ),
           const SizedBox(width: 8),
 
-          // Page numbers
+          // Números de página
           ..._buildPageNumbers(currentPage, totalPages).map((page) {
             if (page == -1) {
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
                   '...',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  style: TextStyle(color: context.textMuted, fontSize: 14),
                 ),
               );
             }
@@ -82,8 +89,8 @@ class PaginationControls extends ConsumerWidget {
                   child: Text(
                     '$page',
                     style: TextStyle(
-                      color: isCurrent ? Colors.white : context.textOnBg,
-                      fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
+                      color: isCurrent ? AppColors.onPrimary : context.textOnBg,
+                      fontWeight: isCurrent ? FontWeight.w700 : FontWeight.normal,
                       fontSize: 14,
                     ),
                   ),
@@ -94,7 +101,7 @@ class PaginationControls extends ConsumerWidget {
 
           const SizedBox(width: 8),
 
-          // Next page
+          // Página siguiente
           IconButton(
             onPressed: paginatedResult.hasNextPage
                 ? () {
@@ -102,10 +109,15 @@ class PaginationControls extends ConsumerWidget {
                     onPageChanged?.call(currentPage + 1);
                   }
                 : null,
-            icon: Icon(Icons.chevron_right, color: context.textOnBg),
+            icon: Icon(
+              Icons.chevron_right,
+              color: paginatedResult.hasNextPage
+                  ? context.textOnBg
+                  : context.textMuted.withValues(alpha: 0.4),
+            ),
             style: IconButton.styleFrom(
               backgroundColor: context.cardBg,
-              foregroundColor: context.textOnBg,
+              side: BorderSide(color: context.divider),
             ),
           ),
         ],
@@ -118,34 +130,29 @@ class PaginationControls extends ConsumerWidget {
       return List.generate(total, (i) => i + 1);
     }
 
-    const edgeCount = 2; // Pages to show at start/end
-    const middleCount = 3; // Pages to show around current
+    const edgeCount = 2;
+    const middleCount = 3;
 
     final pages = <int>[];
 
-    // First pages
     for (int i = 1; i <= edgeCount && i <= total; i++) {
       pages.add(i);
     }
 
-    // Ellipsis after first pages
     if (current > edgeCount + middleCount) {
       pages.add(-1);
     }
 
-    // Pages around current
     final start = (current - middleCount ~/ 2).clamp(edgeCount + 1, total - middleCount - edgeCount);
     final end = (start + middleCount - 1).clamp(start, total - edgeCount);
     for (int i = start; i <= end; i++) {
       pages.add(i);
     }
 
-    // Ellipsis before last pages
     if (current < total - edgeCount - middleCount + 1) {
       pages.add(-1);
     }
 
-    // Last pages
     for (int i = total - edgeCount + 1; i <= total; i++) {
       pages.add(i);
     }

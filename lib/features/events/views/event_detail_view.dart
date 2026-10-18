@@ -1,7 +1,9 @@
+// lib/features/events/views/event_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
@@ -31,16 +33,17 @@ class EventDetailView extends ConsumerWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar evento'),
-        content: Text('¿Estás seguro de eliminar "${event.title}"?'),
+        backgroundColor: context.cardBg,
+        title: Text('Eliminar evento', style: TextStyle(color: context.textOnBg)),
+        content: Text('¿Estás seguro de eliminar "${event.title}"?', style: TextStyle(color: context.textMuted)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text('Eliminar'),
           ),
         ],
@@ -55,7 +58,7 @@ class EventDetailView extends ConsumerWidget {
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Evento eliminado')),
+          SnackBar(content: const Text('Evento eliminado'), backgroundColor: context.cardBg),
         );
       }
     }
@@ -68,18 +71,21 @@ class EventDetailView extends ConsumerWidget {
         ref.watch(effectiveLayoutModeProvider) == AppLayoutMode.academy;
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
         title: eventAsync.when(
-          data: (event) => Text(event.title),
-          loading: () => const Text('Cargando...'),
-          error: (_, _) => const Text('Evento'),
+          data: (event) => Text(event.title, style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
+          loading: () => Text('Cargando...', style: TextStyle(color: context.textMuted)),
+          error: (_, _) => Text('Evento', style: TextStyle(color: context.textOnBg)),
         ),
         actions: [
           if (isAcademyMode)
             eventAsync.maybeWhen(
               data: (event) => IconButton(
                 tooltip: 'Puntos de acceso',
-                icon: const Icon(Icons.meeting_room_outlined),
+                icon: Icon(Icons.meeting_room_outlined, color: context.textOnBg),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => EventAccessPointsView(
@@ -96,7 +102,7 @@ class EventDetailView extends ConsumerWidget {
             eventAsync.maybeWhen(
               data: (event) => IconButton(
                 tooltip: 'Ver asistencia',
-                icon: const Icon(Icons.assessment_outlined),
+                icon: Icon(Icons.assessment_outlined, color: context.textOnBg),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => EventAttendanceView(
@@ -111,7 +117,7 @@ class EventDetailView extends ConsumerWidget {
           if (isAcademyMode)
             eventAsync.maybeWhen(
               data: (event) => IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                icon: const Icon(Icons.delete_outline, color: AppColors.error),
                 onPressed: () => _deleteEvent(context, ref, event),
               ),
               orElse: () => const SizedBox.shrink(),
@@ -131,15 +137,13 @@ class EventDetailView extends ConsumerWidget {
       ),
       bottomNavigationBar: eventAsync.maybeWhen(
         data: (event) {
-          // ── MODO ACADEMIA: Solo muestra acción de publicar si está en borrador
           if (isAcademyMode) {
             if (event.status == 'draft') {
               return EventPublishActionBar(event: event);
             }
-            return null; // Ya publicado, no requiere barra flotante
+            return null;
           }
 
-          // ── MODO USUARIO NORMAL: Solo muestra comprar si está publicado
           if (event.status == 'published') {
             return EventTicketActionBar(event: event);
           }
@@ -169,7 +173,6 @@ class _EventDetailContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── BANNER DE ESTADO EXCLUSIVO PARA EL ORGANIZADOR ─────────
           if (isAcademyMode)
             _OrganizerStatusBanner(status: event.status),
 
@@ -197,7 +200,7 @@ class _EventDetailContent extends StatelessWidget {
                   Text(
                     event.description!,
                     style: TextStyle(
-                      color: context.textOnBg.withValues(alpha: 0.8),
+                      color: context.textMuted,
                       fontSize: 14,
                       height: 1.5,
                     ),
@@ -220,7 +223,6 @@ class _EventDetailContent extends StatelessWidget {
   }
 }
 
-/// Banner visible solo para la academia para identificar si el evento ya está al aire
 class _OrganizerStatusBanner extends StatelessWidget {
   const _OrganizerStatusBanner({required this.status});
 
@@ -229,16 +231,17 @@ class _OrganizerStatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDraft = status == 'draft';
+    final bgColor = isDraft ? AppColors.warning : AppColors.success;
 
     return Container(
       width: double.infinity,
-      color: isDraft ? Colors.amber.shade800 : Colors.green.shade700,
+      color: bgColor,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           Icon(
             isDraft ? Icons.edit_note : Icons.check_circle_outline,
-            color: Colors.white,
+            color: AppColors.onPrimary,
             size: 20,
           ),
           const SizedBox(width: 8),
@@ -248,7 +251,7 @@ class _OrganizerStatusBanner extends StatelessWidget {
                   ? 'Borrador: Este evento aún no es visible para el público.'
                   : 'Publicado: Visible y habilitado para compra de entradas.',
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.onPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),

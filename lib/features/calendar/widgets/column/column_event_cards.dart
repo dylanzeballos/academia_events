@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
 import '../event_preview_sheet.dart';
@@ -36,8 +37,8 @@ class ColumnEventBlock extends StatelessWidget {
         height: double.infinity,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: const Color(0xFF0F1A24).withValues(alpha: 0.94),
-          borderRadius: BorderRadius.circular(14),
+          color: context.cardBg,
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
           border: Border.all(
             color: themeColor.withValues(alpha: 0.55),
             width: 1.2,
@@ -64,12 +65,12 @@ class ColumnEventBlock extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: themeColor.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
                   ),
                   child: Text(
                     _hhmm(event.startTime),
                     style: TextStyle(
-                      color: Colors.black,
+                      color: context.scaffoldBg,
                       fontSize: compact ? 9 : 11,
                       fontWeight: FontWeight.w900,
                     ),
@@ -93,7 +94,7 @@ class ColumnEventBlock extends StatelessWidget {
             ),
             const SizedBox(height: 5),
 
-            // ── Categoría en mayúsculas (ej: SOCIAL MIX, FIESTA LATINA) ──
+            // ── Categoría en mayúsculas ──
             if ((event.categoryName ?? '').isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 2),
@@ -116,7 +117,7 @@ class ColumnEventBlock extends StatelessWidget {
               maxLines: compact ? 2 : 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: Colors.white,
+                color: context.textOnBg,
                 fontSize: compact ? 11 : 13,
                 fontWeight: FontWeight.w800,
                 height: 1.15,
@@ -131,8 +132,8 @@ class ColumnEventBlock extends StatelessWidget {
                   event.description!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFD37B58),
+                  style: TextStyle(
+                    color: context.textMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                     height: 1.15,
@@ -192,8 +193,8 @@ class ClusterSummaryBlock extends StatelessWidget {
         height: double.infinity,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: const Color(0xFF0F1A24).withValues(alpha: 0.94),
-          borderRadius: BorderRadius.circular(12),
+          color: context.cardBg,
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
           border: Border.all(
             color: firstColor.withValues(alpha: 0.6),
             width: 1.2,
@@ -251,6 +252,7 @@ void showClusterSheet(BuildContext context, List<EventModel> events) {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(AppSizes.radiusLarge),
               ),
+              border: Border.all(color: context.divider),
             ),
             child: Column(
               children: [
@@ -259,7 +261,7 @@ void showClusterSheet(BuildContext context, List<EventModel> events) {
                   height: 4,
                   margin: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
-                    color: context.textOnBg.withValues(alpha: 0.2),
+                    color: context.textMuted.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -298,8 +300,8 @@ void showClusterSheet(BuildContext context, List<EventModel> events) {
                         },
                         child: Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0F1A24).withValues(alpha: 0.8),
-                            borderRadius: BorderRadius.circular(12),
+                            color: context.scaffoldBg,
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                             border: Border.all(color: color.withValues(alpha: 0.45)),
                           ),
                           padding: const EdgeInsets.all(12),
@@ -312,12 +314,12 @@ void showClusterSheet(BuildContext context, List<EventModel> events) {
                                 ),
                                 decoration: BoxDecoration(
                                   color: color,
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
                                 ),
                                 child: Text(
                                   _hhmm(event.startTime),
-                                  style: const TextStyle(
-                                    color: Colors.black,
+                                  style: TextStyle(
+                                    color: context.scaffoldBg,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w900,
                                   ),

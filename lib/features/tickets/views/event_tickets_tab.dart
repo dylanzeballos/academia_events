@@ -1,8 +1,10 @@
+// lib/features/tickets/views/event_tickets_tab.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/ticket_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
@@ -38,10 +40,8 @@ class EventTicketsTab extends ConsumerWidget {
           );
         }
 
-        // padding cero: el SingleChildScrollView del padre ya aporta el suyo.
-        // Con padding propio dentro del scroll ilimitado, los ListView se
-        // dimensionan sin límite y revientan en "RenderFlex overflowed".
         return RefreshIndicator(
+          color: AppColors.primary,
           onRefresh: () async => ref.invalidate(userGroupedTicketsProvider),
           child: ListView.separated(
             padding: EdgeInsets.zero,
@@ -61,13 +61,13 @@ class EventTicketsTab extends ConsumerWidget {
                     ),
                   );
                 },
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: context.cardBg,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white10),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    border: Border.all(color: context.divider),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +78,11 @@ class EventTicketsTab extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               item.eventTitle,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                              style: TextStyle(
+                                color: context.textOnBg,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                              ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -102,16 +106,16 @@ class EventTicketsTab extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      const Divider(height: 1, color: Colors.white12),
+                      Divider(height: 1, color: context.divider),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(Icons.calendar_month_outlined, size: 16, color: Colors.grey),
+                          Icon(Icons.calendar_month_outlined, size: 16, color: context.textMuted),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'Evento: ${_formatDateTime(item.eventStartAt)}',
-                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              style: TextStyle(fontSize: 13, color: context.textMuted),
                             ),
                           ),
                         ],
@@ -119,15 +123,15 @@ class EventTicketsTab extends ConsumerWidget {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.receipt_long_outlined, size: 16, color: Colors.grey),
+                          Icon(Icons.receipt_long_outlined, size: 16, color: context.textMuted),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               '${item.orders.length} ${item.orders.length == 1 ? "compra registrada" : "compras en horarios distintos"}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(fontSize: 12, color: context.textMuted),
                             ),
                           ),
-                          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+                          Icon(Icons.chevron_right, color: context.textMuted, size: 20),
                         ],
                       ),
                     ],

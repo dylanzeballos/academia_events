@@ -1,8 +1,10 @@
+// lib/features/events/widgets/create/image_picker_box.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
-import '../../../../../core/constants/app_constants.dart';
-import '../../../../../core/utils/theme_extensions.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/theme_extensions.dart';
 
 class ImagePickerBox extends StatelessWidget {
   const ImagePickerBox({

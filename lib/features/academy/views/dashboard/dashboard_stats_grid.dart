@@ -1,7 +1,9 @@
+// lib/features/academy/views/dashboard/dashboard_stats_grid.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_model.dart';
 
@@ -21,7 +23,6 @@ class DashboardStatsGrid extends StatelessWidget {
       children: [
         Row(
           children: [
-            // 1. Total de Clases registradas
             Expanded(
               child: _InteractiveStatCard(
                 icon: Icons.school_outlined,
@@ -32,7 +33,6 @@ class DashboardStatsGrid extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // 2. Sesiones programadas en la semana
             Expanded(
               child: _InteractiveStatCard(
                 icon: Icons.calendar_month_outlined,
@@ -47,7 +47,6 @@ class DashboardStatsGrid extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            // 3. Check-ins / Asistencias
             Expanded(
               child: _InteractiveStatCard(
                 icon: Icons.qr_code_scanner_outlined,
@@ -58,7 +57,6 @@ class DashboardStatsGrid extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // 4. Directorio de Miembros y Staff
             Expanded(
               child: _InteractiveStatCard(
                 icon: Icons.people_outline,
@@ -147,7 +145,7 @@ class _InteractiveStatCard extends StatelessWidget {
                   Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 12,
-                    color: Colors.white.withValues(alpha: 0.3),
+                    color: context.textMuted.withValues(alpha: 0.6),
                   ),
                 ],
               ),
@@ -167,7 +165,7 @@ class _InteractiveStatCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.55),
+                  color: context.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),

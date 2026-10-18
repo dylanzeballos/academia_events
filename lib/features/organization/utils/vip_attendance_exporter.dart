@@ -1,3 +1,4 @@
+// lib/features/organization/utils/vip_attendance_exporter.dart
 import 'dart:io';
 
 import 'package:excel/excel.dart';
@@ -11,9 +12,6 @@ import '../../../data/models/vip_attendance_model.dart';
 /// demostrativo:
 ///   NOMBRES · ESTADO DE INSCRIPCION · TOTAL DE SESIONES · SESIONES ASISTIDAS ·
 ///   una columna por clase · INGRESO ECONOMICO.
-///
-/// Solo incluye a los alumnos VIP (con pase de clase activo) y las clases del
-/// mes donde hubo check-in.
 class VipAttendanceExporter {
   VipAttendanceExporter._();
 

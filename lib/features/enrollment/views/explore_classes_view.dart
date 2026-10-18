@@ -1,8 +1,10 @@
+// lib/features/enrollment/views/explore_classes_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_model.dart';
 import '../../../providers/class_enrollment_provider.dart';
@@ -10,9 +12,6 @@ import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../widgets/organization_classes_carousel.dart';
 
-/// Exploración de clases por organización: carrusel de organizaciones con
-/// clases publicadas → listado de clases publicadas de la seleccionada →
-/// botón "Inscribirme".
 class ExploreClassesView extends ConsumerStatefulWidget {
   const ExploreClassesView({super.key});
 
@@ -25,30 +24,33 @@ class _ExploreClassesViewState extends ConsumerState<ExploreClassesView> {
   Widget build(BuildContext context) {
     final orgsAsync = ref.watch(organizationsWithPublishedClassesProvider);
     final selectedOrgId = ref.watch(selectedExploreOrgIdProvider);
-    final classesAsync =
-        ref.watch(exploreOrgPublishedClassesProvider);
+    final classesAsync = ref.watch(exploreOrgPublishedClassesProvider);
 
-    // Hallar la organización seleccionada para mostrarla en el encabezado.
-    final selectedOrg = orgsAsync.value?.where((o) => o.id == selectedOrgId)
-        .firstOrNull;
+    final selectedOrg = orgsAsync.value?.where((o) => o.id == selectedOrgId).firstOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Explorar clases')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Explorar clases',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: orgsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        error: (e, _) => Center(
+          child: Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
+        ),
         data: (orgs) {
-          // Si no hay una org seleccionada y ya hay orgs, preseleccionar la
-          // primera (incluye orgs sin logo).
           final orgId = ref.read(selectedExploreOrgIdProvider);
           if (orgId == null && orgs.isNotEmpty) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
               final current = ref.read(selectedExploreOrgIdProvider);
               if (current == null) {
-                ref
-                    .read(selectedExploreOrgIdProvider.notifier)
-                    .select(orgs.first.id);
+                ref.read(selectedExploreOrgIdProvider.notifier).select(orgs.first.id);
               }
             });
           }
@@ -56,16 +58,13 @@ class _ExploreClassesViewState extends ConsumerState<ExploreClassesView> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Carrusel de organizaciones
-              _SectionHeader(
+              const _SectionHeader(
                 icon: Icons.business_outlined,
                 title: 'Organizaciones',
               ),
               const SizedBox(height: 8),
-              OrganizationClassesCarousel(),
+              const OrganizationClassesCarousel(),
               const SizedBox(height: 24),
-
-              // Listado de clases de la seleccionada
               _SectionHeader(
                 icon: Icons.school_outlined,
                 title: selectedOrg != null
@@ -75,7 +74,9 @@ class _ExploreClassesViewState extends ConsumerState<ExploreClassesView> {
               const SizedBox(height: 8),
               classesAsync.when(
                 loading: () => const LoadingIndicator(),
-                error: (e, _) => Center(child: Text(friendlyError(e))),
+                error: (e, _) => Center(
+                  child: Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
+                ),
                 data: (classes) {
                   if (selectedOrgId == null) {
                     return Text(
@@ -162,9 +163,7 @@ class _ExploreClassTile extends StatelessWidget {
                 radius: 24,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 child: Text(
-                  danceClass.title.isNotEmpty
-                      ? danceClass.title[0].toUpperCase()
-                      : '?',
+                  danceClass.title.isNotEmpty ? danceClass.title[0].toUpperCase() : '?',
                   style: const TextStyle(
                     color: AppColors.primary,
                     fontSize: 18,
@@ -187,22 +186,21 @@ class _ExploreClassTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     if (danceClass.instructorName != null) ...[
-                      Icon(Icons.person_outline,
-                          size: 12, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Text(
-                        danceClass.instructorName!,
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      Row(
+                        children: [
+                          Icon(Icons.person_outline, size: 12, color: context.textMuted),
+                          const SizedBox(width: 4),
+                          Text(
+                            danceClass.instructorName!,
+                            style: TextStyle(color: context.textMuted, fontSize: 12),
+                          ),
+                        ],
                       ),
                     ],
                   ],
                 ),
               ),
-              Row(
-                children: [
-                  const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
-                ],
-              ),
+              Icon(Icons.chevron_right, size: 20, color: context.textMuted),
             ],
           ),
         ),

@@ -1,9 +1,11 @@
+// lib/features/academy/views/academy_classes_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
@@ -120,264 +122,259 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
       child: Scaffold(
         backgroundColor: context.scaffoldBg,
         appBar: AppBar(
-        backgroundColor: context.surfaceHeader,
-        elevation: 0,
-        title: const Text(
-          'Horario Semanal',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            tooltip: _isLandscape ? 'Modo Vertical' : 'Rotar Horizontal',
-            icon: Icon(
-              _isLandscape ? Icons.screen_lock_portrait : Icons.screen_rotation_outlined,
-              color: AppColors.primary,
+          backgroundColor: context.cardBg,
+          elevation: 0,
+          title: Text(
+            'Horario Semanal',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: context.textOnBg,
             ),
-            onPressed: _toggleOrientation,
           ),
-          IconButton(
-            tooltip: 'Refrescar',
-            icon: const Icon(Icons.refresh, color: Colors.white70),
-            onPressed: () {
-              ref.invalidate(orgClassesProvider);
-              ref.invalidate(orgWeeklyScheduleEntriesProvider);
-            },
-          ),
-        ],
-      ),
-        body: SafeArea(
-          child: scheduleEntriesAsync.when(
-          loading: () => const LoadingIndicator(),
-          error: (e, _) => Center(
-            child: Text(friendlyError(e), style: const TextStyle(color: Colors.white)),
-          ),
-          data: (entries) {
-            if (entries.isEmpty) return _buildEmptyState(context, canManage);
-
-            final activeHoursList = entries
-                .map((e) => _parseHour(e.schedule.startTime))
-                .toSet()
-                .toList()
-              ..sort();
-
-            // Asignación de colores dinámicos sin repetir entre géneros presentes
-            final uniqueGenres = entries
-                .map((e) => _extractGenre(e.danceClass.title))
-                .toSet()
-                .toList();
-
-            const List<Color> dynamicPalette = [
-              Color(0xFFEF4444), // Rojo
-              Color(0xFF8B5CF6), // Violeta
-              Color(0xFFF59E0B), // Ámbar
-              Color(0xFF10B981), // Verde Esmeralda
-              Color(0xFF06B6D4), // Cyan
-              Color(0xFFEC4899), // Rosa
-              Color(0xFF3B82F6), // Azul
-              Color(0xFFF97316), // Naranja
-              Color(0xFF14B8A6), // Turquesa
-              Color(0xFFA855F7), // Púrpura
-              Color(0xFF84CC16), // Lima
-              Color(0xFF6366F1), // Índigo
-            ];
-
-            final Map<String, Color> genreColorMap = {
-              for (int i = 0; i < uniqueGenres.length; i++)
-                uniqueGenres[i]: dynamicPalette[i % dynamicPalette.length],
-            };
-
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                const headerHeight = 44.0;
-                final availableWidth = constraints.maxWidth - _timeColWidth;
-                final colWidth =
-                    (availableWidth / _daysOfWeek.length).clamp(_minColWidth, 180.0);
-                final totalDaysWidth = colWidth * _daysOfWeek.length;
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Columna fija de horas lateral
-                    SizedBox(
-                      width: _timeColWidth,
-                      child: Column(
-                        children: [
-                          Container(
-                            height: headerHeight,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: context.surfaceHeader,
-                              border: Border(
-                                right: BorderSide(color: context.divider, width: 1.2),
-                                bottom: BorderSide(color: context.divider, width: 1.2),
-                              ),
-                            ),
-                            child: const Text(
-                              'HORA',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              controller: _hoursVerticalScroll,
-                              physics: const ClampingScrollPhysics(),
-                              child: Column(
-                                children: List.generate(activeHoursList.length, (index) {
-                                  final hour = activeHoursList[index];
-                                  final isBigGap = index > 0 &&
-                                      (hour - activeHoursList[index - 1]) > 1;
-
-                                  return Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (isBigGap)
-                                        Container(
-                                          height: 24,
-                                          color: const Color(0xFF0C0E14),
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.more_horiz,
-                                              size: 14,
-                                              color: Colors.white.withValues(alpha: 0.25),
-                                            ),
-                                          ),
-                                        ),
-                                      SizedBox(
-                                        height: _slotHeight,
-                                        child: ScheduleHoursColumn(
-                                          hour: hour,
-                                          width: _timeColWidth,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Matriz de días con cabecera y cuerpo sincronizados
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: _horizontalScroll,
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        child: SizedBox(
-                          width: totalDaysWidth,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ScheduleHeader(
-                                colWidth: colWidth,
-                                daysOfWeek: _daysOfWeek,
-                                headerHeight: headerHeight,
-                              ),
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  controller: _gridVerticalScroll,
-                                  physics: const ClampingScrollPhysics(),
-                                  child: Column(
-                                    children: List.generate(activeHoursList.length, (index) {
-                                      final hour = activeHoursList[index];
-                                      final isBigGap = index > 0 &&
-                                          (hour - activeHoursList[index - 1]) > 1;
-
-                                      return Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (isBigGap)
-                                            Container(
-                                              height: 24,
-                                              color: const Color(0xFF0C0E14),
-                                              child: Center(
-                                                child: Container(
-                                                  height: 1,
-                                                  margin: const EdgeInsets.symmetric(
-                                                      horizontal: 10),
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.05),
-                                                ),
-                                              ),
-                                            ),
-                                          Container(
-                                            height: _slotHeight,
-                                            decoration: const BoxDecoration(
-                                              border: Border(
-                                                bottom: BorderSide(
-                                                  color: Color(0xFF1C2130),
-                                                  width: 0.8,
-                                                ),
-                                              ),
-                                            ),
-                                            child: Row(
-                                              children: _daysOfWeek.map((dayDef) {
-                                                final dayInt = dayDef.$1;
-                                                return ScheduleDayColumn(
-                                                  dayOfWeek: dayInt,
-                                                  hour: hour,
-                                                  entries: entries,
-                                                  width: colWidth,
-                                                  genreColorMap: genreColorMap,
-                                                  onAddClass: canManage
-                                                      ? () async {
-                                                          await Navigator.push(
-                                                            context,
-                                                            MaterialPageRoute(
-                                                              builder: (_) =>
-                                                                  const ClassCreateView(),
-                                                            ),
-                                                          );
-                                                          ref.invalidate(
-                                                              orgClassesProvider);
-                                                          ref.invalidate(
-                                                              orgWeeklyScheduleEntriesProvider);
-                                                        }
-                                                      : null,
-                                                );
-                                              }).toList(),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        ),
-      ),
-      floatingActionButton: (canManage && !_isLandscape)
-          ? FloatingActionButton.small(
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ClassCreateView()),
-                );
+          actions: [
+            IconButton(
+              tooltip: _isLandscape ? 'Modo Vertical' : 'Rotar Horizontal',
+              icon: Icon(
+                _isLandscape ? Icons.screen_lock_portrait : Icons.screen_rotation_outlined,
+                color: AppColors.primary,
+              ),
+              onPressed: _toggleOrientation,
+            ),
+            IconButton(
+              tooltip: 'Refrescar',
+              icon: Icon(Icons.refresh, color: context.textMuted),
+              onPressed: () {
                 ref.invalidate(orgClassesProvider);
                 ref.invalidate(orgWeeklyScheduleEntriesProvider);
               },
-              backgroundColor: const Color(0xFFE85D04),
-              child: const Icon(Icons.add, color: Colors.white, size: 20),
-            )
-          : null,
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: scheduleEntriesAsync.when(
+            loading: () => const LoadingIndicator(),
+            error: (e, _) => Center(
+              child: Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
+            ),
+            data: (entries) {
+              if (entries.isEmpty) return _buildEmptyState(context, canManage);
+
+              final activeHoursList = entries
+                  .map((e) => _parseHour(e.schedule.startTime))
+                  .toSet()
+                  .toList()
+                ..sort();
+
+              final uniqueGenres = entries
+                  .map((e) => _extractGenre(e.danceClass.title))
+                  .toSet()
+                  .toList();
+
+              const List<Color> dynamicPalette = [
+                Color(0xFFEF4444),
+                Color(0xFF8B5CF6),
+                Color(0xFFF59E0B),
+                Color(0xFF10B981),
+                Color(0xFF06B6D4),
+                Color(0xFFEC4899),
+                Color(0xFF3B82F6),
+                Color(0xFFF97316),
+                Color(0xFF14B8A6),
+                Color(0xFFA855F7),
+                Color(0xFF84CC16),
+                Color(0xFF6366F1),
+              ];
+
+              final Map<String, Color> genreColorMap = {
+                for (int i = 0; i < uniqueGenres.length; i++)
+                  uniqueGenres[i]: dynamicPalette[i % dynamicPalette.length],
+              };
+
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  const headerHeight = 44.0;
+                  final availableWidth = constraints.maxWidth - _timeColWidth;
+                  final colWidth =
+                      (availableWidth / _daysOfWeek.length).clamp(_minColWidth, 180.0);
+                  final totalDaysWidth = colWidth * _daysOfWeek.length;
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: _timeColWidth,
+                        child: Column(
+                          children: [
+                            Container(
+                              height: headerHeight,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: context.cardBg,
+                                border: Border(
+                                  right: BorderSide(color: context.divider, width: 1.2),
+                                  bottom: BorderSide(color: context.divider, width: 1.2),
+                                ),
+                              ),
+                              child: Text(
+                                'HORA',
+                                style: TextStyle(
+                                  color: context.textMuted,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                controller: _hoursVerticalScroll,
+                                physics: const ClampingScrollPhysics(),
+                                child: Column(
+                                  children: List.generate(activeHoursList.length, (index) {
+                                    final hour = activeHoursList[index];
+                                    final isBigGap = index > 0 &&
+                                        (hour - activeHoursList[index - 1]) > 1;
+
+                                    return Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (isBigGap)
+                                          Container(
+                                            height: 24,
+                                            color: context.cardBg.withValues(alpha: 0.5),
+                                            child: Center(
+                                              child: Icon(
+                                                Icons.more_horiz,
+                                                size: 14,
+                                                color: context.textMuted.withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                          ),
+                                        SizedBox(
+                                          height: _slotHeight,
+                                          child: ScheduleHoursColumn(
+                                            hour: hour,
+                                            width: _timeColWidth,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: _horizontalScroll,
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: SizedBox(
+                            width: totalDaysWidth,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ScheduleHeader(
+                                  colWidth: colWidth,
+                                  daysOfWeek: _daysOfWeek,
+                                  headerHeight: headerHeight,
+                                ),
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    controller: _gridVerticalScroll,
+                                    physics: const ClampingScrollPhysics(),
+                                    child: Column(
+                                      children: List.generate(activeHoursList.length, (index) {
+                                        final hour = activeHoursList[index];
+                                        final isBigGap = index > 0 &&
+                                            (hour - activeHoursList[index - 1]) > 1;
+
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (isBigGap)
+                                              Container(
+                                                height: 24,
+                                                color: context.cardBg.withValues(alpha: 0.3),
+                                                child: Center(
+                                                  child: Container(
+                                                    height: 1,
+                                                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                                                    color: context.divider,
+                                                  ),
+                                                ),
+                                              ),
+                                            Container(
+                                              height: _slotHeight,
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  bottom: BorderSide(
+                                                    color: context.divider.withValues(alpha: 0.5),
+                                                    width: 0.8,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                children: _daysOfWeek.map((dayDef) {
+                                                  final dayInt = dayDef.$1;
+                                                  return ScheduleDayColumn(
+                                                    dayOfWeek: dayInt,
+                                                    hour: hour,
+                                                    entries: entries,
+                                                    width: colWidth,
+                                                    genreColorMap: genreColorMap,
+                                                    onAddClass: canManage
+                                                        ? () async {
+                                                            await Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(
+                                                                builder: (_) => const ClassCreateView(),
+                                                              ),
+                                                            );
+                                                            ref.invalidate(orgClassesProvider);
+                                                            ref.invalidate(orgWeeklyScheduleEntriesProvider);
+                                                          }
+                                                        : null,
+                                                  );
+                                                }).toList(),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
           ),
-            );
+        ),
+        floatingActionButton: (canManage && !_isLandscape)
+            ? FloatingActionButton.small(
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ClassCreateView()),
+                  );
+                  ref.invalidate(orgClassesProvider);
+                  ref.invalidate(orgWeeklyScheduleEntriesProvider);
+                },
+                backgroundColor: AppColors.primary,
+                child: const Icon(Icons.add, color: AppColors.onPrimary, size: 20),
+              )
+            : null,
+      ),
+    );
   }
 
   Widget _buildEmptyState(BuildContext context, bool canManage) {
@@ -386,7 +383,7 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.calendar_month_outlined,
-              size: 64, color: Colors.white.withValues(alpha: 0.2)),
+              size: 64, color: context.textMuted.withValues(alpha: 0.4)),
           const SizedBox(height: 16),
           Text(
             'Sin clases configuradas',
@@ -396,8 +393,8 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
                 fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          const Text('Define qué días y horas abre cada clase.',
-              style: TextStyle(color: Colors.grey, fontSize: 14)),
+          Text('Define qué días y horas abre cada clase.',
+              style: TextStyle(color: context.textMuted, fontSize: 14)),
           if (canManage) ...[
             const SizedBox(height: 24),
             FilledButton.icon(
@@ -412,7 +409,9 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
               icon: const Icon(Icons.add),
               label: const Text('Crear clase y definir días'),
               style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFE85D04)),
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
             ),
           ],
         ],

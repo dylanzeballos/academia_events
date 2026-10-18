@@ -1,3 +1,4 @@
+// lib/features/organization/widgets/organization_share_section.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -5,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/organization_model.dart';
 
@@ -50,7 +52,10 @@ class OrganizationShareSection extends StatelessWidget {
     await Clipboard.setData(ClipboardData(text: _publicUrl));
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enlace copiado')),
+        SnackBar(
+          content: const Text('Enlace copiado'),
+          backgroundColor: context.cardBg,
+        ),
       );
     }
   }
@@ -66,7 +71,7 @@ class OrganizationShareSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
           decoration: BoxDecoration(
             color: sheetContext.cardBg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -92,12 +97,17 @@ class OrganizationShareSection extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               RepaintBoundary(
-                child: SizedBox(
+                child: Container(
                   width: 250,
                   height: 250,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  ),
                   child: QrImageView(
                     data: _qrValue,
-                    size: 250,
+                    size: 226,
                     backgroundColor: Colors.white,
                   ),
                 ),
@@ -113,11 +123,16 @@ class OrganizationShareSection extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
+                ),
                 onPressed: () => _copyLink(sheetContext),
                 icon: const Icon(Icons.copy_outlined),
-                label: const Text('Copiar enlace'),
+                label: const Text('Copiar enlace', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -127,19 +142,10 @@ class OrganizationShareSection extends StatelessWidget {
   }
 
   Widget _buildCompact(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final panelColor = context.cardBg;
-    final fieldColor = context.inputBg;
-    final textColor = context.textOnBg;
-    final mutedColor = context.textMuted;
-    final badgeColor = isDark ? const Color(0xFF7A3F2D) : const Color(0xFFFFE8DD);
-    final badgeTextColor =
-        isDark ? const Color(0xFFFFC09D) : const Color(0xFF9A3412);
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: panelColor,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: context.divider),
       ),
@@ -154,7 +160,7 @@ class OrganizationShareSection extends StatelessWidget {
                 child: Text(
                   'ENLACE ÚNICO DE LA ACADEMIA',
                   style: TextStyle(
-                    color: textColor,
+                    color: context.textOnBg,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -163,13 +169,13 @@ class OrganizationShareSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: badgeColor,
+                  color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
+                child: const Text(
                   'PERFIL OFICIAL',
                   style: TextStyle(
-                    color: badgeTextColor,
+                    color: AppColors.primary,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                   ),
@@ -182,13 +188,13 @@ class OrganizationShareSection extends StatelessWidget {
             height: 48,
             padding: const EdgeInsets.only(left: 12, right: 4),
             decoration: BoxDecoration(
-              color: fieldColor,
+              color: context.cardBg,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: context.divider),
             ),
             child: Row(
               children: [
-                Icon(Icons.public, color: mutedColor, size: 17),
+                Icon(Icons.public, color: context.textMuted, size: 17),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -196,7 +202,7 @@ class OrganizationShareSection extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: textColor,
+                      color: context.textOnBg,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -212,7 +218,7 @@ class OrganizationShareSection extends StatelessWidget {
                   tooltip: 'Mostrar QR',
                   onPressed: () => _showQrDialog(context),
                   icon: const Icon(Icons.qr_code_2, size: 20),
-                  color: mutedColor,
+                  color: context.textMuted,
                 ),
               ],
             ),
@@ -222,7 +228,7 @@ class OrganizationShareSection extends StatelessWidget {
             children: [
               Text(
                 'Compartir vía:',
-                style: TextStyle(color: mutedColor, fontSize: 12),
+                style: TextStyle(color: context.textMuted, fontSize: 12),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -291,7 +297,7 @@ class OrganizationShareSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
+                const Icon(Icons.qr_code_2_rounded, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -313,7 +319,11 @@ class OrganizationShareSection extends StatelessWidget {
             Center(
               child: Container(
                 padding: const EdgeInsets.all(12),
-                color: Colors.white,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  border: Border.all(color: context.divider),
+                ),
                 child: QrImageView(
                   data: _qrValue,
                   size: 180,
@@ -335,6 +345,11 @@ class OrganizationShareSection extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _share(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.textOnBg,
+                      side: BorderSide(color: context.divider),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
+                    ),
                     icon: const Icon(Icons.share_outlined),
                     label: const Text('Compartir enlace'),
                   ),
@@ -343,6 +358,11 @@ class OrganizationShareSection extends StatelessWidget {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: () => _shareOnWhatsApp(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
+                    ),
                     icon: const Icon(Icons.chat_outlined),
                     label: const Text('WhatsApp'),
                   ),

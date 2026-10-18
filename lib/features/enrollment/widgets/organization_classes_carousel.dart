@@ -1,15 +1,15 @@
+// lib/features/enrollment/widgets/organization_classes_carousel.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/organization_with_classes.dart';
 import '../../../providers/class_enrollment_provider.dart';
 import '../../../shared/widgets/fullscreen_image_viewer.dart';
 
-/// Carrusel de organizaciones que tienen clases publicadas. Al tocar una
-/// organización se navega a la experiencia de explorar sus clases.
 class OrganizationClassesCarousel extends ConsumerStatefulWidget {
   const OrganizationClassesCarousel({super.key, this.height = 72});
 
@@ -38,7 +38,9 @@ class _OrganizationClassesCarouselState
     return orgsAsync.when(
       loading: () => SizedBox(
         height: widget.height,
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: const Center(
+          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+        ),
       ),
       error: (_, _) => const SizedBox.shrink(),
       data: (orgs) {
@@ -68,9 +70,7 @@ class _OrganizationClassesCarouselState
                 organization: org,
                 isActive: index == _currentPage,
                 onTap: () {
-                  ref
-                      .read(selectedExploreOrgIdProvider.notifier)
-                      .select(org.id);
+                  ref.read(selectedExploreOrgIdProvider.notifier).select(org.id);
                 },
                 navigateToClasses: () {
                   ScaffoldMessenger.of(context)
@@ -80,11 +80,10 @@ class _OrganizationClassesCarouselState
                         content: Text('Explorando clases de ${org.name}'),
                         duration: const Duration(seconds: 1),
                         behavior: SnackBarBehavior.floating,
+                        backgroundColor: context.cardBg,
                       ),
                     );
-                  ref
-                      .read(selectedExploreOrgIdProvider.notifier)
-                      .select(org.id);
+                  ref.read(selectedExploreOrgIdProvider.notifier).select(org.id);
                 },
               );
             },
@@ -124,25 +123,31 @@ class _OrgCard extends StatelessWidget {
             color: isActive ? AppColors.primary : context.divider,
             width: isActive ? 2 : 1,
           ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.16),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             GestureDetector(
-              onTap:
-                  organization.logoUrl == null || organization.logoUrl!.isEmpty
+              onTap: organization.logoUrl == null || organization.logoUrl!.isEmpty
                   ? null
                   : () => FullscreenImageViewer.show(
-                      context,
-                      organization.logoUrl!,
-                      tag: 'classes-org-logo-${organization.id}',
-                    ),
+                        context,
+                        organization.logoUrl!,
+                        tag: 'classes-org-logo-${organization.id}',
+                      ),
               child: Hero(
                 tag: 'classes-org-logo-${organization.id}',
                 child: ClipOval(
-                  child:
-                      (organization.logoUrl != null &&
-                          organization.logoUrl!.isNotEmpty)
+                  child: (organization.logoUrl != null && organization.logoUrl!.isNotEmpty)
                       ? CachedNetworkImage(
                           imageUrl: organization.logoUrl!,
                           fit: BoxFit.cover,
@@ -158,6 +163,7 @@ class _OrgCard extends StatelessWidget {
                                 height: 14,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
+                                  color: AppColors.primary,
                                 ),
                               ),
                             ),
@@ -166,7 +172,7 @@ class _OrgCard extends StatelessWidget {
                             width: 36,
                             height: 36,
                             color: context.divider.withValues(alpha: 0.3),
-                            child: Icon(
+                            child: const Icon(
                               Icons.business_outlined,
                               color: AppColors.primary,
                               size: 18,

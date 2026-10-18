@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
@@ -34,7 +35,6 @@ class DayColumnBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Filtrar eventos del día y ordenar por hora de inicio
     final dayEvents = <_EventWithRange>[];
     for (final e in events) {
       final range = DateFormatter.clampRangeToDayMinutes(
@@ -48,14 +48,12 @@ class DayColumnBody extends StatelessWidget {
     }
     dayEvents.sort((a, b) => a.startMin.compareTo(b.startMin));
 
-    // 2. Agrupar eventos que chocan/solapan en clústeres
     final clusters = <_EventCluster>[];
     for (final item in dayEvents) {
       if (clusters.isEmpty) {
         clusters.add(_EventCluster(item.startMin, item.endMin, [item.event]));
       } else {
         final last = clusters.last;
-        // Si el evento inicia antes o justo cuando termina el grupo previo -> se fusiona
         if (item.startMin < last.endMin) {
           last.endMin = math.max(last.endMin, item.endMin);
           last.events.add(item.event);
@@ -78,7 +76,6 @@ class DayColumnBody extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Líneas divisorias de horas
             ...List.generate(scale.totalHours + 1, (i) {
               return Positioned(
                 top: scale.topAt(scale.startHour + i),
@@ -94,7 +91,6 @@ class DayColumnBody extends StatelessWidget {
 
             if (showNowLine) NowIndicator(day: day, scale: scale),
 
-            // Renderizado de las tarjetas agrupadas
             Positioned.fill(
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -145,7 +141,6 @@ class _EventCluster {
   final List<EventModel> events;
 }
 
-/// Contenedor unificado: abarca desde el primer inicio hasta el último fin
 class _MergedClusterCard extends StatelessWidget {
   const _MergedClusterCard({
     required this.events,
@@ -165,8 +160,8 @@ class _MergedClusterCard extends StatelessWidget {
       height: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1A24).withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(14),
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
         border: Border.all(
           color: primaryColor.withValues(alpha: 0.65),
           width: 1.3,
@@ -201,7 +196,6 @@ class _MergedClusterCard extends StatelessWidget {
   }
 }
 
-/// Fila interior con el estilo visual original
 class _InnerEventRow extends StatelessWidget {
   const _InnerEventRow({
     required this.event,
@@ -225,19 +219,18 @@ class _InnerEventRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Fila superior: Hora + Organización
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
                   ),
                   child: Text(
                     _hhmm(event.startTime),
-                    style: const TextStyle(
-                      color: Colors.black,
+                    style: TextStyle(
+                      color: context.scaffoldBg,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
                     ),
@@ -259,34 +252,28 @@ class _InnerEventRow extends StatelessWidget {
                   ),
               ],
             ),
-
-            // Título
             Text(
               event.title,
               maxLines: isSingle ? 2 : 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: context.textOnBg,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 height: 1.1,
               ),
             ),
-
-            // Subtítulo / Descripción
             if (isSingle && (event.description?.isNotEmpty ?? false))
               Text(
                 event.description!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFFD37B58),
+                style: TextStyle(
+                  color: context.textMuted,
                   fontSize: 9,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-
-            // Precio + Flecha
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

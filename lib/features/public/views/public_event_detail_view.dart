@@ -1,3 +1,4 @@
+// lib/features/public/views/public_event_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/public_event_model.dart';
@@ -26,11 +28,14 @@ class PublicEventDetailView extends ConsumerWidget {
     final eventAsync = ref.watch(publicEventDetailProvider(eventId));
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
         title: eventAsync.when(
-          data: (event) => Text(event?.title ?? 'Evento'),
-          loading: () => const Text('Cargando...'),
-          error: (_, _) => const Text('Evento'),
+          data: (event) => Text(event?.title ?? 'Evento', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
+          loading: () => Text('Cargando...', style: TextStyle(color: context.textMuted)),
+          error: (_, _) => Text('Evento', style: TextStyle(color: context.textOnBg)),
         ),
       ),
       body: eventAsync.when(
@@ -41,7 +46,7 @@ class PublicEventDetailView extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+                Icon(Icons.error_outline, size: 64, color: context.textMuted),
                 const SizedBox(height: 16),
                 Text(
                   'Error cargando el evento',
@@ -54,12 +59,13 @@ class PublicEventDetailView extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   '$e',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  style: TextStyle(color: context.textMuted, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: () => ref.invalidate(publicEventDetailProvider),
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                  onPressed: () => ref.invalidate(publicEventDetailProvider(eventId)),
                   child: const Text('Reintentar'),
                 ),
               ],
@@ -72,7 +78,7 @@ class PublicEventDetailView extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.event_busy_outlined, size: 64, color: Colors.grey[400]),
+                  Icon(Icons.event_busy_outlined, size: 64, color: context.textMuted),
                   const SizedBox(height: 16),
                   Text(
                     'Evento no encontrado',
@@ -85,7 +91,7 @@ class PublicEventDetailView extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     'El evento puede haber sido cancelado o no es público',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    style: TextStyle(color: context.textMuted, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -112,7 +118,10 @@ class _PublicEventDetailBody extends ConsumerWidget {
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir Google Maps')),
+        SnackBar(
+          content: const Text('No se pudo abrir Google Maps'),
+          backgroundColor: context.cardBg,
+        ),
       );
     }
   }
@@ -124,8 +133,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
         builder: (_) => MapViewScreen(
           center: LatLng(location.latitude!, location.longitude!),
           title: event.title,
-          subtitle: [?location.locationName, ?location.addressLine1]
-              .join(' · '),
+          subtitle: [?location.locationName, ?location.addressLine1].join(' · '),
         ),
       ),
     );
@@ -141,7 +149,6 @@ class _PublicEventDetailBody extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Banner / foto del evento ────────────────────────────
           GestureDetector(
             onTap: event.coverImageUrl == null
                 ? null
@@ -161,7 +168,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
                         height: 220,
                         color: context.cardBg,
                         child: const Center(
-                          child: CircularProgressIndicator(),
+                          child: CircularProgressIndicator(color: AppColors.primary),
                         ),
                       ),
                       errorWidget: (_, _, _) => _BannerPlaceholder(color: accent),
@@ -169,8 +176,6 @@ class _PublicEventDetailBody extends ConsumerWidget {
                   : _BannerPlaceholder(color: accent),
             ),
           ),
-
-          // Image gallery indicator
           if (event.images.length > 1)
             Container(
               height: 60,
@@ -201,7 +206,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
                           ),
                           errorWidget: (_, _, _) => Container(
                             color: context.divider.withValues(alpha: 0.3),
-                            child: const Icon(Icons.broken_image, size: 24),
+                            child: Icon(Icons.broken_image, size: 24, color: context.textMuted),
                           ),
                         ),
                       ),
@@ -210,13 +215,11 @@ class _PublicEventDetailBody extends ConsumerWidget {
                 },
               ),
             ),
-
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Category & Dance Categories ─────────────────────────────────────
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -240,8 +243,6 @@ class _PublicEventDetailBody extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                // ── Título y organización ─────────────────────────
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -283,10 +284,11 @@ class _PublicEventDetailBody extends ConsumerWidget {
                                   child: const Center(
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
+                                      color: AppColors.primary,
                                     ),
                                   ),
                                 ),
-                                errorWidget: (_, _, _) => Icon(
+                                errorWidget: (_, _, _) => const Icon(
                                   Icons.business_outlined,
                                   color: AppColors.primary,
                                   size: 20,
@@ -302,20 +304,16 @@ class _PublicEventDetailBody extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.storefront_outlined,
-                          size: 15, color: Colors.grey),
+                      Icon(Icons.storefront_outlined, size: 15, color: context.textMuted),
                       const SizedBox(width: 6),
                       Text(
                         event.organizationName,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 13),
+                        style: TextStyle(color: context.textMuted, fontSize: 13),
                       ),
                     ],
                   ),
                 ],
                 const SizedBox(height: 16),
-
-                // ── Fecha y hora ──────────────────────────────────
                 _InfoCard(
                   icon: Icons.calendar_today_outlined,
                   accent: accent,
@@ -342,8 +340,6 @@ class _PublicEventDetailBody extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // ── Descripción ───────────────────────────────────
                 if (event.description != null &&
                     event.description!.isNotEmpty) ...[
                   Text(
@@ -358,15 +354,13 @@ class _PublicEventDetailBody extends ConsumerWidget {
                   Text(
                     event.description!,
                     style: TextStyle(
-                      color: context.textOnBg.withValues(alpha: 0.8),
+                      color: context.textMuted,
                       fontSize: 14,
                       height: 1.6,
                     ),
                   ),
                   const SizedBox(height: 20),
                 ],
-
-                // ── Ubicación con mapa ────────────────────────────
                 if (location?.locationName != null ||
                     location?.addressLine1 != null ||
                     hasLocation) ...[
@@ -383,8 +377,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
                     GestureDetector(
                       onTap: () => _openFullMap(context),
                       child: ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(AppSizes.radiusMedium),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                         child: SizedBox(
                           height: 180,
                           width: double.infinity,
@@ -419,7 +412,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
                                         height: 40,
                                         child: const Icon(
                                           Icons.location_on,
-                                          color: Colors.red,
+                                          color: AppColors.error,
                                           size: 38,
                                         ),
                                       ),
@@ -427,7 +420,6 @@ class _PublicEventDetailBody extends ConsumerWidget {
                                   ),
                                 ],
                               ),
-                              // Botón de ampliar sobre el mapa
                               Positioned(
                                 right: 8,
                                 bottom: 8,
@@ -439,12 +431,12 @@ class _PublicEventDetailBody extends ConsumerWidget {
                                   decoration: BoxDecoration(
                                     color: context.cardBg.withValues(alpha: 0.9),
                                     borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: context.divider),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.fullscreen,
-                                          size: 16, color: accent),
+                                      Icon(Icons.fullscreen, size: 16, color: accent),
                                       const SizedBox(width: 4),
                                       Text(
                                         'Ampliar',
@@ -481,7 +473,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
                               ?location?.department?.name,
                             ].join('\n'),
                             style: TextStyle(
-                              color: context.textOnBg.withValues(alpha: 0.8),
+                              color: context.textMuted,
                               fontSize: 14,
                               height: 1.4,
                             ),
@@ -501,6 +493,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
                               foregroundColor: accent,
                               side: BorderSide(color: accent),
                               padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
                             ),
                             icon: const Icon(Icons.fullscreen, size: 18),
                             label: const Text('Ver en mapa'),
@@ -518,8 +511,9 @@ class _PublicEventDetailBody extends ConsumerWidget {
                             ),
                             style: FilledButton.styleFrom(
                               backgroundColor: accent,
-                              foregroundColor: Colors.white,
+                              foregroundColor: AppColors.onPrimary,
                               padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
                             ),
                             icon: const Icon(Icons.open_in_new, size: 18),
                             label: const Text('Google Maps'),
@@ -530,8 +524,6 @@ class _PublicEventDetailBody extends ConsumerWidget {
                   ],
                   const SizedBox(height: 20),
                 ],
-
-                // ── Entradas / Ticket Types ──────────────────────────
                 if (event.ticketTypes.isNotEmpty) ...[
                   Text(
                     'Entradas',
@@ -548,10 +540,8 @@ class _PublicEventDetailBody extends ConsumerWidget {
                       )),
                   const SizedBox(height: 20),
                 ],
-
-                // ── Organizador ────────────────────────────────────
                 if (event.organizationName.isNotEmpty) ...[
-                  const Divider(),
+                  Divider(color: context.divider),
                   Row(
                     children: [
                       GestureDetector(
@@ -566,8 +556,7 @@ class _PublicEventDetailBody extends ConsumerWidget {
                           tag: 'public-event-organizer-${event.id}',
                           child: CircleAvatar(
                             radius: 24,
-                            backgroundColor:
-                                AppColors.primary.withValues(alpha: 0.15),
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                             backgroundImage: event.organizationLogoUrl != null
                                 ? CachedNetworkImageProvider(
                                     event.organizationLogoUrl!,
@@ -597,15 +586,19 @@ class _PublicEventDetailBody extends ConsumerWidget {
                             ),
                             Text(
                               'Organizador',
-                              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                              style: TextStyle(color: context.textMuted, fontSize: 12),
                             ),
                           ],
                         ),
                       ),
                       OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: context.textOnBg,
+                          side: BorderSide(color: context.divider),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
+                        ),
                         onPressed: () => context.push(
-                          '${AppRoutes.organizationPublicDetailBase}/'
-                          '${event.organizationId}',
+                          '${AppRoutes.organizationPublicDetailBase}/${event.organizationId}',
                           extra: event.organizationName,
                         ),
                         child: const Text('Ver organización'),
@@ -614,7 +607,6 @@ class _PublicEventDetailBody extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
                 ],
-
                 const SizedBox(height: 32),
               ],
             ),
@@ -692,13 +684,13 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey),
+        Icon(icon, size: 16, color: context.textMuted),
         const SizedBox(width: 6),
         SizedBox(
           width: 48,
           child: Text(
             label,
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
+            style: TextStyle(color: context.textMuted, fontSize: 12),
           ),
         ),
         Expanded(
@@ -762,7 +754,7 @@ class _TicketCard extends StatelessWidget {
                       Text(
                         ticket.description!,
                         style: TextStyle(
-                          color: Colors.grey[500],
+                          color: context.textMuted,
                           fontSize: 12,
                         ),
                       ),
@@ -773,7 +765,7 @@ class _TicketCard extends StatelessWidget {
               Text(
                 '${ticket.price.toStringAsFixed(0)} ${ticket.currency}',
                 style: TextStyle(
-                  color: isAvailable ? accent : Colors.grey,
+                  color: isAvailable ? accent : context.textMuted,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -803,13 +795,13 @@ class _TicketCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.15),
+                    color: context.divider.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Agotado',
                     style: TextStyle(
-                      color: Colors.grey,
+                      color: context.textMuted,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -836,7 +828,7 @@ class _TicketCard extends StatelessWidget {
               if (ticket.salesStartAt != null || ticket.salesEndAt != null)
                 Text(
                   _salesPeriodText(ticket),
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  style: TextStyle(color: context.textMuted, fontSize: 11),
                 ),
             ],
           ),

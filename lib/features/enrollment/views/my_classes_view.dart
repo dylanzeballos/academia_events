@@ -1,8 +1,10 @@
+// lib/features/enrollment/views/my_classes_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/dance_class_session_model.dart';
@@ -12,10 +14,6 @@ import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import 'explore_classes_view.dart';
 
-/// "Mis Clases": lista las inscripciones del estudiante agrupadas por clase,
-/// mostrando primero la clase cuya próxima sesión es la más cercana. Las
-/// sesiones pasadas no se muestran; cada clase muestra su próxima sesión y un
-/// "Ver más" para desplegar las restantes (las más lejanas).
 class MyClassesView extends ConsumerWidget {
   const MyClassesView({super.key});
 
@@ -25,7 +23,15 @@ class MyClassesView extends ConsumerWidget {
     final groupsAsync = ref.watch(myClassesWithSessionsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis Clases')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Mis Clases',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: groupsAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => AppErrorState(
@@ -34,7 +40,6 @@ class MyClassesView extends ConsumerWidget {
         ),
         data: (groups) {
           if (groups.isEmpty) {
-            // Distingue "no inscripto" de "sin sesiones futuras".
             final hasEnrollments = (enrollmentsAsync.value ?? const [])
                 .any((e) => e.status != 'rejected');
             return _EmptyState(
@@ -44,6 +49,7 @@ class MyClassesView extends ConsumerWidget {
           }
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async {
               ref.invalidate(myEnrollmentsProvider);
               ref.invalidate(myClassesWithSessionsProvider);
@@ -70,8 +76,8 @@ class MyClassesView extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openExplore(context),
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.explore_outlined, color: Colors.white),
-        label: const Text('Explorar', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.explore_outlined, color: AppColors.onPrimary),
+        label: const Text('Explorar', style: TextStyle(color: AppColors.onPrimary)),
       ),
     );
   }
@@ -124,8 +130,7 @@ class _EnrollmentCardState extends State<_EnrollmentCard> {
                     radius: 20,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                     child: Text(
-                      enrollment.classTitle != null &&
-                              enrollment.classTitle!.isNotEmpty
+                      enrollment.classTitle != null && enrollment.classTitle!.isNotEmpty
                           ? enrollment.classTitle![0].toUpperCase()
                           : '?',
                       style: const TextStyle(
@@ -152,21 +157,19 @@ class _EnrollmentCardState extends State<_EnrollmentCard> {
                           const SizedBox(height: 2),
                           Text(
                             enrollment.organizationName!,
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 12),
+                            style: TextStyle(color: context.textMuted, fontSize: 12),
                           ),
                         ],
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: isCancelled
                           ? AppColors.error.withValues(alpha: 0.15)
                           : AppColors.success.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
                     ),
                     child: Text(
                       enrollment.statusDisplayName,
@@ -183,11 +186,11 @@ class _EnrollmentCardState extends State<_EnrollmentCard> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.person_outline, size: 14, color: Colors.grey[500]),
+                    Icon(Icons.person_outline, size: 14, color: context.textMuted),
                     const SizedBox(width: 6),
                     Text(
                       enrollment.instructorName!,
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(color: context.textMuted, fontSize: 13),
                     ),
                   ],
                 ),
@@ -198,8 +201,7 @@ class _EnrollmentCardState extends State<_EnrollmentCard> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
-                    onPressed: () =>
-                        setState(() => _expanded = !_expanded),
+                    onPressed: () => setState(() => _expanded = !_expanded),
                     icon: Icon(
                       _expanded ? Icons.expand_less : Icons.expand_more,
                       size: 18,
@@ -224,7 +226,7 @@ class _EnrollmentCardState extends State<_EnrollmentCard> {
                 const SizedBox(height: 8),
                 Text(
                   'Inscrito: ${_formatDate(enrollment.enrolledAt!)}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: TextStyle(color: context.textMuted, fontSize: 12),
                 ),
               ],
             ],
@@ -314,7 +316,7 @@ class _SessionRow extends StatelessWidget {
           Icon(
             Icons.event,
             size: 14,
-            color: cancelled ? AppColors.error : Colors.grey[500],
+            color: cancelled ? AppColors.error : context.textMuted,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -330,7 +332,7 @@ class _SessionRow extends StatelessWidget {
             ),
           ),
           if (cancelled)
-            Text(
+            const Text(
               'Cancelada',
               style: TextStyle(color: AppColors.error, fontSize: 11),
             ),
@@ -350,8 +352,6 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onExplore, this.hasEnrollments = false});
 
   final VoidCallback onExplore;
-
-  /// Si el usuario ya tiene inscripciones pero ninguna tiene sesiones futuras.
   final bool hasEnrollments;
 
   @override
@@ -362,7 +362,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.school_outlined, size: 64, color: Colors.grey[600]),
+            Icon(Icons.school_outlined, size: 64, color: context.textMuted),
             const SizedBox(height: 16),
             Text(
               hasEnrollments
@@ -381,17 +381,20 @@ class _EmptyState extends StatelessWidget {
                   ? 'Las clases sin sesiones futuras no se muestran. Explora nuevas clases mientras tanto.'
                   : 'Explora organizaciones y encuentra tu próxima clase.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey, fontSize: 14),
+              style: TextStyle(color: context.textMuted, fontSize: 14),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.onPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                ),
               ),
               onPressed: onExplore,
               icon: const Icon(Icons.explore_outlined),
-              label: const Text('Explorar clases'),
+              label: const Text('Explorar clases', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),

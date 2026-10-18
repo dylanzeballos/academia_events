@@ -1,8 +1,10 @@
+// lib/features/academy/views/dashboard/dashboard_quick_actions.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_member_model.dart';
 import '../../../../providers/dance_class_provider.dart';
@@ -33,7 +35,6 @@ class DashboardQuickActions extends ConsumerWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            // 1. Crear Clase (Acción directa)
             Expanded(
               child: _QuickActionCard(
                 icon: Icons.add_circle_outline,
@@ -49,7 +50,6 @@ class DashboardQuickActions extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // 2. Crear Evento
             Expanded(
               child: _QuickActionCard(
                 icon: Icons.celebration_outlined,
@@ -58,7 +58,6 @@ class DashboardQuickActions extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // 3. Invitar persona
             Expanded(
               child: _QuickActionCard(
                 icon: Icons.person_add_alt_1_outlined,
@@ -93,26 +92,29 @@ class DashboardQuickActions extends ConsumerWidget {
                 controller: emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 style: TextStyle(color: context.textOnBg),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Correo electrónico',
                   hintText: 'correo@ejemplo.com',
-                  prefixIcon: Icon(Icons.email_outlined),
+                  labelStyle: TextStyle(color: context.textMuted),
+                  hintStyle: TextStyle(color: context.textMuted.withValues(alpha: 0.6)),
+                  prefixIcon: Icon(Icons.email_outlined, color: context.textMuted),
                 ),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField(
+              DropdownButtonFormField<String>(
                 initialValue: selectedRole,
                 dropdownColor: context.cardBg,
                 style: TextStyle(color: context.textOnBg),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Rol asignado',
-                  prefixIcon: Icon(Icons.work_outline),
+                  labelStyle: TextStyle(color: context.textMuted),
+                  prefixIcon: Icon(Icons.work_outline, color: context.textMuted),
                 ),
                 items: MemberRole.values
                     .where((r) => !r.isOwner)
                     .map((r) => DropdownMenuItem(
                           value: r.value,
-                          child: Text(r.displayName),
+                          child: Text(r.displayName, style: TextStyle(color: context.textOnBg)),
                         ))
                     .toList(),
                 onChanged: (v) {
@@ -124,7 +126,7 @@ class DashboardQuickActions extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: sending ? null : () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
+              child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
             ),
             FilledButton(
               onPressed: sending
@@ -166,13 +168,17 @@ class DashboardQuickActions extends ConsumerWidget {
                         }
                       }
                     },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
               child: sending
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: AppColors.onPrimary,
                       ),
                     )
                   : const Text('Enviar invitación'),

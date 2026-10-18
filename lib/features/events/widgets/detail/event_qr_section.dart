@@ -1,6 +1,8 @@
+// lib/features/events/widgets/detail/event_qr_section.dart
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
 import '../../../../shared/widgets/fullscreen_image_viewer.dart';
@@ -40,6 +42,7 @@ class EventQrSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  border: Border.all(color: context.divider),
                 ),
                 child: Image.network(
                   event.qrImageUrl!,
@@ -51,7 +54,7 @@ class EventQrSection extends StatelessWidget {
                       : const SizedBox(
                           width: 200,
                           height: 200,
-                          child: Center(child: CircularProgressIndicator()),
+                          child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
                         ),
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
@@ -60,10 +63,10 @@ class EventQrSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        const Center(
+        Center(
           child: Text(
             'Toca para agrandar · Escanea para pagar o ingresar',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            style: TextStyle(color: context.textMuted, fontSize: 12),
           ),
         ),
       ],

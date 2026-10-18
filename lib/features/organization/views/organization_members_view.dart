@@ -1,7 +1,9 @@
+// lib/features/organization/views/organization_members_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/organization_member_model.dart';
 import '../../../data/repositories/organization_repository.dart';
@@ -22,6 +24,7 @@ class OrganizationMembersView extends ConsumerWidget {
     final canManage = myRole?.canManageMembers ?? false;
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       body: membersAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => Center(
@@ -42,6 +45,7 @@ class OrganizationMembersView extends ConsumerWidget {
           }
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async {
               ref.invalidate(organizationMembersProvider);
             },
@@ -81,26 +85,24 @@ class OrganizationMembersView extends ConsumerWidget {
                             final confirm = await showDialog<bool>(
                               context: context,
                               builder: (_) => AlertDialog(
+                                backgroundColor: context.cardBg,
                                 title: Text('Eliminar miembro',
-                                    style:
-                                        TextStyle(color: context.textOnBg)),
+                                    style: TextStyle(color: context.textOnBg)),
                                 content: Text(
                                   '¿Eliminar a ${m.profileName}?',
-                                  style:
-                                      const TextStyle(color: Colors.grey),
+                                  style: TextStyle(color: context.textMuted),
                                 ),
                                 actions: [
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, false),
-                                    child: const Text('Cancelar'),
+                                    child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
                                   ),
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, true),
                                     child: const Text('Eliminar',
-                                        style: TextStyle(
-                                            color: AppColors.error)),
+                                        style: TextStyle(color: AppColors.error)),
                                   ),
                                 ],
                               ),
@@ -109,8 +111,7 @@ class OrganizationMembersView extends ConsumerWidget {
                               final repo =
                                   ref.read(organizationRepositoryProvider);
                               await repo.removeMember(m.member.id);
-                              ref
-                                  .invalidate(organizationMembersProvider);
+                              ref.invalidate(organizationMembersProvider);
                             }
                           }
                         : null,
@@ -134,7 +135,7 @@ class OrganizationMembersView extends ConsumerWidget {
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: context.cardBg,
           title: Text('Invitar miembro',
-              style: TextStyle(color: context.textOnBg)),
+              style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -142,10 +143,11 @@ class OrganizationMembersView extends ConsumerWidget {
                 controller: emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 style: TextStyle(color: context.textOnBg),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Email del invitado',
+                  labelStyle: TextStyle(color: context.textMuted),
                   hintText: 'correo@ejemplo.com',
-                  prefixIcon: Icon(Icons.email_outlined),
+                  prefixIcon: const Icon(Icons.email_outlined),
                 ),
               ),
               const SizedBox(height: 16),
@@ -153,15 +155,16 @@ class OrganizationMembersView extends ConsumerWidget {
                 initialValue: selectedRole,
                 dropdownColor: context.cardBg,
                 style: TextStyle(color: context.textOnBg),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Rol',
-                  prefixIcon: Icon(Icons.work_outline),
+                  labelStyle: TextStyle(color: context.textMuted),
+                  prefixIcon: const Icon(Icons.work_outline),
                 ),
                 items: MemberRole.values
                     .where((r) => !r.isOwner)
                     .map((r) => DropdownMenuItem(
                           value: r.value,
-                          child: Text(r.displayName),
+                          child: Text(r.displayName, style: TextStyle(color: context.textOnBg)),
                         ))
                     .toList(),
                 onChanged: (v) {
@@ -169,16 +172,16 @@ class OrganizationMembersView extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 8),
-              const Text(
-                'El usuario recibira la invitacion en la plataforma y podra aceptar o rechazar.',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
+              Text(
+                'El usuario recibirá la invitación en la plataforma y podrá aceptar o rechazar.',
+                style: TextStyle(color: context.textMuted, fontSize: 12),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
+              child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
             ),
             TextButton(
               onPressed: () async {
@@ -188,8 +191,7 @@ class OrganizationMembersView extends ConsumerWidget {
                   return;
                 }
 
-                final orgId =
-                    ref.read(selectedOrganizationIdProvider);
+                final orgId = ref.read(selectedOrganizationIdProvider);
                 if (orgId == null) return;
 
                 final repo = ref.read(organizationRepositoryProvider);
@@ -213,8 +215,8 @@ class OrganizationMembersView extends ConsumerWidget {
                   }
                 }
               },
-              child: const Text('Enviar invitacion',
-                  style: TextStyle(color: AppColors.primary)),
+              child: const Text('Enviar invitación',
+                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -288,15 +290,14 @@ class _MemberTile extends StatelessWidget {
                             horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
                           color: isOwner
-                              ? Colors.amber.withValues(alpha: 0.15)
+                              ? AppColors.warning.withValues(alpha: 0.15)
                               : AppColors.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           member.member.role.displayName,
                           style: TextStyle(
-                            color:
-                                isOwner ? Colors.amber : AppColors.primary,
+                            color: isOwner ? AppColors.warning : AppColors.primary,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -309,15 +310,15 @@ class _MemberTile extends StatelessWidget {
             ),
             if (isAdmin && !isOwner)
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert,
-                    color: Colors.grey, size: 20),
+                icon: Icon(Icons.more_vert, color: context.textMuted, size: 20),
+                dropdownColor: context.cardBg,
                 onSelected: onRoleChanged,
                 itemBuilder: (_) => [
                   for (final role in MemberRole.values)
                     if (!role.isOwner)
                       PopupMenuItem(
                         value: role.value,
-                        child: Text(role.displayName),
+                        child: Text(role.displayName, style: TextStyle(color: context.textOnBg)),
                       ),
                 ],
               ),

@@ -1,7 +1,9 @@
+// lib/features/events/views/event_attendance_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/event_attendance_model.dart';
@@ -11,7 +13,6 @@ import '../../../shared/widgets/attendance_donut_chart.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../utils/event_attendance_exporter.dart';
 
-/// Vista dedicada de asistencia de un evento (solo staff de la organización).
 class EventAttendanceView extends ConsumerWidget {
   const EventAttendanceView({
     super.key,
@@ -27,7 +28,12 @@ class EventAttendanceView extends ConsumerWidget {
     final attendanceAsync = ref.watch(eventAttendanceProvider(eventId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Asistencia')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text('Asistencia', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
+      ),
       body: attendanceAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => Center(
@@ -64,6 +70,7 @@ class _EventAttendanceContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return RefreshIndicator(
+      color: AppColors.primary,
       onRefresh: () async => ref.invalidate(eventAttendanceProvider(eventId)),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -136,17 +143,17 @@ class _EventAttendanceContent extends ConsumerWidget {
                         if ((data.ticketsAvailable ?? 0) > 0)
                           AttendanceSlice(
                             value: (data.ticketsAvailable ?? 0).toDouble(),
-                            color: Colors.grey,
+                            color: context.textMuted,
                             label: 'Disponibles',
                           ),
                       ],
                     )
-                  : const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Center(
                         child: Text(
                           'El evento no tiene una capacidad definida.',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                          style: TextStyle(color: context.textMuted, fontSize: 13),
                         ),
                       ),
                     ),
@@ -187,7 +194,12 @@ class _EventAttendanceContent extends ConsumerWidget {
               icon: const Icon(Icons.table_chart_outlined),
               label: const Text('Exportar a Excel'),
               style: OutlinedButton.styleFrom(
+                foregroundColor: context.textOnBg,
+                side: BorderSide(color: context.divider),
                 padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -217,13 +229,13 @@ class _EventAttendanceContent extends ConsumerWidget {
     } on AttendanceExportException catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
+          SnackBar(content: Text(e.message), backgroundColor: context.cardBg),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al exportar: $e')),
+          SnackBar(content: Text('Error al exportar: $e'), backgroundColor: context.cardBg),
         );
       }
     }
@@ -258,7 +270,7 @@ class _EventAttendanceContent extends ConsumerWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
+              style: TextStyle(color: context.textMuted, fontSize: 13),
             ),
             const SizedBox(height: 12),
             child,
@@ -307,7 +319,7 @@ class _MetricCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: context.textMuted, fontSize: 12),
             ),
           ],
         ),
@@ -323,7 +335,7 @@ class _AttendeeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor();
+    final color = _statusColor(context);
     final label = _statusLabel();
 
     return Card(
@@ -366,13 +378,13 @@ class _AttendeeTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${attendee.ticketNumber} · ${attendee.ticketType}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: context.textMuted, fontSize: 12),
                   ),
                   if (attendee.accessPoint != null) ...[
                     const SizedBox(height: 2),
                     Text(
                       'Punto: ${attendee.accessPoint}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(color: context.textMuted, fontSize: 12),
                     ),
                   ],
                 ],
@@ -401,7 +413,7 @@ class _AttendeeTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     DateFormatter.hourMin(attendee.checkInTime!),
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    style: TextStyle(color: context.textMuted, fontSize: 11),
                   ),
                 ],
               ],
@@ -418,9 +430,9 @@ class _AttendeeTile extends StatelessWidget {
     return 'Pendiente';
   }
 
-  Color _statusColor() {
+  Color _statusColor(BuildContext context) {
     if (attendee.checkedIn) return AppColors.success;
-    if (attendee.ticketStatus == 'used') return Colors.blueGrey;
+    if (attendee.ticketStatus == 'used') return context.textMuted;
     return AppColors.warning;
   }
 }
@@ -437,12 +449,12 @@ class _EmptyBox extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
         children: [
-          Icon(icon, size: 48, color: Colors.grey[600]),
+          Icon(icon, size: 48, color: context.textMuted),
           const SizedBox(height: 12),
           Text(
             text,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: context.textMuted, fontSize: 14),
           ),
         ],
       ),

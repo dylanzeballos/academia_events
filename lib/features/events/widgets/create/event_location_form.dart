@@ -1,9 +1,11 @@
+// lib/features/events/widgets/create/event_location_form.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../providers/events_provider.dart';
 
@@ -46,31 +48,37 @@ class EventLocationForm extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
+        Text(
           'Ubicación y División Territorial',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: context.textOnBg,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 12),
 
-        // Departamento
         departmentsAsync.when(
           data: (deps) => DropdownButtonFormField<String>(
             initialValue: selectedDepartmentId,
             dropdownColor: context.cardBg,
             style: TextStyle(color: context.textOnBg),
-            decoration: const InputDecoration(labelText: 'Departamento'),
+            decoration: InputDecoration(
+              labelText: 'Departamento',
+              labelStyle: TextStyle(color: context.textMuted),
+            ),
             items: deps
                 .map((d) => DropdownMenuItem(
-                    value: d['id'] as String, child: Text(d['name'] as String)))
+                    value: d['id'] as String,
+                    child: Text(d['name'] as String, style: TextStyle(color: context.textOnBg))))
                 .toList(),
             onChanged: onDepartmentChanged,
           ),
-          loading: () => const LinearProgressIndicator(),
+          loading: () => const LinearProgressIndicator(color: AppColors.primary),
           error: (_, _) => const SizedBox.shrink(),
         ),
         const SizedBox(height: 12),
 
-        // Provincia
         if (selectedDepartmentId != null)
           ref.watch(provincesProvider(selectedDepartmentId!)).when(
                 data: (provinces) => DropdownButtonFormField<String>(
@@ -78,19 +86,22 @@ class EventLocationForm extends ConsumerWidget {
                   initialValue: selectedProvinceId,
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textOnBg),
-                  decoration: const InputDecoration(labelText: 'Provincia'),
+                  decoration: InputDecoration(
+                    labelText: 'Provincia',
+                    labelStyle: TextStyle(color: context.textMuted),
+                  ),
                   items: provinces
                       .map((p) => DropdownMenuItem(
-                          value: p['id'] as String, child: Text(p['name'] as String)))
+                          value: p['id'] as String,
+                          child: Text(p['name'] as String, style: TextStyle(color: context.textOnBg))))
                       .toList(),
                   onChanged: onProvinceChanged,
                 ),
-                loading: () => const LinearProgressIndicator(),
+                loading: () => const LinearProgressIndicator(color: AppColors.primary),
                 error: (_, _) => const SizedBox.shrink(),
               ),
         if (selectedDepartmentId != null) const SizedBox(height: 12),
 
-        // Municipio
         if (selectedProvinceId != null)
           ref.watch(municipalitiesProvider(selectedProvinceId!)).when(
                 data: (munis) => DropdownButtonFormField<String>(
@@ -98,19 +109,22 @@ class EventLocationForm extends ConsumerWidget {
                   initialValue: selectedMunicipalityId,
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textOnBg),
-                  decoration: const InputDecoration(labelText: 'Municipio'),
+                  decoration: InputDecoration(
+                    labelText: 'Municipio',
+                    labelStyle: TextStyle(color: context.textMuted),
+                  ),
                   items: munis
                       .map((m) => DropdownMenuItem(
-                          value: m['id'] as String, child: Text(m['name'] as String)))
+                          value: m['id'] as String,
+                          child: Text(m['name'] as String, style: TextStyle(color: context.textOnBg))))
                       .toList(),
                   onChanged: onMunicipalityChanged,
                 ),
-                loading: () => const LinearProgressIndicator(),
+                loading: () => const LinearProgressIndicator(color: AppColors.primary),
                 error: (_, _) => const SizedBox.shrink(),
               ),
         if (selectedProvinceId != null) const SizedBox(height: 12),
 
-        // Ciudad
         if (selectedMunicipalityId != null)
           ref.watch(citiesProvider(selectedMunicipalityId!)).when(
                 data: (cities) => DropdownButtonFormField<String>(
@@ -118,43 +132,54 @@ class EventLocationForm extends ConsumerWidget {
                   initialValue: selectedCityId,
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textOnBg),
-                  decoration: const InputDecoration(labelText: 'Ciudad'),
+                  decoration: InputDecoration(
+                    labelText: 'Ciudad',
+                    labelStyle: TextStyle(color: context.textMuted),
+                  ),
                   items: cities
                       .map((c) => DropdownMenuItem(
-                          value: c['id'] as String, child: Text(c['name'] as String)))
+                          value: c['id'] as String,
+                          child: Text(c['name'] as String, style: TextStyle(color: context.textOnBg))))
                       .toList(),
                   onChanged: onCityChanged,
                 ),
-                loading: () => const LinearProgressIndicator(),
+                loading: () => const LinearProgressIndicator(color: AppColors.primary),
                 error: (_, _) => const SizedBox.shrink(),
               ),
         const SizedBox(height: 16),
 
         TextFormField(
           controller: locationNameController,
-          decoration: const InputDecoration(
+          style: TextStyle(color: context.textOnBg),
+          decoration: InputDecoration(
             labelText: 'Lugar / Nombre del Salón',
             hintText: 'Ej. Salón de Eventos Los Arcos',
+            labelStyle: TextStyle(color: context.textMuted),
           ),
         ),
         const SizedBox(height: 12),
 
         TextFormField(
           controller: addressController,
-          decoration: const InputDecoration(
+          style: TextStyle(color: context.textOnBg),
+          decoration: InputDecoration(
             labelText: 'Dirección Exacta',
             hintText: 'Ej. Av. Heroínas #456',
+            labelStyle: TextStyle(color: context.textMuted),
           ),
         ),
         const SizedBox(height: 16),
 
-        const Text(
+        Text(
           'Ubicación Exacta en el Mapa',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: context.textOnBg,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 8),
 
-        // Previsualización interactiva del mapa
         InkWell(
           onTap: onMapTap,
           borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
@@ -189,7 +214,7 @@ class EventLocationForm extends ConsumerWidget {
                               width: 40,
                               height: 40,
                               child: const Icon(Icons.location_on,
-                                  color: Colors.red, size: 38),
+                                  color: AppColors.error, size: 38),
                             ),
                           ],
                         ),
@@ -201,19 +226,19 @@ class EventLocationForm extends ConsumerWidget {
                     left: 0,
                     right: 0,
                     child: Container(
-                      color: Colors.black54,
+                      color: context.cardBg.withValues(alpha: 0.85),
                       padding:
                           const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                       child: Row(
                         children: [
                           const Icon(Icons.touch_app,
-                              color: Colors.white, size: 16),
+                              color: AppColors.primary, size: 16),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Lat: ${selectedLatLng.latitude.toStringAsFixed(4)}, Lng: ${selectedLatLng.longitude.toStringAsFixed(4)}',
-                              style: const TextStyle(
-                                  color: Colors.white,
+                              style: TextStyle(
+                                  color: context.textOnBg,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500),
                             ),
@@ -221,7 +246,7 @@ class EventLocationForm extends ConsumerWidget {
                           const Text(
                             'Cambiar',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.primary,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               decoration: TextDecoration.underline,

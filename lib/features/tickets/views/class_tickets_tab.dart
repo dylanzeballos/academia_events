@@ -1,9 +1,11 @@
+// lib/features/tickets/views/class_tickets_tab.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_ticket_model.dart';
 import '../../../providers/checkin_provider.dart';
@@ -18,6 +20,10 @@ class ClassTicketsTab extends ConsumerWidget {
   void _showQr(BuildContext context, ClassTicketModel ticket) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: context.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLarge)),
+      ),
       builder: (_) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -27,24 +33,36 @@ class ClassTicketsTab extends ConsumerWidget {
               Text(
                 ticket.classTitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(
+                  color: context.textOnBg,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 _formatDate(ticket.validDate),
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: context.textMuted, fontSize: 13),
               ),
               const SizedBox(height: 16),
-              QrImageView(
-                data: ticket.qrToken!,
-                size: 220,
-                backgroundColor: Colors.white,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  border: Border.all(color: context.divider),
+                ),
+                child: QrImageView(
+                  data: ticket.qrToken!,
+                  size: 200,
+                  backgroundColor: Colors.white,
+                ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Presenta este código al personal de la academia.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 12),
+                style: TextStyle(color: context.textMuted, fontSize: 12),
               ),
             ],
           ),
@@ -77,10 +95,8 @@ class ClassTicketsTab extends ConsumerWidget {
           );
         }
 
-        // padding cero + shrinkWrap: esta pestaña vive dentro de un
-        // SingleChildScrollView; sin esto el ListView se dimensiona con
-        // altura ilimitada y causa "RenderFlex overflowed" al cambiar de tema.
         return RefreshIndicator(
+          color: AppColors.primary,
           onRefresh: () async => ref.invalidate(myClassTicketsProvider),
           child: ListView.separated(
             padding: EdgeInsets.zero,
@@ -98,8 +114,6 @@ class ClassTicketsTab extends ConsumerWidget {
                     subtitle: group.next.organizationName,
                   ),
                   const SizedBox(height: 8),
-                  // Solo el PRÓXIMO ticket: es el que sirve para marcar la
-                  // asistencia del día. Las sesiones siguientes no se listan.
                   _TicketCard(
                     ticket: group.next,
                     onTap: () => _showQr(context, group.next),
@@ -113,11 +127,7 @@ class ClassTicketsTab extends ConsumerWidget {
     );
   }
 
-  /// Agrupa por clase y deja SOLO el próximo ticket utilizable de cada una.
-  /// Excluye los ya escaneados (usados) y las sesiones posteriores a la
-  /// próxima. Ordena las clases por la próxima sesión (más cercana primero).
-  static List<_ClassTicketGroup> _classNextTickets(
-      List<ClassTicketModel> tickets) {
+  static List<_ClassTicketGroup> _classNextTickets(List<ClassTicketModel> tickets) {
     final now = DateTime.now();
     final usable = tickets
         .where((t) => t.canShowQr && !t.sessionStartAt.isBefore(now))
@@ -145,13 +155,10 @@ class ClassTicketsTab extends ConsumerWidget {
   }
 }
 
-/// Una clase agrupada con su próximo ticket para check-in.
 class _ClassTicketGroup {
   const _ClassTicketGroup({required this.next, required this.extra});
 
   final ClassTicketModel next;
-
-  /// Nº de sesiones posteriores con ticket (información, no se listan).
   final int extra;
 }
 
@@ -183,7 +190,7 @@ class _ClassSectionHeader extends StatelessWidget {
                   const SizedBox(height: 1),
                   Text(
                     subtitle!,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: context.textMuted, fontSize: 12),
                   ),
                 ],
               ],
@@ -203,14 +210,14 @@ class _TicketCard extends StatelessWidget {
 
   static const _statusColors = <String, Color>{
     'issued': AppColors.success,
-    'used': Colors.blueGrey,
+    'used': Color(0xFF64748B),
     'expired': AppColors.warning,
     'cancelled': AppColors.error,
   };
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColors[ticket.status] ?? Colors.grey;
+    final color = _statusColors[ticket.status] ?? context.textMuted;
 
     return Card(
       color: context.cardBg,
@@ -221,8 +228,7 @@ class _TicketCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         enabled: onTap != null,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           width: 44,
           height: 44,
@@ -242,7 +248,7 @@ class _TicketCard extends StatelessWidget {
         ),
         subtitle: Text(
           '${_formatDate(ticket.validDate)} · ${_formatTime(ticket.sessionStartAt)} - ${_formatTime(ticket.sessionEndAt)}',
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
+          style: TextStyle(color: context.textMuted, fontSize: 12),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -266,7 +272,7 @@ class _TicketCard extends StatelessWidget {
             Icon(
               ticket.canShowQr ? Icons.qr_code_2 : Icons.block,
               size: 20,
-              color: ticket.canShowQr ? AppColors.primary : Colors.grey,
+              color: ticket.canShowQr ? AppColors.primary : context.textMuted,
             ),
           ],
         ),

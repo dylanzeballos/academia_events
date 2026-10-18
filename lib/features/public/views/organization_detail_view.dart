@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
-import '../../../../data/models/organization_model.dart';
 import '../../../../data/models/organization_image_model.dart';
+import '../../../../data/models/organization_model.dart';
 import '../../../../providers/organization_provider.dart';
 import '../../organization/widgets/organization_share_section.dart';
 import './details/org_gallery_section.dart';
@@ -50,14 +52,16 @@ class _PublicOrganizationDetailViewState
     return organizationAsync.when(
       loading: () => Scaffold(
         backgroundColor: context.scaffoldBg,
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       ),
       error: (error, _) => Scaffold(
         backgroundColor: context.scaffoldBg,
         body: Center(
           child: Text(
             'No se pudo cargar la organización: $error',
-            style: TextStyle(color: context.textOnBg),
+            style: TextStyle(color: context.textMuted),
           ),
         ),
       ),
@@ -98,18 +102,16 @@ class _PublicOrganizationDetailViewState
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: context.scaffoldBg,
+        backgroundColor: context.cardBg,
         elevation: 0,
         title: Text(
           name,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search, color: context.textOnBg),
-            onPressed: () {},
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: context.textOnBg,
           ),
-        ],
+        ),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -138,17 +140,15 @@ class _PublicOrganizationDetailViewState
             // ── BOTÓN DIRECTO: HORARIO SOLO LECTURA ──
             Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(
-                  colors: [context.surfaceHeader, context.surfaceDeep],
-                ),
+                color: context.cardBg,
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                 border: Border.all(
-                  color: const Color(0xFF06B6D4).withValues(alpha: 0.35),
+                  color: AppColors.primary.withValues(alpha: 0.35),
                   width: 1.2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF06B6D4).withValues(alpha: 0.08),
+                    color: AppColors.primary.withValues(alpha: 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -157,7 +157,7 @@ class _PublicOrganizationDetailViewState
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -179,13 +179,12 @@ class _PublicOrganizationDetailViewState
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF06B6D4)
-                                .withValues(alpha: 0.15),
+                            color: AppColors.primary.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.calendar_month_rounded,
-                            color: Color(0xFF06B6D4),
+                            color: AppColors.primary,
                             size: 22,
                           ),
                         ),
@@ -216,7 +215,7 @@ class _PublicOrganizationDetailViewState
                         const Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 14,
-                          color: Color(0xFF06B6D4),
+                          color: AppColors.primary,
                         ),
                       ],
                     ),

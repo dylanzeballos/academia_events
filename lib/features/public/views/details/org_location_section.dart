@@ -1,8 +1,11 @@
+// lib/features/organization/views/details/org_location_section.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_model.dart';
 
@@ -20,7 +23,10 @@ class OrgLocationSection extends StatelessWidget {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
         context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir Google Maps.')),
+        SnackBar(
+          content: const Text('No se pudo abrir Google Maps.'),
+          backgroundColor: context.cardBg,
+        ),
       );
     }
   }
@@ -60,7 +66,7 @@ class OrgLocationSection extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: context.cardBg,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
             border: Border.all(color: context.divider),
           ),
           child: Column(
@@ -69,7 +75,7 @@ class OrgLocationSection extends StatelessWidget {
                 GestureDetector(
                   onTap: () => _openGoogleMaps(context, point),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
                     child: SizedBox(
                       height: 150,
                       width: double.infinity,
@@ -94,7 +100,7 @@ class OrgLocationSection extends StatelessWidget {
                                 height: 42,
                                 child: const Icon(
                                   Icons.location_on,
-                                  color: Colors.red,
+                                  color: AppColors.error,
                                   size: 38,
                                 ),
                               ),
@@ -114,8 +120,9 @@ class OrgLocationSection extends StatelessWidget {
                     icon: const Icon(Icons.map_outlined),
                     label: const Text('Abrir en Google Maps'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF06B6D4),
-                      side: const BorderSide(color: Color(0xFF06B6D4)),
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSmall)),
                     ),
                   ),
                 ),
@@ -169,7 +176,7 @@ class _InfoRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(width: 2),
-        Icon(icon, color: const Color(0xFF06B6D4), size: 20),
+        Icon(icon, color: AppColors.primary, size: 20),
         const SizedBox(width: 10),
         Expanded(
           child: Column(

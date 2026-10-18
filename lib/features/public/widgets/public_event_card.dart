@@ -1,7 +1,9 @@
+// lib/features/public/widgets/public_event_card.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/public_event_model.dart';
@@ -33,6 +35,8 @@ class PublicEventCard extends StatelessWidget {
       event.location?.city?.name,
     ].where((e) => e != null && e.isNotEmpty).join(' · ');
 
+    final orgColor = AppColors.colorForOrganization(event.organizationId);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -41,97 +45,93 @@ class PublicEventCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
           border: Border.all(color: context.divider),
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
+            // Portada / Imagen
             AspectRatio(
               aspectRatio: aspectRatio,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppSizes.radiusMedium),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (hasImage)
-                      CachedNetworkImage(
-                        imageUrl: event.coverImageUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (_, _) => Container(
-                          color: context.divider.withValues(alpha: 0.3),
-                          child: const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (hasImage)
+                    CachedNetworkImage(
+                      imageUrl: event.coverImageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) => Container(
+                        color: context.divider.withValues(alpha: 0.3),
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
                           ),
                         ),
-                        errorWidget: (_, _, _) => _PlaceholderBanner(
-                          color: AppColors.colorForOrganization(event.organizationId),
-                        ),
-                      )
-                    else
-                      _PlaceholderBanner(
-                        color: AppColors.colorForOrganization(event.organizationId),
                       ),
-                    // Price badge
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
-                        ),
-                        child: Text(
-                          priceText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      errorWidget: (_, _, _) => _PlaceholderBanner(color: orgColor),
+                    )
+                  else
+                    _PlaceholderBanner(color: orgColor),
+
+                  // Badge de Precio
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.cardBg.withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
+                        border: Border.all(color: context.divider),
+                      ),
+                      child: Text(
+                        priceText,
+                        style: TextStyle(
+                          color: context.textOnBg,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    // Organization logo
-                    if (showOrganizationLogo &&
-                        event.organizationLogoUrl != null &&
-                        event.organizationLogoUrl!.isNotEmpty)
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
-                        child: GestureDetector(
-                          onTap: () => FullscreenImageViewer.show(
-                            context,
-                            event.organizationLogoUrl!,
-                            tag: 'event-card-org-logo-${event.id}',
-                          ),
-                          child: Hero(
-                            tag: 'event-card-org-logo-${event.id}',
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: Colors.white, width: 2),
-                              ),
-                              child: ClipOval(
-                                child: CachedNetworkImage(
-                                  imageUrl: event.organizationLogoUrl!,
-                                  fit: BoxFit.cover,
-                                  width: 28,
-                                  height: 28,
-                                  errorWidget: (_, _, _) => Container(
-                                    color: AppColors.primary
-                                        .withValues(alpha: 0.2),
-                                    child: const Icon(
-                                      Icons.storefront_outlined,
-                                      size: 14,
-                                      color: AppColors.primary,
-                                    ),
+                  ),
+
+                  // Logo de Organización
+                  if (showOrganizationLogo &&
+                      event.organizationLogoUrl != null &&
+                      event.organizationLogoUrl!.isNotEmpty)
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: GestureDetector(
+                        onTap: () => FullscreenImageViewer.show(
+                          context,
+                          event.organizationLogoUrl!,
+                          tag: 'event-card-org-logo-${event.id}',
+                        ),
+                        child: Hero(
+                          tag: 'event-card-org-logo-${event.id}',
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: context.cardBg, width: 2),
+                            ),
+                            child: ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: event.organizationLogoUrl!,
+                                fit: BoxFit.cover,
+                                width: 28,
+                                height: 28,
+                                errorWidget: (_, _, _) => Container(
+                                  color: AppColors.primary.withValues(alpha: 0.2),
+                                  child: const Icon(
+                                    Icons.storefront_outlined,
+                                    size: 14,
+                                    color: AppColors.primary,
                                   ),
                                 ),
                               ),
@@ -139,18 +139,18 @@ class PublicEventCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
 
-            // Content
+            // Contenido informativo
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Category + Date row
+                  // Categoría + Fecha
                   Row(
                     children: [
                       if (event.categoryName != null) ...[
@@ -168,7 +168,7 @@ class PublicEventCard extends StatelessWidget {
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
@@ -177,21 +177,22 @@ class PublicEventCard extends StatelessWidget {
                       Icon(
                         Icons.calendar_today_outlined,
                         size: 11,
-                        color: Colors.grey[500],
+                        color: context.textMuted,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         DateFormatter.dayMonth(event.startTime),
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: context.textMuted,
                           fontSize: 11,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
 
-                  // Title
+                  // Título
                   Text(
                     event.title,
                     maxLines: 2,
@@ -205,14 +206,14 @@ class PublicEventCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
 
-                  // Organization
+                  // Organización
                   if (event.organizationName.isNotEmpty) ...[
                     Row(
                       children: [
                         Icon(
                           Icons.storefront_outlined,
                           size: 11,
-                          color: Colors.grey[500],
+                          color: context.textMuted,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -221,7 +222,7 @@ class PublicEventCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: context.textMuted,
                               fontSize: 11,
                             ),
                           ),
@@ -231,14 +232,14 @@ class PublicEventCard extends StatelessWidget {
                     const SizedBox(height: 4),
                   ],
 
-                  // Location
+                  // Ubicación
                   if (locationText.isNotEmpty) ...[
                     Row(
                       children: [
                         Icon(
                           Icons.place_outlined,
                           size: 11,
-                          color: Colors.grey[500],
+                          color: context.textMuted,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -247,7 +248,7 @@ class PublicEventCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: context.textMuted,
                               fontSize: 11,
                             ),
                           ),
@@ -256,7 +257,7 @@ class PublicEventCard extends StatelessWidget {
                     ),
                   ],
 
-                  // Dance categories
+                  // Categorías de baile (Tags)
                   if (event.danceCategories.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Wrap(
@@ -277,7 +278,7 @@ class PublicEventCard extends StatelessWidget {
                             style: const TextStyle(
                               color: AppColors.secondary,
                               fontSize: 9,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         );
@@ -301,7 +302,7 @@ class _PlaceholderBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: color.withValues(alpha: 0.25),
+      color: color.withValues(alpha: 0.18),
       child: Center(
         child: Icon(Icons.image_outlined, color: color, size: 40),
       ),

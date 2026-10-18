@@ -1,9 +1,11 @@
+// lib/features/checkin/views/checkin_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/check_in_result_model.dart';
 import '../../../data/models/class_model.dart';
@@ -22,8 +24,6 @@ import '../widgets/scanner_page.dart';
 
 enum _CheckinMode { event, class_ }
 
-/// Pantalla para el staff: selecciona el evento (o clase + sesión) y escanea
-/// el QR del asistente. El servidor valida todo y devuelve el resultado.
 class CheckinScreen extends ConsumerStatefulWidget {
   const CheckinScreen({super.key});
 
@@ -51,7 +51,6 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
   }
 
   void _listenForDefaults() {
-    // Seleccionar automáticamente el primer evento disponible.
     ref.listenManual(orgEventsProvider, (prev, next) {
       next.maybeWhen(
         data: (events) {
@@ -64,7 +63,7 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         orElse: () {},
       );
     });
-    // Seleccionar automáticamente la primera clase/sesión disponible.
+
     ref.listenManual(orgClassesProvider, (prev, next) {
       next.maybeWhen(
         data: (classes) {
@@ -200,18 +199,33 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: context.cardBg,
+        ),
       );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Check-in')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Check-in',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: Column(
         children: [
           if (_busy)
-            const LinearProgressIndicator(minHeight: 2)
+            const LinearProgressIndicator(
+              minHeight: 2,
+              color: AppColors.primary,
+            )
           else
             const SizedBox.shrink(),
           Expanded(
@@ -267,13 +281,13 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
               if (states.contains(WidgetState.selected)) {
                 return AppColors.primary.withValues(alpha: 0.15);
               }
-              return Colors.transparent;
+              return context.cardBg;
             }),
             foregroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
                 return AppColors.primary;
               }
-              return Colors.grey;
+              return context.textMuted;
             }),
             textStyle: const WidgetStatePropertyAll(
               TextStyle(fontWeight: FontWeight.w600),
@@ -299,7 +313,7 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         if (_mode == _CheckinMode.event) ...[
           eventsAsync.when(
             loading: () => const LoadingIndicator(),
-            error: (e, _) => Text(friendlyError(e)),
+            error: (e, _) => Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
             data: (events) => _EventDropdown(
               events: events,
               value: _eventId,
@@ -329,7 +343,7 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         ] else ...[
           classesAsync.when(
             loading: () => const LoadingIndicator(),
-            error: (e, _) => Text(friendlyError(e)),
+            error: (e, _) => Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
             data: (classes) => _ClassDropdown(
               classes: classes,
               value: _classId,
@@ -348,7 +362,7 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
           else
             sessionsAsync.when(
               loading: () => const LoadingIndicator(),
-              error: (e, _) => Text(friendlyError(e)),
+              error: (e, _) => Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
               data: (sessions) {
                 final nextId = sessions.isEmpty ? null : sessions.first.id;
                 if (nextId != null && _sessionId != nextId) {
@@ -374,15 +388,26 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         FilledButton.icon(
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
             padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            ),
           ),
           onPressed: canScan ? null : _openScanner,
           icon: const Icon(Icons.qr_code_scanner),
-          label: const Text('Escanear con cámara'),
+          label: const Text('Escanear con cámara', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: context.textOnBg,
+            side: BorderSide(color: context.divider),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            ),
+          ),
           onPressed: canScan ? null : _pickFromGallery,
           icon: const Icon(Icons.photo_library_outlined),
           label: const Text('Importar de galería'),
@@ -390,12 +415,12 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
         const SizedBox(height: 16),
         Row(
           children: [
-            Icon(Icons.info_outline, size: 14, color: Colors.grey[500]),
+            Icon(Icons.info_outline, size: 14, color: context.textMuted),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'El sistema valida automáticamente el QR, el pago y tu autorización.',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: TextStyle(color: context.textMuted, fontSize: 12),
               ),
             ),
           ],
@@ -428,15 +453,29 @@ class _EventDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
-      decoration: const InputDecoration(
+      dropdownColor: context.cardBg,
+      style: TextStyle(color: context.textOnBg),
+      decoration: InputDecoration(
         labelText: 'Evento',
-        border: OutlineInputBorder(),
+        labelStyle: TextStyle(color: context.textMuted),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
       ),
       items: [
         for (final event in events)
           DropdownMenuItem(
             value: event.id,
-            child: Text(event.title, overflow: TextOverflow.ellipsis),
+            child: Text(
+              event.title,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: context.textOnBg),
+            ),
           ),
       ],
       onChanged: onChanged,
@@ -463,11 +502,14 @@ class _AccessPointSelector extends StatelessWidget {
         future: future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LinearProgressIndicator();
+            return const LinearProgressIndicator(color: AppColors.primary);
           }
           if (snapshot.hasError) {
             WidgetsBinding.instance.addPostFrameCallback((_) => onLoaded(true));
-            return Text('No se pudieron consultar tus accesos: ${snapshot.error}');
+            return Text(
+              'No se pudieron consultar tus accesos: ${snapshot.error}',
+              style: TextStyle(color: context.textMuted),
+            );
           }
           final points = snapshot.data ?? const [];
           final required = points.isNotEmpty;
@@ -493,26 +535,47 @@ class _AccessPointSelector extends StatelessWidget {
           }).toList();
 
           if (authorized.isEmpty) {
-            return const Card(
+            return Card(
+              color: context.cardBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                side: BorderSide(color: context.divider),
+              ),
               child: ListTile(
-                leading: Icon(Icons.lock_outline),
-                title: Text('Acceso requerido'),
-                subtitle: Text('No tienes un punto de acceso activo asignado para este evento.'),
+                leading: Icon(Icons.lock_outline, color: context.textMuted),
+                title: Text('Acceso requerido', style: TextStyle(color: context.textOnBg)),
+                subtitle: Text(
+                  'No tienes un punto de acceso activo asignado para este evento.',
+                  style: TextStyle(color: context.textMuted),
+                ),
               ),
             );
           }
           return DropdownButtonFormField<String>(
             initialValue: authorized.any((row) => row['id'] == selectedId) ? selectedId : null,
             isExpanded: true,
-            decoration: const InputDecoration(
+            dropdownColor: context.cardBg,
+            style: TextStyle(color: context.textOnBg),
+            decoration: InputDecoration(
               labelText: 'Punto de acceso autorizado',
-              border: OutlineInputBorder(),
+              labelStyle: TextStyle(color: context.textMuted),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                borderSide: BorderSide(color: context.divider),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                borderSide: BorderSide(color: context.divider),
+              ),
             ),
             items: [
               for (final point in authorized)
                 DropdownMenuItem(
                   value: point['id'].toString(),
-                  child: Text(point['name']?.toString() ?? 'Acceso'),
+                  child: Text(
+                    point['name']?.toString() ?? 'Acceso',
+                    style: TextStyle(color: context.textOnBg),
+                  ),
                 ),
             ],
             onChanged: onSelected,
@@ -544,15 +607,29 @@ class _ClassDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
-      decoration: const InputDecoration(
+      dropdownColor: context.cardBg,
+      style: TextStyle(color: context.textOnBg),
+      decoration: InputDecoration(
         labelText: 'Clase',
-        border: OutlineInputBorder(),
+        labelStyle: TextStyle(color: context.textMuted),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
       ),
       items: [
         for (final c in classes)
           DropdownMenuItem(
             value: c.id,
-            child: Text(c.title, overflow: TextOverflow.ellipsis),
+            child: Text(
+              c.title,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: context.textOnBg),
+            ),
           ),
       ],
       onChanged: onChanged,
@@ -583,9 +660,19 @@ class _SessionDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
-      decoration: const InputDecoration(
+      dropdownColor: context.cardBg,
+      style: TextStyle(color: context.textOnBg),
+      decoration: InputDecoration(
         labelText: 'Sesión',
-        border: OutlineInputBorder(),
+        labelStyle: TextStyle(color: context.textMuted),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
       ),
       items: [
         for (final s in sessions)
@@ -594,6 +681,7 @@ class _SessionDropdown extends StatelessWidget {
             child: Text(
               '${_formatDate(s.sessionDate)} · ${_formatTime(s.startAt)} - ${_formatTime(s.endAt)}',
               overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: context.textOnBg),
             ),
           ),
       ],
@@ -630,12 +718,12 @@ class _EmptySelection extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, size: 40, color: Colors.grey[500]),
+          Icon(icon, size: 40, color: context.textMuted),
           const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: context.textMuted, fontSize: 14),
           ),
         ],
       ),

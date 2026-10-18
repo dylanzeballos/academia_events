@@ -1,13 +1,14 @@
+// lib/features/tickets/widgets/class_pass_purchase_sheet.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_enrollment_model.dart';
 import '../../../providers/checkin_provider.dart';
 
-/// Compra (pago simulado) de un pase de clase sobre una inscripción.
 class ClassPassPurchaseSheet extends ConsumerStatefulWidget {
   const ClassPassPurchaseSheet({super.key, required this.enrollment});
 
@@ -50,20 +51,27 @@ class _ClassPassPurchaseSheetState extends ConsumerState<ClassPassPurchaseSheet>
                 FilledButton.icon(
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    ),
                   ),
                   onPressed: () {
                     setState(() => _started = true);
                     ref.invalidate(purchaseClassPassProvider(widget.enrollment.id));
                   },
                   icon: const Icon(Icons.payment),
-                  label: const Text('Confirmar pago (simulado)'),
+                  label: const Text(
+                    'Confirmar pago (simulado)',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 )
               else
                 purchaseAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
                   error: (e, _) => _ErrorPanel(
                     message: e.toString(),
                     onRetry: () {
@@ -84,7 +92,6 @@ class _ClassPassPurchaseSheetState extends ConsumerState<ClassPassPurchaseSheet>
                         onClose: () => Navigator.of(context).pop(),
                       );
                     }
-                    // Refrescar pases y tickets para las demás vistas.
                     ref.invalidate(myClassPassesProvider);
                     ref.invalidate(myClassTicketsProvider);
                     return _SuccessPanel(
@@ -127,14 +134,14 @@ class _Summary extends ConsumerWidget {
       child: quoteAsync.when(
         loading: () => const Padding(
           padding: EdgeInsets.symmetric(vertical: 24),
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ),
-        error: (_, _) => const Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
+        error: (_, _) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
           child: Center(
             child: Text(
               'No se pudo calcular el precio.',
-              style: TextStyle(color: Colors.grey, fontSize: 13),
+              style: TextStyle(color: context.textMuted, fontSize: 13),
             ),
           ),
         ),
@@ -170,19 +177,17 @@ class _Summary extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   enrollment.organizationName!,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: TextStyle(color: context.textMuted, fontSize: 12),
                 ),
               ],
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Icon(Icons.event_available, size: 16, color: Colors.grey),
+                  Icon(Icons.event_available, size: 16, color: context.textMuted),
                   const SizedBox(width: 6),
                   Text(
-                    count == 1
-                        ? '1 sesión programada'
-                        : '$count sesiones programadas',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    count == 1 ? '1 sesión programada' : '$count sesiones programadas',
+                    style: TextStyle(color: context.textMuted, fontSize: 13),
                   ),
                 ],
               ),
@@ -190,11 +195,11 @@ class _Summary extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.flag_outlined, size: 16, color: Colors.grey),
+                    Icon(Icons.flag_outlined, size: 16, color: context.textMuted),
                     const SizedBox(width: 6),
                     Text(
                       'Última sesión: ${DateFormat('d MMM yyyy', 'es').format(lastDate)}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(color: context.textMuted, fontSize: 13),
                     ),
                   ],
                 ),
@@ -202,11 +207,11 @@ class _Summary extends ConsumerWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(Icons.payments_outlined, size: 16, color: Colors.grey),
+                  Icon(Icons.payments_outlined, size: 16, color: context.textMuted),
                   const SizedBox(width: 6),
                   Text(
                     '${_formatAmount(price, currency)} por sesión',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    style: TextStyle(color: context.textMuted, fontSize: 13),
                   ),
                 ],
               ),
@@ -240,9 +245,9 @@ class _Summary extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Incluye un ticket con QR por cada sesión programada desde hoy.',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
+                style: TextStyle(color: context.textMuted, fontSize: 12),
               ),
             ],
           );
@@ -288,14 +293,14 @@ class _SuccessPanel extends StatelessWidget {
               ? 'Se generó 1 ticket de sesión.'
               : 'Se generaron $generated tickets de sesión.',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.grey, fontSize: 14),
+          style: TextStyle(color: context.textMuted, fontSize: 14),
         ),
         if (total > 0) ...[
           const SizedBox(height: 4),
           Text(
             'Total pagado: $symbol${total.toStringAsFixed(2)}.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: context.textMuted, fontSize: 13),
           ),
         ],
         if (endsAt != null) ...[
@@ -303,12 +308,18 @@ class _SuccessPanel extends StatelessWidget {
           Text(
             'Última sesión incluida: ${DateFormat('d MMM yyyy', 'es').format(endsAt.toLocal())}.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: context.textMuted, fontSize: 13),
           ),
         ],
         const SizedBox(height: 20),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.onPrimary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            ),
+          ),
           onPressed: onDone,
           child: const Text('Listo'),
         ),
@@ -338,17 +349,30 @@ class _ErrorPanel extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.grey, fontSize: 14),
+          style: TextStyle(color: context.textMuted, fontSize: 14),
         ),
         const SizedBox(height: 20),
         if (onRetry != null)
           OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: context.textOnBg,
+              side: BorderSide(color: context.divider),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+              ),
+            ),
             onPressed: onRetry,
             child: const Text('Reintentar'),
           )
         else
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+              ),
+            ),
             onPressed: onClose,
             child: const Text('Entendido'),
           ),

@@ -1,8 +1,10 @@
+// lib/features/tickets/views/event_orders_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:screenshot/screenshot.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/event_ticket_group.dart';
 import '../utils/ticket_share_helper.dart';
@@ -18,7 +20,6 @@ class EventOrdersDetailScreen extends StatelessWidget {
   }
 
   void _showOrderQrs(BuildContext context, OrderPurchaseItem order) {
-    // Mapa de controladores independientes por ticket para evitar colisiones al deslizar
     final Map<String, ScreenshotController> screenshotControllers = {
       for (final ticket in order.tickets) ticket.ticketId: ScreenshotController(),
     };
@@ -28,7 +29,7 @@ class EventOrdersDetailScreen extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: context.cardBg,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLarge)),
       ),
       builder: (_) {
         int currentIndex = 0;
@@ -49,7 +50,7 @@ class EventOrdersDetailScreen extends StatelessWidget {
                         width: 44,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.grey[600],
+                          color: context.textMuted.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -57,16 +58,22 @@ class EventOrdersDetailScreen extends StatelessWidget {
                       Text(
                         eventGroup.eventTitle,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        style: TextStyle(
+                          color: context.textOnBg,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${order.ticketTypeName} · ${order.totalTickets} ${order.totalTickets == 1 ? "entrada" : "entradas"}',
-                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Carrusel de pases completos con altura estable
                       SizedBox(
                         height: 390,
                         child: PageView.builder(
@@ -89,7 +96,7 @@ class EventOrdersDetailScreen extends StatelessWidget {
                                   qrToken: item.qrToken,
                                   eventStartAt: eventGroup.eventStartAt,
                                   purchaseDate: order.purchaseDate,
-                                  attendeeName: item.attendeeName, // <-- Nombre del asistente conectado
+                                  attendeeName: item.attendeeName,
                                 ),
                               ),
                             );
@@ -101,20 +108,19 @@ class EventOrdersDetailScreen extends StatelessWidget {
                         const SizedBox(height: 10),
                         Text(
                           'Entrada ${currentIndex + 1} de ${order.totalTickets} (Desliza para ver las demás)',
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          style: TextStyle(color: context.textMuted, fontSize: 12),
                         ),
                       ],
 
                       const SizedBox(height: 16),
 
-                      // Botón para compartir pase completo
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 48),
+                          backgroundColor: AppColors.success,
+                          foregroundColor: AppColors.onSecondary,
+                          minimumSize: const Size(double.infinity, AppSizes.buttonHeight),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                           ),
                         ),
                         icon: const Icon(Icons.share),
@@ -150,7 +156,12 @@ class EventOrdersDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        title: Text(eventGroup.eventTitle),
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          eventGroup.eventTitle,
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
       ),
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
@@ -161,13 +172,13 @@ class EventOrdersDetailScreen extends StatelessWidget {
 
           return InkWell(
             onTap: () => _showOrderQrs(context, order),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: context.cardBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white10),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                border: Border.all(color: context.divider),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,7 +188,11 @@ class EventOrdersDetailScreen extends StatelessWidget {
                     children: [
                       Text(
                         order.ticketTypeName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          color: context.textOnBg,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -199,11 +214,11 @@ class EventOrdersDetailScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Icon(Icons.access_time_outlined, size: 16, color: Colors.grey),
+                      Icon(Icons.access_time_outlined, size: 16, color: context.textMuted),
                       const SizedBox(width: 6),
                       Text(
                         'Comprado a las: ${_formatPurchaseTime(order.purchaseDate)}',
-                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                        style: TextStyle(fontSize: 13, color: context.textMuted),
                       ),
                       const Spacer(),
                       const Icon(Icons.qr_code_2, color: AppColors.primary, size: 24),

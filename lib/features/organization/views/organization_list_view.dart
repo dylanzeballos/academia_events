@@ -1,8 +1,10 @@
+// lib/features/organization/views/organization_list_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_error_state.dart';
@@ -19,11 +21,17 @@ class OrganizationListView extends ConsumerWidget {
     final orgsAsync = ref.watch(myOrganizationsProvider);
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Mis Organizaciones'),
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Mis Organizaciones',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: Icon(Icons.add, color: context.textOnBg),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -52,6 +60,7 @@ class OrganizationListView extends ConsumerWidget {
           }
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () => ref.refresh(myOrganizationsProvider.future),
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -129,20 +138,20 @@ class _OrganizationCard extends ConsumerWidget {
                 child: Hero(
                   tag: 'organization-list-logo-$name',
                   child: CircleAvatar(
-                radius: 28,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                backgroundImage:
-                    resolvedLogo != null ? NetworkImage(resolvedLogo) : null,
-                child: resolvedLogo == null
-                    ? Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
+                    radius: 28,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                    backgroundImage:
+                        resolvedLogo != null ? NetworkImage(resolvedLogo) : null,
+                    child: resolvedLogo == null
+                        ? Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               ),
@@ -180,8 +189,8 @@ class _OrganizationCard extends ConsumerWidget {
                         description!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.grey,
+                        style: TextStyle(
+                          color: context.textMuted,
                           fontSize: 13,
                         ),
                       ),
@@ -206,7 +215,7 @@ class _OrganizationCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
+              Icon(Icons.chevron_right, color: context.textMuted),
             ],
           ),
         ),
@@ -230,7 +239,7 @@ class _EmptyState extends StatelessWidget {
             Icon(
               Icons.business_outlined,
               size: 64,
-              color: Colors.grey[600],
+              color: context.textMuted,
             ),
             const SizedBox(height: 16),
             Text(
@@ -242,19 +251,21 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Crea tu primera organización para\nempezar a gestionar eventos y clases.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: TextStyle(color: context.textMuted, fontSize: 14),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add),
-              label: const Text('Crear organización'),
+              label: const Text('Crear organización', style: TextStyle(fontWeight: FontWeight.bold)),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
                 minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
               ),
             ),
           ],

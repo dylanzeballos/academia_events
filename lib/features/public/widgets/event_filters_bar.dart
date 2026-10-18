@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/theme_extensions.dart';
-import '../../../data/models/dance_category_model.dart';
-import '../../../data/models/geographic_model.dart';
-import '../../../data/models/public_event_data.dart';
-import '../../../providers/public_events_provider.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/theme_extensions.dart';
+import '../../../../data/models/dance_category_model.dart';
+import '../../../../data/models/geographic_model.dart';
+import '../../../../data/models/public_event_data.dart';
+import '../../../../providers/public_events_provider.dart';
 
-/// Barra de filtros desplegables para los calendarios (Horario y calendario
-/// público).
-///
-/// Se muestra como una fila desplazable de pastillas compactas. Cada pastilla
-/// se resalta cuando su filtro está activo. Con [showOrganizationFilter] en
-/// `false` (página de una organización) se oculta el desplegable de
-/// organización, pues viene fijada por la ruta.
 class EventFiltersBar extends ConsumerWidget {
   const EventFiltersBar({
     super.key,
@@ -50,8 +44,8 @@ class EventFiltersBar extends ConsumerWidget {
     final danceLabel = filter.danceCategoryIds.isEmpty
         ? 'Estilo'
         : selectedDanceNames.isEmpty
-        ? '${filter.danceCategoryIds.length} estilos'
-        : selectedDanceNames.join(' · ');
+            ? '${filter.danceCategoryIds.length} estilos'
+            : selectedDanceNames.join(' · ');
 
     String? selectedOrgName;
     for (final o in orgs) {
@@ -84,16 +78,16 @@ class EventFiltersBar extends ConsumerWidget {
         padding: EdgeInsets.symmetric(horizontal: dense ? 12 : 16),
         child: Row(
           children: [
-            // ── Departamento (selección única) ──────────────────────
             _PillMenu<String>(
               tooltip: 'Filtrar por ubicación',
               onSelected: (value) => ref
                   .read(eventFiltersProvider.notifier)
                   .setDepartmentId(value == _allValue ? null : value),
               itemBuilder: (context) => [
-                _radioItem(_allValue, filter.departmentId == null, 'Todas'),
+                _radioItem(context, _allValue, filter.departmentId == null, 'Todas'),
                 for (final department in departments)
                   _radioItem(
+                    context,
                     department.id,
                     department.id == filter.departmentId,
                     department.name,
@@ -108,7 +102,6 @@ class EventFiltersBar extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
 
-            // ── Categorías de baile (multi-selección) ───────────────
             _PillMenu<String>(
               tooltip: 'Filtrar por estilo de baile',
               onSelected: (value) {
@@ -123,13 +116,19 @@ class EventFiltersBar extends ConsumerWidget {
                 CheckedPopupMenuItem<String>(
                   value: _allDanceValue,
                   checked: filter.danceCategoryIds.isEmpty,
-                  child: const Text('Todos los estilos'),
+                  child: Text(
+                    'Todos los estilos',
+                    style: TextStyle(color: context.textOnBg),
+                  ),
                 ),
                 for (final c in dance)
                   CheckedPopupMenuItem<String>(
                     value: c.id,
                     checked: filter.danceCategoryIds.contains(c.id),
-                    child: Text(c.name),
+                    child: Text(
+                      c.name,
+                      style: TextStyle(color: context.textOnBg),
+                    ),
                   ),
               ],
               child: _FilterPill(
@@ -141,7 +140,6 @@ class EventFiltersBar extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
 
-            // ── Organización (selección única) ──────────────────────
             if (showOrganizationFilter) ...[
               _PillMenu<String>(
                 tooltip: 'Filtrar por academia',
@@ -150,9 +148,9 @@ class EventFiltersBar extends ConsumerWidget {
                     .read(eventFiltersProvider.notifier)
                     .setOrganizationId(value == _allValue ? null : value),
                 itemBuilder: (context) => [
-                  _radioItem(_allValue, selectedOrgName == null, 'Todas'),
+                  _radioItem(context, _allValue, selectedOrgName == null, 'Todas'),
                   for (final o in orgs)
-                    _radioItem(o.id, o.id == filter.organizationId, o.name),
+                    _radioItem(context, o.id, o.id == filter.organizationId, o.name),
                 ],
                 child: _FilterPill(
                   icon: Icons.apartment_rounded,
@@ -164,7 +162,6 @@ class EventFiltersBar extends ConsumerWidget {
               const SizedBox(width: 8),
             ],
 
-            // ── Limpiar filtros ─────────────────────────────────────
             if (filter.hasActiveFilters) ...[
               const SizedBox(width: 6),
               TextButton.icon(
@@ -184,21 +181,31 @@ class EventFiltersBar extends ConsumerWidget {
     );
   }
 
-  PopupMenuItem<T> _radioItem<T>(T value, bool selected, String label) {
+  PopupMenuItem<T> _radioItem<T>(
+    BuildContext context,
+    T value,
+    bool selected,
+    String label,
+  ) {
     return PopupMenuItem<T>(
       value: value,
       child: Row(
         children: [
           Icon(
-            selected
-                ? Icons.radio_button_checked
-                : Icons.radio_button_off,
+            selected ? Icons.radio_button_checked : Icons.radio_button_off,
             size: 18,
-            color: selected ? AppColors.primary : null,
+            color: selected ? AppColors.primary : context.textMuted,
           ),
           const SizedBox(width: 8),
           Flexible(
-            child: Text(label, overflow: TextOverflow.ellipsis),
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected ? AppColors.primary : context.textOnBg,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
           ),
         ],
       ),
@@ -206,8 +213,6 @@ class EventFiltersBar extends ConsumerWidget {
   }
 }
 
-/// Botón de filtros que abre la hoja y muestra un punto cuando hay filtros
-/// activos.
 class EventFiltersButton extends ConsumerWidget {
   const EventFiltersButton({super.key, this.showOrganizationFilter = true});
 
@@ -227,9 +232,7 @@ class EventFiltersButton extends ConsumerWidget {
           ),
           tooltip: 'Filtros',
           icon: Icon(
-            hasActiveFilters
-                ? Icons.filter_alt_rounded
-                : Icons.filter_alt_outlined,
+            hasActiveFilters ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
             color: context.textOnBg,
           ),
         ),
@@ -251,13 +254,16 @@ class EventFiltersButton extends ConsumerWidget {
   }
 }
 
-/// Muestra la hoja con los filtros desplegables más el botón "Limpiar".
 Future<void> showEventFiltersSheet(
   BuildContext context, {
   bool showOrganizationFilter = true,
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    backgroundColor: context.cardBg,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLarge)),
+    ),
     builder: (sheetContext) {
       return SafeArea(
         child: Column(
@@ -278,7 +284,7 @@ Future<void> showEventFiltersSheet(
                   const Spacer(),
                   IconButton(
                     onPressed: () => Navigator.pop(sheetContext),
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: context.textMuted),
                     tooltip: 'Cerrar',
                   ),
                 ],
@@ -293,7 +299,6 @@ Future<void> showEventFiltersSheet(
   );
 }
 
-/// PopupMenuButton tipado con pastilla desplegable.
 class _PillMenu<T> extends StatelessWidget {
   const _PillMenu({
     required this.child,
@@ -316,16 +321,17 @@ class _PillMenu<T> extends StatelessWidget {
       enabled: enabled,
       onSelected: onSelected,
       itemBuilder: itemBuilder,
+      color: context.cardBg,
       position: PopupMenuPosition.under,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        side: BorderSide(color: context.divider),
       ),
       child: child,
     );
   }
 }
 
-/// Pastilla que abre el menú desplegable. Se resalta cuando está activa.
 class _FilterPill extends StatelessWidget {
   const _FilterPill({
     required this.icon,
@@ -342,9 +348,7 @@ class _FilterPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = active ? AppColors.primary : context.textOnBg;
-    final bg = active
-        ? AppColors.primary.withValues(alpha: 0.14)
-        : context.inputBg;
+    final bg = active ? AppColors.primary.withValues(alpha: 0.14) : context.cardBg;
     final border = active ? AppColors.primary : context.divider;
 
     return Container(

@@ -1,7 +1,9 @@
+// lib/features/academy/views/academy_teachers_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/dance_class_provider.dart';
@@ -18,8 +20,14 @@ class AcademyTeachersView extends ConsumerWidget {
     final instructorsAsync = ref.watch(orgInstructorsProvider);
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Instructores'),
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Instructores',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
       ),
       body: instructorsAsync.when(
         loading: () => const LoadingIndicator(),
@@ -37,6 +45,7 @@ class AcademyTeachersView extends ConsumerWidget {
           }
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async => ref.invalidate(orgInstructorsProvider),
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -49,8 +58,6 @@ class AcademyTeachersView extends ConsumerWidget {
                 final lastName = profile?['last_name'] as String? ?? '';
                 final fullName = '$firstName $lastName'.trim();
                 final phone = profile?['phone_number'] as String?;
-                // Resolver a URL pública: en BD hay un path (o una URL
-                // firmada antigua ya expirada), no una URL mostrable.
                 final avatarUrl = ref
                     .watch(authRepositoryProvider)
                     .resolveAvatarUrl(profile?['profile_image_url'] as String?);
@@ -79,7 +86,7 @@ class AcademyTeachersView extends ConsumerWidget {
                       style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.w500),
                     ),
                     subtitle: phone != null && phone.isNotEmpty
-                        ? Text(phone, style: const TextStyle(color: Colors.grey, fontSize: 12))
+                        ? Text(phone, style: TextStyle(color: context.textMuted, fontSize: 12))
                         : null,
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

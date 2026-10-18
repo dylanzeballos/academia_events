@@ -1,8 +1,10 @@
+// lib/features/academy/views/dashboard/dashboard_org_selector.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_member_model.dart';
 import '../../../../data/repositories/organization_repository.dart';
@@ -25,7 +27,6 @@ class DashboardOrgSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Selección directa sin firstWhere ni orElse
     OrganizationWithRole selectedOrgWithRole = orgs.first;
     for (final item in orgs) {
       if (item.organization.id == selectedOrgId) {
@@ -59,19 +60,19 @@ class DashboardOrgSelector extends ConsumerWidget {
               child: Hero(
                 tag: 'dashboard-org-logo-${org.id}',
                 child: CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-              backgroundImage: logoUrl != null ? NetworkImage(logoUrl) : null,
-              child: logoUrl == null
-                  ? Text(
-                      org.name.isNotEmpty ? org.name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : null,
+                  radius: 24,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                  backgroundImage: logoUrl != null ? NetworkImage(logoUrl) : null,
+                  child: logoUrl == null
+                      ? Text(
+                          org.name.isNotEmpty ? org.name[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
                 ),
               ),
             ),
@@ -94,7 +95,10 @@ class DashboardOrgSelector extends ConsumerWidget {
                         items: orgs.map((o) {
                           return DropdownMenuItem(
                             value: o.organization.id,
-                            child: Text(o.organization.name),
+                            child: Text(
+                              o.organization.name,
+                              style: TextStyle(color: context.textOnBg),
+                            ),
                           );
                         }).toList(),
                         onChanged: (v) {

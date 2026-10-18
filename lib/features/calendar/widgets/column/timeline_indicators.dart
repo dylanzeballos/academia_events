@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import 'timeline_scale.dart';
@@ -37,10 +39,10 @@ class NowIndicator extends StatelessWidget {
             height: 8,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.red,
+              color: AppColors.error,
             ),
           ),
-          Expanded(child: Container(height: 1.5, color: Colors.red)),
+          Expanded(child: Container(height: 1.5, color: AppColors.error)),
         ],
       ),
     );
@@ -124,7 +126,7 @@ class _RightSlideHintState extends State<RightSlideHint>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.18),
+                            color: context.textOnBg.withValues(alpha: 0.12),
                             blurRadius: 6,
                             offset: const Offset(1, 1),
                           ),

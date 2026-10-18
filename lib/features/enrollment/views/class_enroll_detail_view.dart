@@ -1,7 +1,9 @@
+// lib/features/enrollment/views/class_enroll_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_model.dart';
 import '../../../data/models/class_enrollment_model.dart';
@@ -13,7 +15,6 @@ import '../../../shared/widgets/app_feedback.dart';
 class ClassEnrollDetailView extends ConsumerStatefulWidget {
   const ClassEnrollDetailView({super.key, this.classId});
 
-  /// Si se provee, selecciona la clase al abrir la vista.
   final String? classId;
 
   @override
@@ -27,8 +28,6 @@ class _ClassEnrollDetailViewState extends ConsumerState<ClassEnrollDetailView> {
     super.initState();
     final id = widget.classId;
     if (id != null && id.isNotEmpty) {
-      // No modificar providers durante initState (el árbol se está
-      // construyendo): posponer hasta después del frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref.read(selectedEnrollClassIdProvider.notifier).select(id);
@@ -42,13 +41,28 @@ class _ClassEnrollDetailViewState extends ConsumerState<ClassEnrollDetailView> {
     final enrollmentsAsync = ref.watch(myEnrollmentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle de clase')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Detalle de clase',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: classAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
+        error: (e, _) => Center(
+          child: Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
+        ),
         data: (danceClass) {
           if (danceClass == null) {
-            return const Center(child: Text('Clase no encontrada.'));
+            return Center(
+              child: Text(
+                'Clase no encontrada.',
+                style: TextStyle(color: context.textMuted),
+              ),
+            );
           }
           final enrolled = enrollmentsAsync.value ?? const <ClassEnrollmentModel>[];
           final isEnrolled = alreadyEnrolled(enrolled, danceClass.id);
@@ -73,7 +87,6 @@ class _ClassInfo extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Encabezado
         CircleAvatar(
           radius: 36,
           backgroundColor: AppColors.primary.withValues(alpha: 0.15),
@@ -101,11 +114,11 @@ class _ClassInfo extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.person_outline, size: 16, color: Colors.grey[500]),
+              Icon(Icons.person_outline, size: 16, color: context.textMuted),
               const SizedBox(width: 6),
               Text(
                 danceClass.instructorName!,
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
+                style: TextStyle(color: context.textMuted, fontSize: 14),
               ),
             ],
           ),
@@ -121,22 +134,28 @@ class _ClassInfo extends ConsumerWidget {
         const SizedBox(height: 16),
         Text(
           'Precio: ${danceClass.price} ${danceClass.currency}',
-          style: const TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.w600),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-
         const SizedBox(height: 24),
-
         if (actionState.isLoading)
-          const Center(child: CircularProgressIndicator())
+          const Center(child: CircularProgressIndicator(color: AppColors.primary))
         else if (!isEnrolled)
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+              ),
             ),
             onPressed: () => _enroll(context, ref, danceClass.id),
-            child: const Text('Inscribirme'),
+            child: const Text('Inscribirme', style: TextStyle(fontWeight: FontWeight.bold)),
           )
         else
           Container(
@@ -144,6 +163,7 @@ class _ClassInfo extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+              border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
             ),
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -179,12 +199,11 @@ class _ClassInfo extends ConsumerWidget {
         SnackBar(
           content: Text(success ? 'Te inscribiste correctamente.' : 'No se pudo inscribir.'),
           behavior: SnackBarBehavior.floating,
+          backgroundColor: context.cardBg,
         ),
       );
     if (success) {
-      ref
-          .read(selectedEnrollClassIdProvider.notifier)
-          .clear();
+      ref.read(selectedEnrollClassIdProvider.notifier).clear();
       Navigator.of(context).pop();
     }
   }

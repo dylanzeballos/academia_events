@@ -1,7 +1,10 @@
+// lib/features/events/widgets/detail/event_publish_action_bar.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
 import '../../../../providers/events_provider.dart';
 import '../../../../shared/widgets/app_feedback.dart';
@@ -24,20 +27,22 @@ class _EventPublishActionBarState
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Publicar evento'),
+        backgroundColor: context.cardBg,
+        title: Text('Publicar evento', style: TextStyle(color: context.textOnBg)),
         content: Text(
           'Al publicar "${widget.event.title}", el evento será visible para todos los usuarios y podrán adquirir entradas.',
+          style: TextStyle(color: context.textMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: AppColors.onPrimary,
             ),
             child: const Text('Confirmar y Publicar'),
           ),
@@ -49,14 +54,12 @@ class _EventPublishActionBarState
 
     setState(() => _isProcessing = true);
 
-  try {
-      // 1. Actualizar el evento a 'published' y fijar la fecha de publicación
+    try {
       await ref.read(eventsRepositoryProvider).updateEvent(widget.event.id, {
         'status': 'published',
         'published_at': DateTime.now().toIso8601String(),
       });
 
-      // 2. Invalidar los providers para limpiar la caché
       ref.invalidate(eventDetailProvider(widget.event.id));
       ref.invalidate(orgEventsProvider);
       ref.invalidate(allEventsProvider);
@@ -80,14 +83,8 @@ class _EventPublishActionBarState
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              offset: const Offset(0, -4),
-              blurRadius: 10,
-            ),
-          ],
+          color: context.cardBg,
+          border: Border(top: BorderSide(color: context.divider)),
         ),
         child: Row(
           children: [
@@ -96,15 +93,18 @@ class _EventPublishActionBarState
                 onPressed: _isProcessing ? null : _handlePublish,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.onPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  ),
                 ),
                 icon: _isProcessing
                     ? const SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
+                          color: AppColors.onPrimary,
                           strokeWidth: 2,
                         ),
                       )

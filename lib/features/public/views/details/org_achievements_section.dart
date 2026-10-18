@@ -1,5 +1,8 @@
+// lib/features/organization/views/details/org_achievements_section.dart
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 
 class OrgAchievementsSection extends StatelessWidget {
@@ -26,27 +29,27 @@ class OrgAchievementsSection extends StatelessWidget {
                 ),
               ],
             ),
-            const Icon(Icons.emoji_events_outlined, color: Color(0xFFF59E0B), size: 24),
+            const Icon(Icons.emoji_events_outlined, color: AppColors.warning, size: 24),
           ],
         ),
         const SizedBox(height: 14),
         const _AchievementCard(
           icon: Icons.emoji_events,
-          iconColor: Color(0xFFF59E0B),
+          iconColor: AppColors.warning,
           title: 'Campeones Nacionales Salsa Rueda Casino 2025',
           subtitle: 'Torneo Abierto de Baile Latino • Categoría Elenco Profesional',
         ),
         const SizedBox(height: 10),
         const _AchievementCard(
           icon: Icons.military_tech,
-          iconColor: Color(0xFF38BDF8),
+          iconColor: AppColors.secondary,
           title: 'Subcampeones Bachata Sensual Open 2024',
           subtitle: 'Circuito Latinoamericano de Parejas Master',
         ),
         const SizedBox(height: 10),
         const _AchievementCard(
           icon: Icons.stars,
-          iconColor: Color(0xFFE85D04),
+          iconColor: AppColors.primary,
           title: 'Academia Destacada del Año',
           subtitle: 'Premio Anual de la Federación de Baile Social & Arte Corporal',
         ),
@@ -74,7 +77,7 @@ class _AchievementCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: context.cardBg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
         border: Border.all(color: context.divider),
       ),
       child: Row(
@@ -84,7 +87,7 @@ class _AchievementCard extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
             ),
             child: Icon(icon, color: iconColor, size: 20),
           ),

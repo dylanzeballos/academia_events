@@ -1,3 +1,4 @@
+// lib/features/classes/views/class_list_view.dart
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
@@ -33,7 +35,6 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
   static const int _startHour = 7;
   static const int _endHour = 23;
 
-  // 1 = Lun ... 6 = Sáb, 0 = Dom (Postgres day_of_week)
   static const List<(int, String, String)> _daysOfWeek = [
     (1, 'LUN', 'LUNES'),
     (2, 'MAR', 'MARTES'),
@@ -89,7 +90,6 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
 
   @override
   Widget build(BuildContext context) {
-    // Escucha el provider que une las clases con sus horarios semanales
     final scheduleEntriesAsync = ref.watch(orgWeeklyScheduleEntriesProvider);
     final myRole = ref.watch(myOrgRoleProvider);
     final canManage = myRole?.canManageClasses ?? false;
@@ -97,18 +97,18 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: context.surfaceHeader,
+        backgroundColor: context.cardBg,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Horario',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: context.textOnBg),
         ),
         actions: [
           IconButton(
             tooltip: _fitToScreen ? 'Modo Scroll' : 'Ajustar a pantalla',
             icon: Icon(
               _fitToScreen ? Icons.view_column_outlined : Icons.fit_screen_outlined,
-              color: Colors.white70,
+              color: context.textOnBg,
             ),
             onPressed: () => setState(() => _fitToScreen = !_fitToScreen),
           ),
@@ -122,7 +122,7 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
           ),
           IconButton(
             tooltip: 'Refrescar',
-            icon: const Icon(Icons.refresh, color: Colors.white70),
+            icon: Icon(Icons.refresh, color: context.textMuted),
             onPressed: () {
               ref.invalidate(orgClassesProvider);
               ref.invalidate(orgWeeklyScheduleEntriesProvider);
@@ -137,7 +137,7 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
             padding: const EdgeInsets.all(24),
             child: Text(
               friendlyError(e),
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: context.textMuted),
               textAlign: TextAlign.center,
             ),
           ),
@@ -165,11 +165,10 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
 
               return Column(
                 children: [
-                  // ── Cabecera: HORA + Días ──
                   Container(
                     height: 52,
                     decoration: BoxDecoration(
-                      color: context.surfaceHeader,
+                      color: context.cardBg,
                       border: Border(bottom: BorderSide(color: context.divider, width: 1.2)),
                     ),
                     child: Row(
@@ -180,18 +179,18 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF202638),
+                              color: AppColors.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.schedule, size: 10, color: Colors.white70),
+                                Icon(Icons.schedule, size: 10, color: AppColors.primary),
                                 SizedBox(width: 3),
                                 Text(
                                   'HORA',
                                   style: TextStyle(
-                                    color: Colors.white70,
+                                    color: AppColors.primary,
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.5,
@@ -217,8 +216,8 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                                       children: [
                                         Text(
                                           d.$2,
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: context.textOnBg,
                                             fontWeight: FontWeight.w900,
                                             fontSize: 13,
                                             letterSpacing: 0.6,
@@ -228,7 +227,7 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                                         Text(
                                           d.$3,
                                           style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.45),
+                                            color: context.textMuted,
                                             fontWeight: FontWeight.w700,
                                             fontSize: 9,
                                             letterSpacing: 0.8,
@@ -246,7 +245,6 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                     ),
                   ),
 
-                  // ── Grilla con Horas y Columnas de Clases ──
                   Expanded(
                     child: SingleChildScrollView(
                       controller: _verticalScroll,
@@ -320,8 +318,8 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
                 ref.invalidate(orgClassesProvider);
                 ref.invalidate(orgWeeklyScheduleEntriesProvider);
               },
-              backgroundColor: const Color(0xFFE85D04),
-              child: const Icon(Icons.add, color: Colors.white),
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: AppColors.onPrimary),
             )
           : null,
     );
@@ -332,16 +330,16 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.calendar_view_week, size: 60, color: Colors.white.withValues(alpha: 0.2)),
+          Icon(Icons.calendar_view_week, size: 60, color: context.textMuted.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Sin clases registradas',
-            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+            style: TextStyle(color: context.textOnBg, fontSize: 17, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
           Text(
             'Crea clases recurrentes para armar tu horario.',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+            style: TextStyle(color: context.textMuted, fontSize: 13),
           ),
           if (canManage) ...[
             const SizedBox(height: 20),
@@ -356,7 +354,10 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
               },
               icon: const Icon(Icons.add),
               label: const Text('Crear Clase'),
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE85D04)),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+              ),
             ),
           ],
         ],
@@ -373,9 +374,9 @@ class _DarkTimelineLabels extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF141824),
-        border: Border(right: BorderSide(color: Color(0xFF222738), width: 1.2)),
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        border: Border(right: BorderSide(color: context.divider, width: 1.2)),
       ),
       child: Stack(
         children: List.generate(scale.totalHours + 1, (i) {
@@ -393,7 +394,7 @@ class _DarkTimelineLabels extends StatelessWidget {
                 Text(
                   '${hour.toString().padLeft(2, '0')}:00',
                   style: TextStyle(
-                    color: isHighlighted ? const Color(0xFFFF7A00) : Colors.white70,
+                    color: isHighlighted ? AppColors.primary : context.textOnBg,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -401,7 +402,7 @@ class _DarkTimelineLabels extends StatelessWidget {
                 Text(
                   '${(hour + 1).toString().padLeft(2, '0')}:00',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.3),
+                    color: context.textMuted,
                     fontSize: 9,
                     fontWeight: FontWeight.w600,
                   ),
@@ -413,7 +414,7 @@ class _DarkTimelineLabels extends StatelessWidget {
                     margin: const EdgeInsets.only(top: 3),
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFFFF7A00),
+                      color: AppColors.primary,
                     ),
                   ),
               ],
@@ -453,8 +454,8 @@ class _DarkScheduleDayColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Color(0xFF1E2333), width: 0.8)),
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: context.divider, width: 0.8)),
       ),
       child: Stack(
         children: [
@@ -469,15 +470,15 @@ class _DarkScheduleDayColumn extends StatelessWidget {
               right: 0,
               height: height,
               child: Container(
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Color(0xFF1C2130), width: 0.7)),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: context.divider.withValues(alpha: 0.5), width: 0.7)),
                 ),
                 child: Center(
                   child: IconButton(
                     icon: Icon(
                       Icons.add,
                       size: 16,
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: context.textMuted.withValues(alpha: 0.2),
                     ),
                     onPressed: onAddClass != null ? () => onAddClass!(hour) : null,
                   ),
@@ -523,17 +524,11 @@ class _DarkClassCard extends ConsumerWidget {
     final bool isKizomba = titleLower.contains('kizomba') || titleLower.contains('urban');
     final bool isFree = titleLower.contains('práctica') || titleLower.contains('pista');
 
-    final Color cardBg = isFree
-        ? const Color(0xFF161A26)
+    final Color badgeColor = isFree
+        ? context.textMuted
         : isKizomba
-            ? const Color(0xFF133444)
-            : const Color(0xFF382319);
-
-    final Color badgeBg = isFree
-        ? Colors.transparent
-        : isKizomba
-            ? const Color(0xFF1EA7C7)
-            : const Color(0xFFE85D04);
+            ? AppColors.secondary
+            : AppColors.primary;
 
     final String categoryTag = isFree
         ? 'PRÁCTICA'
@@ -561,17 +556,17 @@ class _DarkClassCard extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(10),
+          color: context.cardBg,
+          borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
           border: Border.all(
-            color: isFree ? const Color(0xFF262E42) : badgeBg.withValues(alpha: 0.35),
+            color: badgeColor.withValues(alpha: 0.4),
             width: 1.1,
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black26,
+              color: badgeColor.withValues(alpha: 0.1),
               blurRadius: 4,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -585,7 +580,7 @@ class _DarkClassCard extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                     decoration: BoxDecoration(
-                      color: badgeBg,
+                      color: badgeColor,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -593,7 +588,7 @@ class _DarkClassCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.onPrimary,
                         fontSize: 7.5,
                         fontWeight: FontWeight.w900,
                       ),
@@ -604,7 +599,7 @@ class _DarkClassCard extends ConsumerWidget {
                 Text(
                   '${durationMin}m',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: context.textMuted,
                     fontSize: 7.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -617,8 +612,8 @@ class _DarkClassCard extends ConsumerWidget {
                 danceClass.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: context.textOnBg,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                   height: 1.1,
@@ -633,7 +628,7 @@ class _DarkClassCard extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.65),
+                      color: context.textMuted,
                       fontSize: 8.5,
                     ),
                   ),
@@ -642,8 +637,8 @@ class _DarkClassCard extends ConsumerWidget {
                   const SizedBox(width: 4),
                   Text(
                     '${danceClass.price.toInt()} BOB',
-                    style: const TextStyle(
-                      color: Color(0xFFE85D04),
+                    style: TextStyle(
+                      color: badgeColor,
                       fontSize: 8.5,
                       fontWeight: FontWeight.w800,
                     ),

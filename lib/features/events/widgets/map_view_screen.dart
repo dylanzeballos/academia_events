@@ -1,13 +1,13 @@
+// lib/features/events/widgets/map_view_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 
-/// Mapa a pantalla completa de solo lectura para ver la ubicación
-/// de un evento, con opción de abrir en Google Maps.
 class MapViewScreen extends StatelessWidget {
   const MapViewScreen({
     super.key,
@@ -28,7 +28,10 @@ class MapViewScreen extends StatelessWidget {
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir Google Maps')),
+        SnackBar(
+          content: const Text('No se pudo abrir Google Maps'),
+          backgroundColor: context.cardBg,
+        ),
       );
     }
   }
@@ -36,12 +39,15 @@ class MapViewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        title: Text(title ?? 'Ubicación'),
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(title ?? 'Ubicación', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             tooltip: 'Abrir en Google Maps',
-            icon: const Icon(Icons.open_in_new),
+            icon: Icon(Icons.open_in_new, color: context.textOnBg),
             onPressed: () => _openGoogleMaps(context),
           ),
         ],
@@ -63,7 +69,7 @@ class MapViewScreen extends StatelessWidget {
                     height: 40,
                     child: const Icon(
                       Icons.location_on,
-                      color: Colors.red,
+                      color: AppColors.error,
                       size: 40,
                     ),
                   ),
@@ -77,18 +83,11 @@ class MapViewScreen extends StatelessWidget {
               left: 12,
               right: 12,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: context.cardBg.withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  border: Border.all(color: context.divider),
                 ),
                 child: Row(
                   children: [
@@ -116,8 +115,11 @@ class MapViewScreen extends StatelessWidget {
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.onPrimary,
                 minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                ),
               ),
               onPressed: () => _openGoogleMaps(context),
               icon: const Icon(Icons.map_outlined),

@@ -1,3 +1,4 @@
+// lib/features/classes/utils/class_attendance_exporter.dart
 import 'dart:io';
 
 import 'package:excel/excel.dart';
@@ -8,16 +9,6 @@ import '../../../core/utils/display_labels.dart';
 import '../../../core/utils/excel_report_helpers.dart';
 import '../../../data/models/class_attendance_model.dart';
 
-/// Genera los informes de asistencia de una clase con el formato del Excel
-/// demostrativo:
-///   * Mensual: NOMBRES · ESTADO DE INSCRIPCION · TOTAL DE SESIONES ·
-///     SESIONES ASISTIDAS · N CHECK-IN (una columna por sesión) ·
-///     INGRESO ECONOMICO.
-///   * Por sesión: NOMBRES · ESTADO DE INSCRIPCION · TOTAL DE SESIONES ·
-///     SESIONES ASISTIDAS · CHECK-IN · INGRESO ECONOMICO.
-///
-/// El ingreso se calcula como `precio de la clase / total de sesiones`
-/// multiplicado por las sesiones efectivamente asistidas.
 class ClassAttendanceExporter {
   ClassAttendanceExporter._();
 

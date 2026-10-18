@@ -1,11 +1,11 @@
+// lib/features/classes/widgets/schedule_dialog.dart
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/dance_class_schedule_model.dart';
 
-/// Resultado del diálogo de horario. Cuando [id] no es nulo se trata de una
-/// edición de un horario existente; si es nulo es un horario nuevo.
 class ScheduleDialogResult {
   const ScheduleDialogResult({
     this.id,
@@ -38,11 +38,6 @@ class ScheduleDialogResult {
       };
 }
 
-/// Diálogo reutilizable para crear o editar un horario recurrente.
-///
-/// Permite elegir día, hora inicio/fin y un rango de fechas opcional
-/// (inicio/fin de la recurrencia). [existing] es el horario a editar (nulo
-/// para uno nuevo). [classStart]/[classEnd] acotan las fechas mínimas/máximas.
 Future<ScheduleDialogResult?> showScheduleDialog(
   BuildContext context, {
   DanceClassScheduleModel? existing,
@@ -72,27 +67,46 @@ Future<ScheduleDialogResult?> showScheduleDialog(
         final lastDate = classEnd ?? DateTime.now().add(const Duration(days: 365));
 
         return AlertDialog(
+          backgroundColor: context.cardBg,
           title: Text(
             existing == null ? 'Agregar horario' : 'Editar horario',
-            style: TextStyle(color: context.textOnBg),
+            style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DropdownButtonFormField<int>(
                   initialValue: dayOfWeek,
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textOnBg),
-                  decoration: const InputDecoration(labelText: 'Día'),
-                  items: const [
-                    DropdownMenuItem(value: 1, child: Text('Lunes')),
-                    DropdownMenuItem(value: 2, child: Text('Martes')),
-                    DropdownMenuItem(value: 3, child: Text('Miércoles')),
-                    DropdownMenuItem(value: 4, child: Text('Jueves')),
-                    DropdownMenuItem(value: 5, child: Text('Viernes')),
-                    DropdownMenuItem(value: 6, child: Text('Sábado')),
-                    DropdownMenuItem(value: 0, child: Text('Domingo')),
+                  decoration: InputDecoration(
+                    labelText: 'Día',
+                    labelStyle: TextStyle(color: context.textMuted),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                      borderSide: BorderSide(color: context.divider),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                      borderSide: BorderSide(color: context.divider),
+                    ),
+                  ),
+                  items: [
+                    for (final entry in const [
+                      (1, 'Lunes'),
+                      (2, 'Martes'),
+                      (3, 'Miércoles'),
+                      (4, 'Jueves'),
+                      (5, 'Viernes'),
+                      (6, 'Sábado'),
+                      (0, 'Domingo'),
+                    ])
+                      DropdownMenuItem(
+                        value: entry.$1,
+                        child: Text(entry.$2, style: TextStyle(color: context.textOnBg)),
+                      ),
                   ],
                   onChanged: (v) {
                     if (v != null) setDialogState(() => dayOfWeek = v);
@@ -106,10 +120,21 @@ Future<ScheduleDialogResult?> showScheduleDialog(
                         initialValue: sHour,
                         dropdownColor: context.cardBg,
                         style: TextStyle(color: context.textOnBg),
-                        decoration: const InputDecoration(labelText: 'Hora inicio'),
+                        decoration: InputDecoration(
+                          labelText: 'Hora inicio',
+                          labelStyle: TextStyle(color: context.textMuted),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                            borderSide: BorderSide(color: context.divider),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                            borderSide: BorderSide(color: context.divider),
+                          ),
+                        ),
                         items: List.generate(24, (i) => DropdownMenuItem(
                           value: i,
-                          child: Text(i.toString().padLeft(2, '0')),
+                          child: Text(i.toString().padLeft(2, '0'), style: TextStyle(color: context.textOnBg)),
                         )),
                         onChanged: (v) {
                           if (v != null) setDialogState(() => sHour = v);
@@ -122,7 +147,18 @@ Future<ScheduleDialogResult?> showScheduleDialog(
                         initialValue: sMinute,
                         dropdownColor: context.cardBg,
                         style: TextStyle(color: context.textOnBg),
-                        decoration: const InputDecoration(labelText: 'Min'),
+                        decoration: InputDecoration(
+                          labelText: 'Min',
+                          labelStyle: TextStyle(color: context.textMuted),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                            borderSide: BorderSide(color: context.divider),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                            borderSide: BorderSide(color: context.divider),
+                          ),
+                        ),
                         items: const [
                           DropdownMenuItem(value: 0, child: Text('00')),
                           DropdownMenuItem(value: 15, child: Text('15')),
@@ -144,10 +180,21 @@ Future<ScheduleDialogResult?> showScheduleDialog(
                         initialValue: eHour,
                         dropdownColor: context.cardBg,
                         style: TextStyle(color: context.textOnBg),
-                        decoration: const InputDecoration(labelText: 'Hora fin'),
+                        decoration: InputDecoration(
+                          labelText: 'Hora fin',
+                          labelStyle: TextStyle(color: context.textMuted),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                            borderSide: BorderSide(color: context.divider),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                            borderSide: BorderSide(color: context.divider),
+                          ),
+                        ),
                         items: List.generate(24, (i) => DropdownMenuItem(
                           value: i,
-                          child: Text(i.toString().padLeft(2, '0')),
+                          child: Text(i.toString().padLeft(2, '0'), style: TextStyle(color: context.textOnBg)),
                         )),
                         onChanged: (v) {
                           if (v != null) setDialogState(() => eHour = v);
@@ -160,7 +207,18 @@ Future<ScheduleDialogResult?> showScheduleDialog(
                         initialValue: eMinute,
                         dropdownColor: context.cardBg,
                         style: TextStyle(color: context.textOnBg),
-                        decoration: const InputDecoration(labelText: 'Min'),
+                        decoration: InputDecoration(
+                          labelText: 'Min',
+                          labelStyle: TextStyle(color: context.textMuted),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                            borderSide: BorderSide(color: context.divider),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                            borderSide: BorderSide(color: context.divider),
+                          ),
+                        ),
                         items: const [
                           DropdownMenuItem(value: 0, child: Text('00')),
                           DropdownMenuItem(value: 15, child: Text('15')),
@@ -177,7 +235,7 @@ Future<ScheduleDialogResult?> showScheduleDialog(
                 const SizedBox(height: 16),
                 Text(
                   'Rango de fechas (opcional)',
-                  style: TextStyle(color: context.textOnBg, fontSize: 12, fontWeight: FontWeight.w500),
+                  style: TextStyle(color: context.textOnBg, fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -198,6 +256,9 @@ Future<ScheduleDialogResult?> showScheduleDialog(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: context.textOnBg,
                           side: BorderSide(color: context.divider),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                          ),
                         ),
                         child: Text(
                           startDate == null
@@ -223,6 +284,9 @@ Future<ScheduleDialogResult?> showScheduleDialog(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: context.textOnBg,
                           side: BorderSide(color: context.divider),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                          ),
                         ),
                         child: Text(
                           endDate == null
@@ -239,7 +303,7 @@ Future<ScheduleDialogResult?> showScheduleDialog(
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
+              child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
             ),
             TextButton(
               onPressed: () {
@@ -261,7 +325,7 @@ Future<ScheduleDialogResult?> showScheduleDialog(
               },
               child: Text(
                 existing == null ? 'Agregar' : 'Guardar',
-                style: const TextStyle(color: AppColors.primary),
+                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
               ),
             ),
           ],

@@ -1,8 +1,10 @@
+// lib/features/classes/views/class_attendance_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_attendance_model.dart';
@@ -12,8 +14,6 @@ import '../../../shared/widgets/attendance_donut_chart.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../utils/class_attendance_exporter.dart';
 
-/// Vista dedicada de asistencia de una clase. Muestra un resumen general y,
-/// con selector, el detalle por sesión.
 class ClassAttendanceView extends ConsumerStatefulWidget {
   const ClassAttendanceView({
     super.key,
@@ -38,7 +38,15 @@ class _ClassAttendanceViewState extends ConsumerState<ClassAttendanceView> {
     final attendanceAsync = ref.watch(classAttendanceProvider(widget.classId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Asistencia')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Asistencia',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
+      ),
       body: attendanceAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => Center(
@@ -93,7 +101,10 @@ class _ClassAttendanceViewState extends ConsumerState<ClassAttendanceView> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al exportar: $e')),
+          SnackBar(
+            content: Text('Error al exportar: $e'),
+            backgroundColor: context.cardBg,
+          ),
         );
       }
     }
@@ -134,8 +145,8 @@ class _ClassAttendanceContent extends ConsumerWidget {
     }
 
     return RefreshIndicator(
-      onRefresh: () async =>
-          ref.invalidate(classAttendanceProvider(classId)),
+      color: AppColors.primary,
+      onRefresh: () async => ref.invalidate(classAttendanceProvider(classId)),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
@@ -148,9 +159,19 @@ class _ClassAttendanceContent extends ConsumerWidget {
             if (!generalScope && sessions.isNotEmpty) ...[
               DropdownButtonFormField<String>(
                 initialValue: selected?.sessionId,
-                decoration: const InputDecoration(
+                dropdownColor: context.cardBg,
+                style: TextStyle(color: context.textOnBg),
+                decoration: InputDecoration(
                   labelText: 'Sesión',
-                  border: OutlineInputBorder(),
+                  labelStyle: TextStyle(color: context.textMuted),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    borderSide: BorderSide(color: context.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    borderSide: BorderSide(color: context.divider),
+                  ),
                 ),
                 items: [
                   for (final s in sessions)
@@ -159,6 +180,7 @@ class _ClassAttendanceContent extends ConsumerWidget {
                       child: Text(
                         _sessionLabel(s),
                         overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: context.textOnBg),
                       ),
                     ),
                 ],
@@ -179,12 +201,12 @@ class _ClassAttendanceContent extends ConsumerWidget {
                 sessionsList: sessions,
               )
             else
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Center(
                   child: Text(
                     'No hay sesiones para esta clase.',
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(color: context.textMuted),
                   ),
                 ),
               ),
@@ -195,7 +217,12 @@ class _ClassAttendanceContent extends ConsumerWidget {
               icon: const Icon(Icons.table_chart_outlined),
               label: const Text('Exportar a Excel'),
               style: OutlinedButton.styleFrom(
+                foregroundColor: context.textOnBg,
+                side: BorderSide(color: context.divider),
                 padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -206,7 +233,7 @@ class _ClassAttendanceContent extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             if (data.students.isEmpty)
-              _EmptyBox(
+              const _EmptyBox(
                 icon: Icons.group_outlined,
                 text: 'Todavía no hay estudiantes inscritos.',
               )
@@ -297,7 +324,7 @@ class _ScopeButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary.withValues(alpha: 0.2)
+              ? AppColors.primary.withValues(alpha: 0.15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
         ),
@@ -307,7 +334,7 @@ class _ScopeButton extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: selected ? AppColors.primary : Colors.grey,
+              color: selected ? AppColors.primary : context.textMuted,
             ),
             const SizedBox(width: 6),
             Text(
@@ -315,7 +342,7 @@ class _ScopeButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: selected ? AppColors.primary : Colors.grey,
+                color: selected ? AppColors.primary : context.textMuted,
               ),
             ),
           ],
@@ -416,7 +443,7 @@ class _GeneralSection extends StatelessWidget {
               if (totalPending > 0)
                 AttendanceSlice(
                   value: totalPending.toDouble(),
-                  color: Colors.blueGrey,
+                  color: context.textMuted.withValues(alpha: 0.5),
                   label: 'Pendiente',
                 ),
             ],
@@ -520,7 +547,7 @@ class _SessionSection extends StatelessWidget {
                 icon: Icons.pending_actions_outlined,
                 label: 'Pendientes',
                 value: '${session.pending}',
-                color: Colors.blueGrey,
+                color: context.textMuted.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -554,7 +581,7 @@ class _SessionSection extends StatelessWidget {
               if (session.pending > 0)
                 AttendanceSlice(
                   value: session.pending.toDouble(),
-                  color: Colors.blueGrey,
+                  color: context.textMuted.withValues(alpha: 0.5),
                   label: 'Pendiente',
                 ),
             ],
@@ -579,7 +606,7 @@ Widget _chartCard(BuildContext context, String title, {required Widget child}) {
         children: [
           Text(
             title,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(color: context.textMuted, fontSize: 13),
           ),
           const SizedBox(height: 12),
           child,
@@ -627,7 +654,7 @@ class _MetricCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: context.textMuted, fontSize: 12),
             ),
           ],
         ),
@@ -657,7 +684,7 @@ class _StudentTile extends StatelessWidget {
             ? AppColors.warning
             : student.lastAttendanceStatus == 'absent'
                 ? AppColors.error
-                : Colors.blueGrey;
+                : context.textMuted;
 
     return Card(
       color: context.cardBg,
@@ -700,7 +727,7 @@ class _StudentTile extends StatelessWidget {
                   Text(
                     '${student.sessionsAttended}/${student.sessionsTotal} '
                     'sesiones asistidas',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: context.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -728,7 +755,7 @@ class _StudentTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     DateFormatter.hourMin(student.lastCheckInTime!),
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    style: TextStyle(color: context.textMuted, fontSize: 11),
                   ),
                 ],
               ],
@@ -752,12 +779,12 @@ class _EmptyBox extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
         children: [
-          Icon(icon, size: 48, color: Colors.grey[600]),
+          Icon(icon, size: 48, color: context.textMuted),
           const SizedBox(height: 12),
           Text(
             text,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: context.textMuted, fontSize: 14),
           ),
         ],
       ),

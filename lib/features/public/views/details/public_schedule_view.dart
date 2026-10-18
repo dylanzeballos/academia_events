@@ -1,15 +1,16 @@
+// lib/features/organization/views/details/public_schedule_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../providers/dance_class_provider.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../academy/views/schedule/schedule_header.dart';
 import '../../../academy/views/schedule/schedule_hours_column.dart';
 
-// Provider exclusivo de consulta pública para esta pantalla
 final publicOrgScheduleProvider =
     FutureProvider.family<List<OrgScheduleEntry>, String>((ref, orgId) async {
       if (orgId.trim().isEmpty) return [];
@@ -54,7 +55,6 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
   static const double _minColWidth = 100.0;
   static const double _slotHeight = 92.0;
 
-  // Lista base con el orden cronológico semanal
   static const List<(int, String, String)> _allDaysOfWeek = [
     (1, 'LUN', 'LUNES'),
     (2, 'MAR', 'MARTES'),
@@ -76,8 +76,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
     if (_syncingVertical) return;
     _syncingVertical = true;
     if (_hoursVerticalScroll.hasClients && _gridVerticalScroll.hasClients) {
-      if ((_hoursVerticalScroll.offset - _gridVerticalScroll.offset).abs() >
-          0.5) {
+      if ((_hoursVerticalScroll.offset - _gridVerticalScroll.offset).abs() > 0.5) {
         _gridVerticalScroll.jumpTo(_hoursVerticalScroll.offset);
       }
     }
@@ -88,8 +87,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
     if (_syncingVertical) return;
     _syncingVertical = true;
     if (_hoursVerticalScroll.hasClients && _gridVerticalScroll.hasClients) {
-      if ((_gridVerticalScroll.offset - _hoursVerticalScroll.offset).abs() >
-          0.5) {
+      if ((_gridVerticalScroll.offset - _hoursVerticalScroll.offset).abs() > 0.5) {
         _hoursVerticalScroll.jumpTo(_gridVerticalScroll.offset);
       }
     }
@@ -116,10 +114,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
       _isLandscape = !_isLandscape;
       SystemChrome.setPreferredOrientations(
         _isLandscape
-            ? [
-                DeviceOrientation.landscapeLeft,
-                DeviceOrientation.landscapeRight,
-              ]
+            ? [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]
             : [DeviceOrientation.portraitUp],
       );
     });
@@ -143,14 +138,14 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: context.surfaceHeader,
+        backgroundColor: context.cardBg,
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Horario Semanal',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: context.textOnBg),
             ),
             Text(
               widget.organizationName,
@@ -184,7 +179,7 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
           error: (e, _) => Center(
             child: Text(
               'Error al cargar horario: $e',
-              style: TextStyle(color: context.textOnBg),
+              style: TextStyle(color: context.textMuted),
             ),
           ),
           data: (entries) {
@@ -210,10 +205,10 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Esta academia no tiene clases programadas en este momento.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                        style: TextStyle(color: context.textMuted, fontSize: 13),
                       ),
                     ],
                   ),
@@ -221,18 +216,13 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
               );
             }
 
-            // 1. Horas activas
-            final activeHoursList =
-                entries
-                    .map((e) => _parseHour(e.schedule.startTime))
-                    .toSet()
-                    .toList()
-                  ..sort();
+            final activeHoursList = entries
+                .map((e) => _parseHour(e.schedule.startTime))
+                .toSet()
+                .toList()
+              ..sort();
 
-            // 2. DÍAS DINÁMICOS: Conserva solo los días que tienen clases registradas
-            final activeDaysSet = entries
-                .map((e) => e.schedule.dayOfWeek)
-                .toSet();
+            final activeDaysSet = entries.map((e) => e.schedule.dayOfWeek).toSet();
             final dynamicDaysOfWeek = _allDaysOfWeek
                 .where((dayTuple) => activeDaysSet.contains(dayTuple.$1))
                 .toList();
@@ -241,7 +231,6 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                 ? dynamicDaysOfWeek
                 : _allDaysOfWeek;
 
-            // 3. Paleta de colores
             final uniqueGenres = entries
                 .map((e) => _extractGenre(e.danceClass.title))
                 .toSet()
@@ -279,7 +268,6 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Columna de Horas
                     SizedBox(
                       width: _timeColWidth,
                       child: Column(
@@ -288,16 +276,10 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                             height: headerHeight,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: context.surfaceHeader,
+                              color: context.cardBg,
                               border: Border(
-                                right: BorderSide(
-                                  color: context.divider,
-                                  width: 1.2,
-                                ),
-                                bottom: BorderSide(
-                                  color: context.divider,
-                                  width: 1.2,
-                                ),
+                                right: BorderSide(color: context.divider, width: 1.2),
+                                bottom: BorderSide(color: context.divider, width: 1.2),
                               ),
                             ),
                             child: Text(
@@ -314,50 +296,42 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                               controller: _hoursVerticalScroll,
                               physics: const ClampingScrollPhysics(),
                               child: Column(
-                                children: List.generate(
-                                  activeHoursList.length,
-                                  (index) {
-                                    final hour = activeHoursList[index];
-                                    final isBigGap =
-                                        index > 0 &&
-                                        (hour - activeHoursList[index - 1]) > 1;
+                                children: List.generate(activeHoursList.length, (index) {
+                                  final hour = activeHoursList[index];
+                                  final isBigGap = index > 0 &&
+                                      (hour - activeHoursList[index - 1]) > 1;
 
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (isBigGap)
-                                          Container(
-                                            height: 24,
-                                            color: context.surfaceDeep,
-                                            child: Center(
-                                              child: Icon(
-                                                Icons.more_horiz,
-                                                size: 14,
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.25,
-                                                ),
-                                              ),
+                                  return Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (isBigGap)
+                                        Container(
+                                          height: 24,
+                                          color: context.cardBg.withValues(alpha: 0.5),
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.more_horiz,
+                                              size: 14,
+                                              color: context.textMuted.withValues(alpha: 0.3),
                                             ),
                                           ),
-                                        SizedBox(
-                                          height: _slotHeight,
-                                          child: ScheduleHoursColumn(
-                                            hour: hour,
-                                            width: _timeColWidth,
-                                          ),
                                         ),
-                                      ],
-                                    );
-                                  },
-                                ),
+                                      SizedBox(
+                                        height: _slotHeight,
+                                        child: ScheduleHoursColumn(
+                                          hour: hour,
+                                          width: _timeColWidth,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }),
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-
-                    // Matriz Semanal (Solo los días con clases, onAddClass: null)
                     Expanded(
                       child: SingleChildScrollView(
                         controller: _horizontalScroll,
@@ -378,67 +352,51 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
                                   controller: _gridVerticalScroll,
                                   physics: const ClampingScrollPhysics(),
                                   child: Column(
-                                    children: List.generate(
-                                      activeHoursList.length,
-                                      (index) {
-                                        final hour = activeHoursList[index];
-                                        final isBigGap =
-                                            index > 0 &&
-                                            (hour -
-                                                    activeHoursList[index -
-                                                        1]) >
-                                                1;
+                                    children: List.generate(activeHoursList.length, (index) {
+                                      final hour = activeHoursList[index];
+                                      final isBigGap = index > 0 &&
+                                          (hour - activeHoursList[index - 1]) > 1;
 
-                                        return Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (isBigGap)
-                                              Container(
-                                                height: 24,
-                                                color: context.surfaceDeep,
-                                                child: Center(
-                                                  child: Container(
-                                                    height: 1,
-                                                    margin:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 10,
-                                                        ),
-                                                    color: Colors.white
-                                                        .withValues(
-                                                          alpha: 0.05,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ),
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (isBigGap)
                                             Container(
-                                              height: _slotHeight,
-                                              decoration: BoxDecoration(
-                                                border: Border(
-                                                  bottom: BorderSide(
-                                                    color: context.divider,
-                                                    width: 0.8,
-                                                  ),
+                                              height: 24,
+                                              color: context.cardBg.withValues(alpha: 0.3),
+                                              child: Center(
+                                                child: Container(
+                                                  height: 1,
+                                                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                                                  color: context.divider,
                                                 ),
-                                              ),
-                                              child: Row(
-                                                children: daysToDisplay.map((
-                                                  dayDef,
-                                                ) {
-                                                  return _PublicScheduleDayColumn(
-                                                    dayOfWeek: dayDef.$1,
-                                                    hour: hour,
-                                                    entries: entries,
-                                                    width: colWidth,
-                                                    genreColorMap:
-                                                        genreColorMap,
-                                                  );
-                                                }).toList(),
                                               ),
                                             ),
-                                          ],
-                                        );
-                                      },
-                                    ),
+                                          Container(
+                                            height: _slotHeight,
+                                            decoration: BoxDecoration(
+                                              border: Border(
+                                                bottom: BorderSide(
+                                                  color: context.divider.withValues(alpha: 0.6),
+                                                  width: 0.8,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: daysToDisplay.map((dayDef) {
+                                                return _PublicScheduleDayColumn(
+                                                  dayOfWeek: dayDef.$1,
+                                                  hour: hour,
+                                                  entries: entries,
+                                                  width: colWidth,
+                                                  genreColorMap: genreColorMap,
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }),
                                   ),
                                 ),
                               ),
@@ -498,16 +456,14 @@ class _PublicScheduleDayColumn extends StatelessWidget {
     if (match == null) {
       return Container(
         width: width,
-        decoration: const BoxDecoration(
-          border: Border(
-            right: BorderSide(color: Color(0xFF181D2A), width: 0.7),
-          ),
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: context.divider.withValues(alpha: 0.6), width: 0.7)),
         ),
       );
     }
 
     final tag = _extractGenre(match.danceClass.title);
-    final color = genreColorMap[tag] ?? const Color(0xFF6366F1);
+    final color = genreColorMap[tag] ?? AppColors.primary;
     final instructor =
         match.schedule.instructorName ??
         match.danceClass.instructorName ??
@@ -515,8 +471,8 @@ class _PublicScheduleDayColumn extends StatelessWidget {
 
     return Container(
       width: width,
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Color(0xFF181D2A), width: 0.7)),
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: context.divider.withValues(alpha: 0.6), width: 0.7)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 3),
       child: _PublicScheduleClassCard(
@@ -553,15 +509,15 @@ class _PublicScheduleClassCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B26),
-        borderRadius: BorderRadius.circular(8),
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
         border: Border.all(
           color: themeColor.withValues(alpha: 0.5),
           width: 1.1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 3,
             offset: const Offset(0, 1.5),
           ),
@@ -588,7 +544,7 @@ class _PublicScheduleClassCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.onPrimary,
                       fontSize: 7.5,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.3,
@@ -600,7 +556,7 @@ class _PublicScheduleClassCard extends StatelessWidget {
               Text(
                 startTime.substring(0, 5),
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
+                  color: context.textMuted,
                   fontSize: 8,
                   fontWeight: FontWeight.w700,
                 ),
@@ -613,8 +569,8 @@ class _PublicScheduleClassCard extends StatelessWidget {
               title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: context.textOnBg,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w800,
                 height: 1.15,
@@ -629,7 +585,7 @@ class _PublicScheduleClassCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: context.textMuted,
                     fontSize: 8,
                   ),
                 ),

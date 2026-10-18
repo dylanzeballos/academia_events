@@ -1,9 +1,11 @@
+// lib/features/events/widgets/detail/event_location_section.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
 import '../map_view_screen.dart';
@@ -25,7 +27,10 @@ class EventLocationSection extends StatelessWidget {
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir Google Maps')),
+        SnackBar(
+          content: const Text('No se pudo abrir Google Maps'),
+          backgroundColor: context.cardBg,
+        ),
       );
     }
   }
@@ -102,7 +107,7 @@ class EventLocationSection extends StatelessWidget {
                               point: LatLng(location.latitude!, location.longitude!),
                               width: 40,
                               height: 40,
-                              child: const Icon(Icons.location_on, color: Colors.red, size: 38),
+                              child: const Icon(Icons.location_on, color: AppColors.error, size: 38),
                             ),
                           ],
                         ),
@@ -116,6 +121,7 @@ class EventLocationSection extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: context.cardBg.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: context.divider),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -150,7 +156,7 @@ class EventLocationSection extends StatelessWidget {
                 child: Text(
                   locationLines.join('\n'),
                   style: TextStyle(
-                    color: context.textOnBg.withValues(alpha: 0.8),
+                    color: context.textMuted,
                     fontSize: 14,
                     height: 1.4,
                   ),
@@ -169,6 +175,9 @@ class EventLocationSection extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: accentColor,
                     side: BorderSide(color: accentColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    ),
                   ),
                   icon: const Icon(Icons.fullscreen, size: 18),
                   label: const Text('Ampliar mapa'),
@@ -183,7 +192,10 @@ class EventLocationSection extends StatelessWidget {
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: accentColor,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    ),
                   ),
                   icon: const Icon(Icons.open_in_new, size: 18),
                   label: const Text('Google Maps'),

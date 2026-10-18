@@ -1,6 +1,9 @@
+// lib/features/classes/views/class_create_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
 
@@ -21,8 +24,7 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
   TimeOfDay _startTime = const TimeOfDay(hour: 19, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 20, minute: 15);
 
-  // 1 = Lun, 2 = Mar, 3 = Mié, 4 = Jue, 5 = Vie, 6 = Sáb, 0 = Dom (Postgres day_of_week)
-  final Set<int> _selectedDays = {1, 3, 5}; // Lunes, Miércoles y Viernes por defecto
+  final Set<int> _selectedDays = {1, 3, 5};
 
   static const _daysMap = [
     (1, 'L', 'Lunes'),
@@ -70,8 +72,12 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        backgroundColor: context.surfaceHeader,
-        title: const Text('Crear Horario de Clase'),
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Crear Horario de Clase',
+          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -87,8 +93,15 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                   labelText: 'Título de la clase (ej: Salsa Cubana)',
                   labelStyle: TextStyle(color: context.textMuted),
                   filled: true,
-                  fillColor: context.surfaceInput,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  fillColor: context.cardBg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    borderSide: BorderSide(color: context.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    borderSide: BorderSide(color: context.divider),
+                  ),
                 ),
                 validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa el nombre' : null,
               ),
@@ -102,8 +115,15 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                   labelText: 'Descripción (ej: Nivel básico, traer ropa cómoda)',
                   labelStyle: TextStyle(color: context.textMuted),
                   filled: true,
-                  fillColor: context.surfaceInput,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  fillColor: context.cardBg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    borderSide: BorderSide(color: context.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    borderSide: BorderSide(color: context.divider),
+                  ),
                 ),
               ),
               const SizedBox(height: 18),
@@ -117,10 +137,30 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
               Wrap(
                 spacing: 8,
                 children: [
-                  ActionChip(label: const Text('L-M-V'), onPressed: () => _applyPreset({1, 3, 5})),
-                  ActionChip(label: const Text('M-J'), onPressed: () => _applyPreset({2, 4})),
-                  ActionChip(label: const Text('Lun a Sáb'), onPressed: () => _applyPreset({1, 2, 3, 4, 5, 6})),
-                  ActionChip(label: const Text('Todos'), onPressed: () => _applyPreset({1, 2, 3, 4, 5, 6, 0})),
+                  ActionChip(
+                    label: const Text('L-M-V'),
+                    backgroundColor: context.cardBg,
+                    side: BorderSide(color: context.divider),
+                    onPressed: () => _applyPreset({1, 3, 5}),
+                  ),
+                  ActionChip(
+                    label: const Text('M-J'),
+                    backgroundColor: context.cardBg,
+                    side: BorderSide(color: context.divider),
+                    onPressed: () => _applyPreset({2, 4}),
+                  ),
+                  ActionChip(
+                    label: const Text('Lun a Sáb'),
+                    backgroundColor: context.cardBg,
+                    side: BorderSide(color: context.divider),
+                    onPressed: () => _applyPreset({1, 2, 3, 4, 5, 6}),
+                  ),
+                  ActionChip(
+                    label: const Text('Todos'),
+                    backgroundColor: context.cardBg,
+                    side: BorderSide(color: context.divider),
+                    onPressed: () => _applyPreset({1, 2, 3, 4, 5, 6, 0}),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -144,14 +184,16 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                       height: 40,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFE85D04) : context.surfaceInput,
+                        color: isSelected ? AppColors.primary : context.cardBg,
                         shape: BoxShape.circle,
-                        border: Border.all(color: isSelected ? Colors.transparent : context.borderSubtle),
+                        border: Border.all(
+                          color: isSelected ? Colors.transparent : context.divider,
+                        ),
                       ),
                       child: Text(
                         d.$2,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : context.textMuted,
+                          color: isSelected ? AppColors.onPrimary : context.textMuted,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),
@@ -166,22 +208,34 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                 children: [
                   Expanded(
                     child: ListTile(
-                      tileColor: context.surfaceInput,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      tileColor: context.cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                        side: BorderSide(color: context.divider),
+                      ),
                       title: Text('Hora Inicio', style: TextStyle(color: context.textMuted, fontSize: 12)),
-                      subtitle: Text(_startTime.format(context), style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
-                      trailing: const Icon(Icons.access_time, color: Color(0xFFE85D04)),
+                      subtitle: Text(
+                        _startTime.format(context),
+                        style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+                      ),
+                      trailing: const Icon(Icons.access_time, color: AppColors.primary),
                       onTap: () => _pickTime(true),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ListTile(
-                      tileColor: context.surfaceInput,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      tileColor: context.cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                        side: BorderSide(color: context.divider),
+                      ),
                       title: Text('Hora Fin', style: TextStyle(color: context.textMuted, fontSize: 12)),
-                      subtitle: Text(_endTime.format(context), style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
-                      trailing: const Icon(Icons.access_time, color: Color(0xFFE85D04)),
+                      subtitle: Text(
+                        _endTime.format(context),
+                        style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+                      ),
+                      trailing: const Icon(Icons.access_time, color: AppColors.primary),
                       onTap: () => _pickTime(false),
                     ),
                   ),
@@ -200,8 +254,15 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                         labelText: 'Precio (BOB)',
                         labelStyle: TextStyle(color: context.textMuted),
                         filled: true,
-                        fillColor: context.surfaceInput,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        fillColor: context.cardBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                          borderSide: BorderSide(color: context.divider),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                          borderSide: BorderSide(color: context.divider),
+                        ),
                       ),
                     ),
                   ),
@@ -215,8 +276,15 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                         labelText: 'Cupos (Opcional)',
                         labelStyle: TextStyle(color: context.textMuted),
                         filled: true,
-                        fillColor: context.surfaceInput,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        fillColor: context.cardBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                          borderSide: BorderSide(color: context.divider),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                          borderSide: BorderSide(color: context.divider),
+                        ),
                       ),
                     ),
                   ),
@@ -228,7 +296,13 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                 width: double.infinity,
                 height: 50,
                 child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE85D04)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                    ),
+                  ),
                   onPressed: state.isLoading
                       ? null
                       : () async {
@@ -245,8 +319,11 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                           if (ok && context.mounted) Navigator.pop(context);
                         },
                   child: state.isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Guardar Horario', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ? const CircularProgressIndicator(color: AppColors.onPrimary)
+                      : const Text(
+                          'Guardar Horario',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             ],

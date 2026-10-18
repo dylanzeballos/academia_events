@@ -1,7 +1,10 @@
+// lib/features/organization/views/details/org_hero_header.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 
@@ -38,8 +41,9 @@ class OrgHeroHeader extends StatelessWidget {
     if (!await launchUrl(url, mode: LaunchMode.externalApplication) &&
         context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo abrir WhatsApp con este número.'),
+        SnackBar(
+          content: const Text('No se pudo abrir WhatsApp con este número.'),
+          backgroundColor: context.cardBg,
         ),
       );
     }
@@ -50,11 +54,9 @@ class OrgHeroHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Portada con Avatar superpuesto y Badges
         Stack(
           clipBehavior: Clip.none,
           children: [
-            // Banner Cover (toca para ampliar)
             GestureDetector(
               onTap: coverUrl == null
                   ? null
@@ -66,23 +68,20 @@ class OrgHeroHeader extends StatelessWidget {
               child: Hero(
                 tag: '${logoTag ?? 'organization-logo-$name'}-cover',
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
                     child: coverUrl != null
                         ? CachedNetworkImage(
                             imageUrl: coverUrl!,
                             fit: BoxFit.cover,
-                            errorWidget: (_, _, _) =>
-                                _buildFallbackCover(context),
+                            errorWidget: (_, _, _) => _buildFallbackCover(context),
                           )
                         : _buildFallbackCover(context),
                   ),
                 ),
               ),
             ),
-
-            // Avatar circular superpuesto
             Positioned(
               bottom: -32,
               left: 16,
@@ -104,18 +103,17 @@ class OrgHeroHeader extends StatelessWidget {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: const Color(0xFFE85D04),
+                            color: AppColors.primary,
                             width: 3,
                           ),
-                          color: context.surfaceInput,
+                          color: context.cardBg,
                         ),
                         child: ClipOval(
                           child: logoUrl != null
                               ? CachedNetworkImage(
                                   imageUrl: logoUrl!,
                                   fit: BoxFit.cover,
-                                  errorWidget: (_, _, _) =>
-                                      _avatarFallback(context),
+                                  errorWidget: (_, _, _) => _avatarFallback(context),
                                 )
                               : _avatarFallback(context),
                         ),
@@ -128,13 +126,13 @@ class OrgHeroHeader extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(3),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF06B6D4),
+                        color: AppColors.secondary,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.check,
                         size: 14,
-                        color: Colors.white,
+                        color: AppColors.onSecondary,
                       ),
                     ),
                   ),
@@ -143,10 +141,7 @@ class OrgHeroHeader extends StatelessWidget {
             ),
           ],
         ),
-
         const SizedBox(height: 42),
-
-        // Nombre de la academia
         Text(
           name,
           style: TextStyle(
@@ -157,7 +152,6 @@ class OrgHeroHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-
         if (description != null && description!.trim().isNotEmpty)
           Text(
             description!,
@@ -175,11 +169,7 @@ class OrgHeroHeader extends StatelessWidget {
             style: TextStyle(color: context.textMuted, fontSize: 12),
           ),
         ],
-        const SizedBox(height: 14),
-
         const SizedBox(height: 16),
-
-        // Botones de Acción (Inscribirme / WhatsApp y Compartir)
         Row(
           children: [
             Expanded(
@@ -189,7 +179,7 @@ class OrgHeroHeader extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFE85D04), Color(0xFF06B6D4)],
+                      colors: [AppColors.primary, AppColors.secondary],
                     ),
                   ),
                   child: ElevatedButton.icon(
@@ -205,15 +195,15 @@ class OrgHeroHeader extends StatelessWidget {
                     ),
                     icon: const Icon(
                       Icons.chat_bubble_outline,
-                      color: Colors.white,
+                      color: AppColors.onPrimary,
                       size: 18,
                     ),
                     label: Text(
                       whatsappNumber.trim().isEmpty
                           ? 'Contacto no disponible'
                           : 'WhatsApp',
-                      style: TextStyle(
-                        color: Colors.white,
+                      style: const TextStyle(
+                        color: AppColors.onPrimary,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -227,7 +217,7 @@ class OrgHeroHeader extends StatelessWidget {
               height: 48,
               width: 48,
               decoration: BoxDecoration(
-                color: context.surfaceInput,
+                color: context.cardBg,
                 shape: BoxShape.circle,
                 border: Border.all(color: context.divider),
               ),
@@ -248,7 +238,7 @@ class OrgHeroHeader extends StatelessWidget {
 
   Widget _buildFallbackCover(BuildContext context) {
     return Container(
-      color: context.surfaceInput,
+      color: context.cardBg,
       child: Center(
         child: Icon(Icons.music_note, size: 48, color: context.textMuted),
       ),

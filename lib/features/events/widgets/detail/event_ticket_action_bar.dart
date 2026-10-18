@@ -1,7 +1,9 @@
-// lib/features/events/widgets/event_ticket_action_bar.dart
-
+// lib/features/events/widgets/detail/event_ticket_action_bar.dart
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
 import '../../../tickets/views/purchase_tickets_screen.dart';
 
@@ -30,14 +32,8 @@ class EventTicketActionBar extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              offset: const Offset(0, -4),
-              blurRadius: 8,
-            ),
-          ],
+          color: context.cardBg,
+          border: Border(top: BorderSide(color: context.divider)),
         ),
         child: Row(
           children: [
@@ -46,10 +42,14 @@ class EventTicketActionBar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Precio', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                  Text('Precio', style: TextStyle(color: context.textMuted, fontSize: 11)),
                   Text(
                     startingPrice <= 0 ? 'Gratis' : '$currency ${startingPrice.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(
+                      color: context.textOnBg,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -58,8 +58,16 @@ class EventTicketActionBar extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () => _navigateToPurchase(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  ),
+                ),
                 icon: const Icon(Icons.confirmation_number_outlined),
-                label: const Text('Comprar entrada'),
+                label: const Text('Comprar entrada', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],
