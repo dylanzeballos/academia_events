@@ -1,147 +1,267 @@
-// lib/features/tickets/views/event_tickets_tab.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/theme_extensions.dart';
+import '../../../data/models/ticket_type_model.dart';
 import '../../../providers/ticket_provider.dart';
-import '../../../shared/widgets/loading_indicator.dart';
-import '../../../shared/widgets/app_empty_state.dart';
-import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
-import 'event_orders_detail_screen.dart';
+import 'ticket_qr_screen.dart';
 
-class EventTicketsTab extends ConsumerWidget {
-  const EventTicketsTab({super.key});
+class PurchaseTicketsScreen extends ConsumerStatefulWidget {
+  const PurchaseTicketsScreen({super.key, required this.eventId});
+  final String eventId;
 
-  String _formatDateTime(DateTime? dt) {
-    if (dt == null) return 'Fecha por confirmar';
-    return DateFormat("EEE d 'de' MMM, y · HH:mm", 'es').format(dt);
+  @override
+  ConsumerState<PurchaseTicketsScreen> createState() =>
+      _PurchaseTicketsScreenState();
+}
+
+class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
+  final _formKey = GlobalKey<FormState>();
+  TicketTypeModel? _selected;
+  int _quantity = 1;
+  bool _isBuying = false;
+
+  final List<TextEditingController> _nameControllers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _syncNameControllers(1);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final eventsAsync = ref.watch(userGroupedTicketsProvider);
+  void dispose() {
+    for (final c in _nameControllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
-    return eventsAsync.when(
-      loading: () => const LoadingIndicator(),
-      error: (e, _) => AppErrorState(
-        message: friendlyError(e),
-        onRetry: () => ref.invalidate(userGroupedTicketsProvider),
-      ),
-      data: (eventGroups) {
-        if (eventGroups.isEmpty) {
-          return const AppEmptyState(
-            icon: Icons.confirmation_number_outlined,
-            title: 'Sin tickets de eventos',
-            message: 'Aún no has comprado ni reservado tickets.',
-          );
-        }
+  void _syncNameControllers(int targetCount) {
+    while (_nameControllers.length < targetCount) {
+      _nameControllers.add(TextEditingController());
+    }
+    while (_nameControllers.length > targetCount) {
+      _nameControllers.removeLast().dispose();
+    }
+  }
 
-        return RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () async => ref.invalidate(userGroupedTicketsProvider),
-          child: ListView.separated(
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: eventGroups.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 14),
-            itemBuilder: (context, index) {
-              final item = eventGroups[index];
+  void _onQuantityChanged(int newQuantity) {
+    setState(() {
+      _quantity = newQuantity;
+      _syncNameControllers(newQuantity);
+    });
+  }
 
-              return InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => EventOrdersDetailScreen(eventGroup: item),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: context.cardBg,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                    border: Border.all(color: context.divider),
+  double get _total => (_selected?.price ?? 0) * _quantity;
+
+  Future<void> _confirmPurchase() async {
+    final selected = _selected;
+    if (selected == null) return;
+
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.warning(
+        context,
+        'Ingresa el nombre para cada una de las entradas.',
+      );
+      return;
+    }
+
+    final attendeeNames = _nameControllers.map((c) => c.text.trim()).toList();
+
+    setState(() => _isBuying = true);
+    try {
+      final repo = ref.read(ticketRepositoryProvider);
+      final result = await repo.purchaseEventTickets(
+        ticketTypeId: selected.id,
+        quantity: _quantity,
+        attendeeNames: attendeeNames,
+      );
+      if (!mounted) return;
+      ref.invalidate(eventTicketTypesProvider(widget.eventId));
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => TicketQrScreen(result: result)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _isBuying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ticketTypesAsync = ref.watch(
+      eventTicketTypesProvider(widget.eventId),
+    );
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Comprar entradas')),
+      body: ticketTypesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) =>
+            Center(child: Text('No se pudieron cargar los precios: $e')),
+        data: (types) {
+          if (types.isEmpty) {
+            return const Center(
+              child: Text('Este evento no tiene tickets a la venta'),
+            );
+          }
+          _selected ??= types.first;
+
+          return Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Tipo de entrada',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 8),
+                  RadioGroup<TicketTypeModel>(
+                    groupValue: _selected,
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _selected = value;
+                        _onQuantityChanged(1);
+                      });
+                    },
+                    child: Column(
+                      children: [
+                        for (final type in types)
+                          RadioListTile<TicketTypeModel>(
+                            value: type,
+                            enabled: type.hasStock,
+                            title: Text(type.name),
+                            subtitle: Text(
+                              type.hasStock
+                                  ? '${type.price.toStringAsFixed(2)} ${type.currency} · ${type.available} disponibles'
+                                  : 'Agotado',
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 32),
+                  const Text(
+                    'Cantidad',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.eventTitle,
-                              style: TextStyle(
-                                color: context.textOnBg,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 17,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${item.totalEventTickets} QRs',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: _quantity > 1
+                            ? () => _onQuantityChanged(_quantity - 1)
+                            : null,
                       ),
-                      const SizedBox(height: 12),
-                      Divider(height: 1, color: context.divider),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_month_outlined, size: 16, color: context.textMuted),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Evento: ${_formatDateTime(item.eventStartAt)}',
-                              style: TextStyle(fontSize: 13, color: context.textMuted),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        '$_quantity',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.receipt_long_outlined, size: 16, color: context.textMuted),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              '${item.orders.length} ${item.orders.length == 1 ? "compra registrada" : "compras en horarios distintos"}',
-                              style: TextStyle(fontSize: 12, color: context.textMuted),
-                            ),
-                          ),
-                          Icon(Icons.chevron_right, color: context.textMuted, size: 20),
-                        ],
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline),
+                        onPressed:
+                            (_selected?.hasStock ?? false) &&
+                                _quantity < (_selected?.available ?? 0)
+                            ? () => _onQuantityChanged(_quantity + 1)
+                            : null,
                       ),
                     ],
                   ),
-                ),
-              );
-            },
-          ),
-        );
-      },
+                  const Divider(height: 32),
+                  const Text(
+                    'Titulares de las entradas',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Ingresa el nombre y apellido de quien portará cada boleto:',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  ...List.generate(_quantity, (index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: TextFormField(
+                        controller: _nameControllers[index],
+                        decoration: InputDecoration(
+                          labelText: 'Asistente #${index + 1}',
+                          hintText: 'Ej. Carlos Mendoza',
+                          prefixIcon: const Icon(Icons.person_outline),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Escribe el nombre del asistente #${index + 1}';
+                          }
+                          return null;
+                        },
+                      ),
+                    );
+                  }),
+                  const Divider(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${_total.toStringAsFixed(2)} ${_selected?.currency ?? ''}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: (_selected?.hasStock ?? false) && !_isBuying
+                        ? _confirmPurchase
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: _isBuying
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Confirmar compra',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

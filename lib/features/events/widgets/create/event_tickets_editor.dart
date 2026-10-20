@@ -1,64 +1,104 @@
-// lib/features/events/widgets/create/event_schedule_form.dart
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/theme_extensions.dart';
 
-class EventScheduleForm extends StatelessWidget {
-  const EventScheduleForm({
+class EventTicketsEditor extends StatelessWidget {
+  const EventTicketsEditor({
     super.key,
-    required this.startDate,
-    required this.startTime,
-    required this.endDate,
-    required this.endTime,
-    required this.onPickDateTime,
+    required this.priceController,
+    required this.stockController,
+    required this.isUnlimitedStock,
+    required this.onUnlimitedStockChanged,
   });
 
-  final DateTime startDate;
-  final TimeOfDay startTime;
-  final DateTime endDate;
-  final TimeOfDay endTime;
-  final void Function({required bool isStart}) onPickDateTime;
+  final TextEditingController priceController;
+  final TextEditingController stockController;
+  final bool isUnlimitedStock;
+  final ValueChanged<bool> onUnlimitedStockChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Fecha y Hora',
-          style: TextStyle(
-            color: context.textOnBg,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        border: Border.all(color: context.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Entradas y Cupos',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
-        ),
-        const SizedBox(height: 8),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.calendar_today, color: AppColors.primary),
-          title: Text('Inicio del evento', style: TextStyle(color: context.textOnBg)),
-          subtitle: Text(
-            '${startDate.day}/${startDate.month}/${startDate.year} - ${startTime.format(context)}',
-            style: TextStyle(color: context.textMuted),
+          const SizedBox(height: 4),
+          const Text(
+            'Define el costo de la entrada y el límite de tickets disponibles.',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
           ),
-          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: context.textMuted),
-          onTap: () => onPickDateTime(isStart: true),
-        ),
-        Divider(color: context.divider),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.event_busy, color: AppColors.primary),
-          title: Text('Fin del evento', style: TextStyle(color: context.textOnBg)),
-          subtitle: Text(
-            '${endDate.day}/${endDate.month}/${endDate.year} - ${endTime.format(context)}',
-            style: TextStyle(color: context.textMuted),
+          const SizedBox(height: 12),
+
+          // Campo de Precio
+          TextFormField(
+            controller: priceController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Precio de la Entrada (BOB) *',
+              hintText: '0 para entrada gratuita',
+              prefixText: 'Bs. ',
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Ingresa el precio';
+              if (double.tryParse(v.trim()) == null)
+                return 'Ingresa un número válido';
+              if (double.parse(v.trim()) < 0)
+                return 'El precio no puede ser negativo';
+              return null;
+            },
           ),
-          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: context.textMuted),
-          onTap: () => onPickDateTime(isStart: false),
-        ),
-        Divider(color: context.divider),
-      ],
+          const SizedBox(height: 14),
+
+          // Switch de Cupos Ilimitados
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'Cupos ilimitados',
+              style: TextStyle(fontSize: 14),
+            ),
+            subtitle: const Text(
+              'No habrá límite de compra para este evento',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            value: isUnlimitedStock,
+            onChanged: onUnlimitedStockChanged,
+          ),
+
+          // Campo de Stock / Cupos (solo si no es ilimitado)
+          if (!isUnlimitedStock) ...[
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: stockController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Cantidad total de entradas (Stock) *',
+                hintText: 'Ej. 100',
+                suffixText: 'tickets',
+              ),
+              validator: (v) {
+                if (isUnlimitedStock) return null;
+                if (v == null || v.trim().isEmpty)
+                  return 'Ingresa la cantidad de tickets';
+                final qty = int.tryParse(v.trim());
+                if (qty == null || qty <= 0)
+                  return 'Debe ser un número mayor a 0';
+                return null;
+              },
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

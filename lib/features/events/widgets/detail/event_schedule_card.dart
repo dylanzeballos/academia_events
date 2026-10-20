@@ -1,126 +1,94 @@
-// lib/features/events/widgets/detail/event_publish_action_bar.dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/event_model.dart';
-import '../../../../providers/events_provider.dart';
-import '../../../../shared/widgets/app_feedback.dart';
 
-class EventPublishActionBar extends ConsumerStatefulWidget {
-  const EventPublishActionBar({super.key, required this.event});
+class EventScheduleCard extends StatelessWidget {
+  const EventScheduleCard({
+    super.key,
+    required this.event,
+    required this.accentColor,
+  });
 
   final EventModel event;
+  final Color accentColor;
 
   @override
-  ConsumerState<EventPublishActionBar> createState() =>
-      _EventPublishActionBarState();
-}
-
-class _EventPublishActionBarState
-    extends ConsumerState<EventPublishActionBar> {
-  bool _isProcessing = false;
-
-  Future<void> _handlePublish() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: context.cardBg,
-        title: Text('Publicar evento', style: TextStyle(color: context.textOnBg)),
-        content: Text(
-          'Al publicar "${widget.event.title}", el evento será visible para todos los usuarios y podrán adquirir entradas.',
-          style: TextStyle(color: context.textMuted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        border: Border.all(color: context.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.calendar_today_outlined, color: accentColor, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              children: [
+                _ScheduleRow(
+                  icon: Icons.play_arrow_rounded,
+                  label: 'Inicio',
+                  value:
+                      '${DateFormatter.fullDate(event.startTime)} · ${DateFormatter.hourMin(event.startTime)}',
+                ),
+                const SizedBox(height: 8),
+                _ScheduleRow(
+                  icon: Icons.stop_rounded,
+                  label: 'Fin',
+                  value:
+                      '${DateFormatter.fullDate(event.endTime)} · ${DateFormatter.hourMin(event.endTime)}',
+                ),
+              ],
             ),
-            child: const Text('Confirmar y Publicar'),
           ),
         ],
       ),
     );
-
-    if (confirm != true) return;
-
-    setState(() => _isProcessing = true);
-
-    try {
-      await ref.read(eventsRepositoryProvider).updateEvent(widget.event.id, {
-        'status': 'published',
-        'published_at': DateTime.now().toIso8601String(),
-      });
-
-      ref.invalidate(eventDetailProvider(widget.event.id));
-      ref.invalidate(orgEventsProvider);
-      ref.invalidate(allEventsProvider);
-      ref.invalidate(weekEventsProvider);
-
-      if (mounted) {
-        AppFeedback.success(context, 'Evento publicado correctamente.');
-      }
-    } catch (e) {
-      if (mounted) {
-        AppFeedback.error(context, friendlyError(e));
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
   }
+}
+
+class _ScheduleRow extends StatelessWidget {
+  const _ScheduleRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.cardBg,
-          border: Border(top: BorderSide(color: context.divider)),
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey),
+        const SizedBox(width: 6),
+        SizedBox(
+          width: 42,
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.grey, fontSize: 12),
+          ),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _isProcessing ? null : _handlePublish,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                  ),
-                ),
-                icon: _isProcessing
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: AppColors.onPrimary,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.rocket_launch_outlined),
-                label: Text(
-                  _isProcessing ? 'Publicando...' : 'Publicar Evento',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: context.textOnBg,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
