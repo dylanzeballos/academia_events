@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_colors.dart';
+
 import '../../core/constants/app_constants.dart';
 
 /// Diálogo de confirmación estándar de la app.
@@ -21,7 +23,8 @@ Future<bool> showAppConfirm(
         borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
       ),
       icon: Icon(
-        icon ?? (isDangerous ? Icons.warning_amber_rounded : Icons.help_outline),
+        icon ??
+            (isDangerous ? Icons.warning_amber_rounded : Icons.help_outline),
         color: isDangerous ? AppColors.error : AppColors.primary,
         size: 30,
       ),

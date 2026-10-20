@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/theme/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 
 /// Indicador de carga centrado con el color primario de la app.
@@ -28,8 +30,6 @@ class LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: LoadingIndicator(),
-    );
+    return Scaffold(body: LoadingIndicator());
   }
 }

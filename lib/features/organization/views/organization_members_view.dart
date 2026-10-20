@@ -311,7 +311,7 @@ class _MemberTile extends StatelessWidget {
             if (isAdmin && !isOwner)
               PopupMenuButton<String>(
                 icon: Icon(Icons.more_vert, color: context.textMuted, size: 20),
-                dropdownColor: context.cardBg,
+                color: context.cardBg,
                 onSelected: onRoleChanged,
                 itemBuilder: (_) => [
                   for (final role in MemberRole.values)

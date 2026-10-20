@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:academia_events/core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/theme_transition.dart';
 import '../../../core/utils/display_labels.dart';

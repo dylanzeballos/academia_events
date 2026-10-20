@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -31,10 +33,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    await ref.read(authControllerProvider.notifier).signIn(
-          email: _emailCtrl.text,
-          password: _passwordCtrl.text,
-        );
+    await ref
+        .read(authControllerProvider.notifier)
+        .signIn(email: _emailCtrl.text, password: _passwordCtrl.text);
   }
 
   Future<void> _googleLogin() async {
@@ -127,11 +128,11 @@ class _LoginViewState extends ConsumerState<LoginView> {
                             onPressed: authState.isLoading
                                 ? null
                                 : () => Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const ForgotPasswordView(),
-                                      ),
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const ForgotPasswordView(),
                                     ),
+                                  ),
                             child: const Text('Olvidé mi contraseña'),
                           ),
                         ),
@@ -145,12 +146,11 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
                         Row(
                           children: [
-                            Expanded(
-                              child: Divider(color: context.divider),
-                            ),
+                            Expanded(child: Divider(color: context.divider)),
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Text(
                                 'O',
                                 style: TextStyle(
@@ -159,9 +159,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                                 ),
                               ),
                             ),
-                            Expanded(
-                              child: Divider(color: context.divider),
-                            ),
+                            Expanded(child: Divider(color: context.divider)),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -173,11 +171,13 @@ class _LoginViewState extends ConsumerState<LoginView> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
                             side: BorderSide(color: context.divider),
-                            minimumSize:
-                                const Size.fromHeight(AppSizes.buttonHeight),
+                            minimumSize: const Size.fromHeight(
+                              AppSizes.buttonHeight,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
-                                  AppSizes.radiusMedium),
+                                AppSizes.radiusMedium,
+                              ),
                             ),
                           ),
                         ),
@@ -188,10 +188,10 @@ class _LoginViewState extends ConsumerState<LoginView> {
                           onPressed: authState.isLoading
                               ? null
                               : () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const RegisterView(),
-                                    ),
+                                  MaterialPageRoute(
+                                    builder: (_) => const RegisterView(),
                                   ),
+                                ),
                         ),
                       ],
                     ),

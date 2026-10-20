@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/theme/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 
 enum BannerType { error, warning, info, success }
@@ -17,18 +19,18 @@ class AppBanner extends StatelessWidget {
   final VoidCallback? onDismiss;
 
   Color get _color => switch (type) {
-        BannerType.error => AppColors.error,
-        BannerType.warning => AppColors.warning,
-        BannerType.info => AppColors.primary,
-        BannerType.success => AppColors.success,
-      };
+    BannerType.error => AppColors.error,
+    BannerType.warning => AppColors.warning,
+    BannerType.info => AppColors.primary,
+    BannerType.success => AppColors.success,
+  };
 
   IconData get _icon => switch (type) {
-        BannerType.error => Icons.error_outline,
-        BannerType.warning => Icons.warning_amber_rounded,
-        BannerType.info => Icons.info_outline,
-        BannerType.success => Icons.check_circle_outline,
-      };
+    BannerType.error => Icons.error_outline,
+    BannerType.warning => Icons.warning_amber_rounded,
+    BannerType.info => Icons.info_outline,
+    BannerType.success => Icons.check_circle_outline,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -48,10 +50,7 @@ class AppBanner extends StatelessWidget {
           Icon(_icon, color: _color, size: 18),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: _color, fontSize: 13),
-            ),
+            child: Text(message, style: TextStyle(color: _color, fontSize: 13)),
           ),
           if (onDismiss != null)
             GestureDetector(

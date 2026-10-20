@@ -122,7 +122,7 @@ class _EventAccessPointsViewState extends State<EventAccessPointsView> {
         ),
         trailing: PopupMenuButton<String>(
           icon: Icon(Icons.more_vert, color: context.textMuted),
-          dropdownColor: context.cardBg,
+          color: context.cardBg,
           onSelected: (action) {
             if (action == 'edit') _editPoint(point);
             if (action == 'toggle') _togglePoint(point, active);

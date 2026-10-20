@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/event_model.dart';
@@ -57,9 +58,8 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
     if (_focusedDay != null && !_showList) {
       return eventsAsync.when(
         loading: () => const Scaffold(body: LoadingIndicator()),
-        error: (e, _) => Scaffold(
-          body: AppErrorState(message: friendlyError(e)),
-        ),
+        error: (e, _) =>
+            Scaffold(body: AppErrorState(message: friendlyError(e))),
         data: (allEvents) => _DayView(
           day: _focusedDay!,
           events: allEvents,
@@ -174,10 +174,13 @@ class _DayView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dayEvents = events
-        .where((e) => DateFormatter.rangeCoversDay(e.startTime, e.endTime, day))
-        .toList()
-      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    final dayEvents =
+        events
+            .where(
+              (e) => DateFormatter.rangeCoversDay(e.startTime, e.endTime, day),
+            )
+            .toList()
+          ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
     return Scaffold(
       appBar: AppBar(
@@ -212,7 +215,7 @@ class _DayView extends StatelessWidget {
               dayEvents.isEmpty
                   ? 'Sin eventos'
                   : '${dayEvents.length} '
-                      '${dayEvents.length == 1 ? 'evento' : 'eventos'}',
+                        '${dayEvents.length == 1 ? 'evento' : 'eventos'}',
               style: TextStyle(
                 color: context.textMuted,
                 fontSize: 13,
@@ -497,9 +500,8 @@ class _WeekNavigator extends ConsumerWidget {
           ),
           const SizedBox(width: 4),
           TextButton(
-            onPressed: () => ref
-                .read(selectedWeekProvider.notifier)
-                .setWeek(DateTime.now()),
+            onPressed: () =>
+                ref.read(selectedWeekProvider.notifier).setWeek(DateTime.now()),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.primary,
               visualDensity: VisualDensity.compact,

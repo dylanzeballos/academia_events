@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/theme_extensions.dart';
 
 /// Estado vacío reutilizable: ícono, título, mensaje y acción opcional.

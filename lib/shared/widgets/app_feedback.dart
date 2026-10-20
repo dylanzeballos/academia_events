@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
 
 /// Mensajes de feedback consistentes (SnackBar flotante con ícono y color).
 abstract final class AppFeedback {
@@ -71,8 +72,7 @@ String friendlyError(Object error) {
   if (lower.contains('duplicate') || lower.contains('already exists')) {
     return 'Ese registro ya existe.';
   }
-  if (lower.contains('violates foreign key') ||
-      lower.contains('constraint')) {
+  if (lower.contains('violates foreign key') || lower.contains('constraint')) {
     return 'No se puede completar porque hay datos relacionados.';
   }
   if (text.isEmpty) return 'Ocurrió un error inesperado. Inténtalo de nuevo.';

@@ -4,7 +4,18 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Marca principal (constante en claro y oscuro)
+  // Dark
+  static const darkBackground = Color(0xFF0F0F1A);
+  static const darkSurface = Color(0xFF1B1B2F);
+  static const darkBorder = Color(0xFF2E2E4E);
+  static const darkText = Color(0xFFF8FAFC);
+  static const darkMuted = Color(0xFFB6B8C5);
+
+  // Light
+  static const lightText = Color(0xFF1A1A2E);
+  static const lightMuted = Color(0xFF6B7280);
+
+  // Marca principal
   static const primary = Color(0xFF6C5CE7);
   static const secondary = Color(0xFF00E5D4);
 
@@ -12,6 +23,11 @@ class AppColors {
   static const error = Color(0xFFE63946);
   static const success = Color(0xFF2ECC71);
   static const warning = Color(0xFFFFA726);
+
+  // Superficies, fondos y bordes
+  static const background = Color(0xFFF8F9FA);
+  static const surface = Color(0xFFFFFFFF);
+  static const border = Color(0xFFE0E0E0);
 
   // Elementos fijos sobre fondos de color
   static const onPrimary = Colors.white;
@@ -51,6 +67,7 @@ class AppColors {
 
   static Color colorForOrganization(String? organizationId) {
     if (organizationId == null || organizationId.isEmpty) return primary;
-    return organizationColors[organizationId.hashCode.abs() % organizationColors.length];
+    return organizationColors[organizationId.hashCode.abs() %
+        organizationColors.length];
   }
 }

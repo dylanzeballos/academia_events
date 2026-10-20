@@ -1,53 +1,37 @@
 import 'package:flutter/material.dart';
 
-import '../constants/app_constants.dart';
+import '../theme/app_colors.dart';
 
 extension ThemeExtensions on BuildContext {
-  Color get scaffoldBg =>
-      Theme.of(this).brightness == Brightness.dark
-          ? AppColors.background
-          : const Color(0xFFF8F9FA);
+  Color get scaffoldBg => Theme.of(this).scaffoldBackgroundColor;
 
-  Color get cardBg =>
-      Theme.of(this).brightness == Brightness.dark
-          ? AppColors.surface
-          : Colors.white;
+  Color get cardBg => Theme.of(this).cardColor;
 
   Color get inputBg =>
-      Theme.of(this).brightness == Brightness.dark
-          ? AppColors.surface
-          : Colors.white;
+      Theme.of(this).inputDecorationTheme.fillColor ??
+      Theme.of(this).colorScheme.surface;
 
-  Color get divider =>
-      Theme.of(this).brightness == Brightness.dark
-          ? AppColors.border
-          : const Color(0xFFE0E0E0);
+  Color get divider => Theme.of(this).dividerColor;
 
-  Color get textOnBg =>
-      Theme.of(this).brightness == Brightness.dark
-          ? Colors.white
-          : const Color(0xFF1A1A2E);
+  Color get textOnBg => Theme.of(this).colorScheme.onSurface;
 
-  Color get textMuted =>
-      Theme.of(this).brightness == Brightness.dark
-          ? Colors.grey
-          : const Color(0xFF6B7280);
+  Color get textMuted => Theme.of(this).colorScheme.onSurfaceVariant;
 
   bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
 
   /// Superficie de cabeceras (barras, encabezados de tabla).
   Color get surfaceHeader =>
-      isDarkMode ? const Color(0xFF171B26) : Colors.white;
+      isDarkMode ? AppColors.darkSurface : AppColors.surface;
 
   /// Superficie base algo más oscura/clara que el fondo.
   Color get surfaceDeep =>
-      isDarkMode ? const Color(0xFF141824) : const Color(0xFFF1F3F7);
+      isDarkMode ? AppColors.darkBackground : AppColors.background;
 
   /// Relleno de campos de texto.
   Color get surfaceInput =>
-      isDarkMode ? const Color(0xFF181D2D) : Colors.white;
+      Theme.of(this).inputDecorationTheme.fillColor ??
+      Theme.of(this).colorScheme.surface;
 
   /// Bordes sutiles para separadores y contornos.
-  Color get borderSubtle =>
-      isDarkMode ? const Color(0xFF222738) : const Color(0xFFDDDDDD);
+  Color get borderSubtle => Theme.of(this).colorScheme.outline;
 }

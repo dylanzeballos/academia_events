@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../constants/app_constants.dart';
 import 'app_colors.dart';
 
 class AppTheme {
@@ -14,93 +16,81 @@ class AppTheme {
     },
   );
 
-  static ThemeData get dark => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: const ColorScheme.dark(
-          primary: AppColors.primary,
-          secondary: AppColors.secondary,
-          surface: Color(0xFF1B1B2F),
-          error: AppColors.error,
-          onPrimary: AppColors.onPrimary,
-          onSecondary: AppColors.onSecondary,
-          onSurface: Colors.white,
-          onSurfaceVariant: Colors.grey,
-          outline: Color(0xFF2E2E4E),
-        ),
-        scaffoldBackgroundColor: const Color(0xFF0F0F1A),
-        cardColor: const Color(0xFF1B1B2F),
-        dividerColor: const Color(0xFF2E2E4E),
-        pageTransitionsTheme: _pageTransitions,
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF1B1B2F),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF2E2E4E)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF2E2E4E)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.error),
-          ),
-          labelStyle: const TextStyle(color: Colors.grey),
-        ),
-        dividerTheme: const DividerThemeData(
-          color: Color(0xFF2E2E4E),
-          thickness: 1,
-        ),
-      );
+  // Solo cambian los colores; lo demás se define una vez.
+  static ThemeData _build({
+    required ColorScheme scheme,
+    required Color scaffold,
+  }) {
+    final radius = BorderRadius.circular(AppSizes.radiusMedium);
 
-  static ThemeData get light => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        colorScheme: const ColorScheme.light(
-          primary: AppColors.primary,
-          secondary: AppColors.secondary,
-          surface: Colors.white,
-          error: AppColors.error,
-          onPrimary: AppColors.onPrimary,
-          onSecondary: AppColors.onSecondary,
-          onSurface: Color(0xFF1A1A2E),
-          onSurfaceVariant: Color(0xFF6B7280),
-          outline: Color(0xFFE0E0E0),
+    OutlineInputBorder outline(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(color: color, width: width),
+        );
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: scheme.brightness,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scaffold,
+      cardColor: scheme.surface,
+      dividerColor: scheme.outline,
+      pageTransitionsTheme: _pageTransitions,
+      dividerTheme: DividerThemeData(color: scheme.outline, thickness: 1),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surface,
+        border: outline(scheme.outline),
+        enabledBorder: outline(scheme.outline),
+        focusedBorder: outline(scheme.primary, 2),
+        errorBorder: outline(scheme.error),
+        labelStyle: TextStyle(color: scheme.onSurfaceVariant),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+          shape: RoundedRectangleBorder(borderRadius: radius),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-        cardColor: Colors.white,
-        dividerColor: const Color(0xFFE0E0E0),
-        pageTransitionsTheme: _pageTransitions,
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.error),
-          ),
-          labelStyle: const TextStyle(color: Color(0xFF6B7280)),
+      ),
+      cardTheme: CardThemeData(
+        color: scheme.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+          side: BorderSide(color: scheme.outline),
         ),
-        dividerTheme: const DividerThemeData(
-          color: Color(0xFFE0E0E0),
-          thickness: 1,
-        ),
-      );
+      ),
+    );
+  }
+
+  static ThemeData get dark => _build(
+    scaffold: AppColors.darkBackground,
+    scheme: const ColorScheme.dark(
+      primary: AppColors.primary,
+      secondary: AppColors.secondary,
+      surface: AppColors.darkSurface,
+      error: AppColors.error,
+      onPrimary: AppColors.onPrimary,
+      onSecondary: AppColors.onSecondary,
+      onSurface: AppColors.darkText,
+      onSurfaceVariant: AppColors.darkMuted,
+      outline: AppColors.darkBorder,
+    ),
+  );
+
+  static ThemeData get light => _build(
+    scaffold: AppColors.background,
+    scheme: const ColorScheme.light(
+      primary: AppColors.primary,
+      secondary: AppColors.secondary,
+      surface: AppColors.surface,
+      error: AppColors.error,
+      onPrimary: AppColors.onPrimary,
+      onSecondary: AppColors.onSecondary,
+      onSurface: AppColors.lightText,
+      onSurfaceVariant: AppColors.lightMuted,
+      outline: AppColors.border,
+    ),
+  );
 }
