@@ -209,7 +209,7 @@ class _InnerEventRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = AppColors.colorForOrganization(event.organizationId);
     final price = event.startingPrice;
-    final priceLabel = price != null ? '\$${price.toInt()} USD' : 'Free';
+    final priceLabel = price != null ? '\$${price.toInt()} Bs' : 'Free';
 
     return InkWell(
       onTap: () => EventPreviewSheet.show(context, event),

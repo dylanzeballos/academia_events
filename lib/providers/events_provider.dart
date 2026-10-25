@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/event_filter_state.dart';
@@ -35,8 +34,6 @@ class SelectedWeekNotifier extends Notifier<DateTime> {
   @override
   DateTime build() {
     final now = DateTime.now();
-    // La ventana visible arranca en el día de referencia (hoy o el día
-    // seleccionado), mostrando 7 días consecutivos.
     return DateTime(now.year, now.month, now.day);
   }
 
@@ -65,8 +62,6 @@ final selectedDayProvider = NotifierProvider<SelectedDayNotifier, DateTime>(
 
 // ─── FUTURE / COMPUTED PROVIDERS ───
 
-/// Los eventos del calendario respetan los filtros activos de la barra,
-/// incluida la búsqueda por nombre de academia.
 final weekEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   final week = ref.watch(selectedWeekProvider);
   final filter = ref.watch(eventFiltersProvider);
@@ -79,9 +74,6 @@ final weekEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   return filtered;
 });
 
-/// ¿El evento satisface los filtros activos de la barra?
-///
-/// La búsqueda del calendario compara la academia y sus géneros de baile.
 bool _scheduleEventMatches(EventModel e, EventFilterState f) {
   final searchQuery = f.searchQuery.trim().toLowerCase();
   if (searchQuery.isNotEmpty) {
@@ -96,8 +88,6 @@ bool _scheduleEventMatches(EventModel e, EventFilterState f) {
     }
   }
 
-  // El filtro de organización aplica a los eventos (la barra del Horario
-  // permite elegir una organización).
   if (f.departmentId != null && e.location?.departmentId != f.departmentId) {
     return false;
   }
@@ -157,11 +147,6 @@ final orgEventsProvider = FutureProvider<List<EventModel>>((ref) async {
   return repo.fetchOrganizationEvents(orgId);
 });
 
-/// Clases próximas (desde ahora, próximos 7 días) de una organización.
-///
-/// Toma la semana actual y la siguiente para que las clases que caen a
-/// principios de la semana que viene (cuando hoy es casi fin de semana) no se
-/// pierdan.
 final organizationUpcomingClassesProvider =
     FutureProvider.family<List<EventModel>, String>((
       ref,
@@ -190,7 +175,7 @@ final organizationUpcomingClassesProvider =
       return upcoming;
     });
 
-// ─── LOCATION PROVIDERS (EN CASCADA) ───
+// ─── LOCATION PROVIDERS ───
 
 final departmentsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
@@ -242,7 +227,7 @@ final eventDetailProvider = FutureProvider.family<EventModel, String>((
   return repo.fetchEventById(eventId);
 });
 
-// ─── CREACIÓN DE EVENTO (CON TICKETS) ───
+// ─── CREACIÓN DE EVENTO (CON TICKETS Y TEATRO) ───
 
 class CreateEventState {
   const CreateEventState({this.isLoading = false, this.error});
@@ -267,6 +252,8 @@ class CreateEventNotifier extends Notifier<CreateEventState> {
     List<Map<String, dynamic>>? ticketTypesData,
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
+    Uint8List? rulesPdfBytes,
+    String? venueId,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -277,6 +264,8 @@ class CreateEventNotifier extends Notifier<CreateEventState> {
         ticketTypesData: ticketTypesData,
         bannerBytes: bannerBytes,
         qrBytes: qrBytes,
+        rulesPdfBytes: rulesPdfBytes,
+        venueId: venueId,
       );
 
       ref.invalidate(allEventsProvider);
@@ -297,4 +286,11 @@ class CreateEventNotifier extends Notifier<CreateEventState> {
 final createEventProvider =
     NotifierProvider<CreateEventNotifier, CreateEventState>(() {
       return CreateEventNotifier();
+    });
+
+/// Lista de plantillas de salas disponibles para crear eventos
+final venuesListProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      final service = ref.watch(eventsServiceProvider);
+      return service.fetchVenues();
     });

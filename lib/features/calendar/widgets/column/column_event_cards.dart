@@ -291,7 +291,7 @@ void showClusterSheet(BuildContext context, List<EventModel> events) {
                       final event = sorted[i];
                       final color = AppColors.colorForOrganization(event.organizationId);
                       final price = event.startingPrice;
-                      final priceLabel = price != null ? '\$${price.toInt()} USD' : 'Free';
+                      final priceLabel = price != null ? '\$${price.toInt()} Bs' : 'Free';
 
                       return GestureDetector(
                         onTap: () {

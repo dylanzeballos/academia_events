@@ -10,11 +10,14 @@ class EventModel {
     this.organizationLogoUrl,
     this.categoryId,
     this.categoryName,
+    this.venueId,
     this.danceCategoryIds = const [],
     this.danceCategoryNames = const [],
     this.description,
     this.coverImageUrl,
     this.qrImageUrl,
+    this.contactPhone,
+    this.rulesPdfUrl,
     this.location,
     required this.startTime,
     required this.endTime,
@@ -36,11 +39,14 @@ class EventModel {
   final String? organizationLogoUrl;
   final String? categoryId;
   final String? categoryName;
+  final String? venueId;
   final List<String> danceCategoryIds;
   final List<String> danceCategoryNames;
   final String? description;
   final String? coverImageUrl;
   final String? qrImageUrl;
+  final String? contactPhone;
+  final String? rulesPdfUrl;
   final EventLocationModel? location;
   final DateTime startTime;
   final DateTime endTime;
@@ -77,11 +83,14 @@ class EventModel {
     String? organizationLogoUrl,
     String? categoryId,
     String? categoryName,
+    String? venueId,
     List<String>? danceCategoryIds,
     List<String>? danceCategoryNames,
     String? description,
     String? coverImageUrl,
     String? qrImageUrl,
+    String? contactPhone,
+    String? rulesPdfUrl,
     EventLocationModel? location,
     DateTime? startTime,
     DateTime? endTime,
@@ -103,11 +112,14 @@ class EventModel {
         organizationLogoUrl: organizationLogoUrl ?? this.organizationLogoUrl,
         categoryId: categoryId ?? this.categoryId,
         categoryName: categoryName ?? this.categoryName,
+        venueId: venueId ?? this.venueId,
         danceCategoryIds: danceCategoryIds ?? this.danceCategoryIds,
         danceCategoryNames: danceCategoryNames ?? this.danceCategoryNames,
         description: description ?? this.description,
         coverImageUrl: coverImageUrl ?? this.coverImageUrl,
         qrImageUrl: qrImageUrl ?? this.qrImageUrl,
+        contactPhone: contactPhone ?? this.contactPhone,
+        rulesPdfUrl: rulesPdfUrl ?? this.rulesPdfUrl,
         location: location ?? this.location,
         startTime: startTime ?? this.startTime,
         endTime: endTime ?? this.endTime,
@@ -123,15 +135,11 @@ class EventModel {
       );
 
   factory EventModel.fromJson(Map<String, dynamic> json) {
-    // 1. Manejo de Categoría
     final categoryData = json['event_categories'] as Map<String, dynamic>?;
-
-    // 2. Manejo de Organización (nombre y logo)
     final orgData = json['organizations'] as Map<String, dynamic>?;
     final parsedOrgName = orgData?['name'] as String? ?? (json['organization_name'] as String?) ?? '';
     final parsedOrgLogo = orgData?['logo_url'] as String? ?? (json['organization_logo_url'] as String?);
 
-    // 3. Manejo de Ubicación vinculada
     EventLocationModel? parsedLocation;
     if (json['event_locations'] != null) {
       if (json['event_locations'] is List && (json['event_locations'] as List).isNotEmpty) {
@@ -143,7 +151,6 @@ class EventModel {
       }
     }
 
-    // 4. Manejo de Imágenes vinculadas / QR
     final imagesData = json['event_images'] as List?;
     String? qrUrl;
     if (imagesData != null && imagesData.isNotEmpty) {
@@ -151,19 +158,19 @@ class EventModel {
       qrUrl = firstImage?['image_url'] as String?;
     }
 
-    // 5. Manejo de Tipos de Tickets
     final rawTickets = json['ticket_types'] as List?;
     final parsedTickets = rawTickets != null
         ? rawTickets
             .map((t) => TicketTypeModel.fromJson(Map<String, dynamic>.from(t as Map)))
             .toList()
         : <TicketTypeModel>[];
-      final danceCategoryNames = (json['event_dance_categories'] as List?)
-          ?.map((item) => (item as Map)['dance_categories'])
-          .whereType<Map>()
-          .map((category) => category['name'] as String? ?? '')
-          .where((name) => name.isNotEmpty)
-          .toList() ??
+
+    final danceCategoryNames = (json['event_dance_categories'] as List?)
+            ?.map((item) => (item as Map)['dance_categories'])
+            .whereType<Map>()
+            .map((category) => category['name'] as String? ?? '')
+            .where((name) => name.isNotEmpty)
+            .toList() ??
         const <String>[];
 
     return EventModel(
@@ -174,17 +181,18 @@ class EventModel {
       organizationLogoUrl: parsedOrgLogo,
       categoryId: json['category_id'] as String?,
       categoryName: categoryData?['name'] as String? ?? (json['category_name'] as String?),
+      venueId: json['venue_id'] as String?,
       danceCategoryIds: (json['event_dance_categories'] as List?)
-              ?.map((c) =>
-                  (c as Map)['dance_category_id'] as String? ??
-                  '')
+              ?.map((c) => (c as Map)['dance_category_id'] as String? ?? '')
               .where((id) => id.isNotEmpty)
               .toList() ??
           const [],
-            danceCategoryNames: danceCategoryNames,
+      danceCategoryNames: danceCategoryNames,
       description: json['description'] as String?,
       coverImageUrl: json['cover_image_url'] as String?,
       qrImageUrl: qrUrl ?? (json['qr_image_url'] as String?),
+      contactPhone: json['contact_phone'] as String?,
+      rulesPdfUrl: json['rules_pdf_url'] as String?,
       location: parsedLocation,
       startTime: DateTime.parse(json['start_at'] as String),
       endTime: DateTime.parse(json['end_at'] as String),
@@ -208,6 +216,7 @@ class EventModel {
         'title': title,
         'organization_id': organizationId,
         'category_id': categoryId,
+        'venue_id': venueId,
         'description': description,
         'cover_image_url': coverImageUrl,
         'start_at': startTime.toIso8601String(),
@@ -217,6 +226,8 @@ class EventModel {
         'status': status,
         'visibility': visibility,
         'requires_approval': requiresApproval,
+        if (contactPhone != null) 'contact_phone': contactPhone,
+        if (rulesPdfUrl != null) 'rules_pdf_url': rulesPdfUrl,
         if (location != null) 'event_locations': location!.toJson(),
       };
 }

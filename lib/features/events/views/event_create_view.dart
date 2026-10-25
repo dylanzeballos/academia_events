@@ -1,15 +1,20 @@
 // lib/features/events/views/event_create_view.dart
+import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:file_picker_platform_interface/file_picker_platform_interface.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/theme_extensions.dart';
+import '../../../core/theme/theme_extensions.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_feedback.dart';
@@ -38,6 +43,14 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
   final _priceController = TextEditingController(text: '0');
   final _ticketStockController = TextEditingController(text: '100');
   bool _isUnlimitedStock = false;
+
+  // Soporte de Teatro / Butacas numeradas
+  bool _isTheatreEvent = false;
+  String? _selectedVenueId;
+
+  // Soporte de Documento / PDF de Reglamento
+  Uint8List? _rulesPdfBytes;
+  String? _rulesPdfFileName;
 
   final _locationNameController = TextEditingController();
   final _addressController = TextEditingController();
@@ -93,6 +106,96 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       if (!mounted) return;
       setState(() => _bannerBytes = bytes);
     }
+  }
+
+  Future<void> _pickRulesPdf() async {
+    try {
+      final dynamic picked = await FilePickerPlatform.instance.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (picked != null) {
+        final dynamic firstItem = (picked is List)
+            ? (picked.isNotEmpty ? picked.first : null)
+            : (picked.files?.isNotEmpty == true ? picked.files.first : null);
+
+        if (firstItem != null) {
+          Uint8List? fileBytes;
+          String fileName = 'reglamento.pdf';
+
+          // 1. Obtener nombre del archivo
+          try {
+            fileName = (firstItem.name as String?) ?? fileName;
+          } catch (_) {}
+
+          // 2. Extraer los bytes según la plataforma (Web o Móvil)
+          try {
+            // Intentar leer propiedad directa .bytes
+            fileBytes = firstItem.bytes as Uint8List?;
+          } catch (_) {}
+
+          // Si vino null o falló y tiene método readAsBytes() (WebPlatformFile / XFile)
+          if (fileBytes == null) {
+            try {
+              fileBytes = await firstItem.readAsBytes();
+            } catch (_) {}
+          }
+
+          // Si es Web y tiene readStream
+          if (fileBytes == null) {
+            try {
+              final stream = firstItem.readStream;
+              if (stream != null) {
+                final List<int> byteList = [];
+                await for (final chunk in stream) {
+                  byteList.addAll(chunk);
+                }
+                fileBytes = Uint8List.fromList(byteList);
+              }
+            } catch (_) {}
+          }
+
+          // Si es Móvil/Desktop nativo y tiene path
+          if (fileBytes == null) {
+            try {
+              final String? filePath = firstItem.path as String?;
+              if (filePath != null) {
+                final ioFile = File(filePath);
+                if (await ioFile.exists()) {
+                  fileBytes = await ioFile.readAsBytes();
+                }
+              }
+            } catch (_) {}
+          }
+
+          if (fileBytes != null) {
+            setState(() {
+              _rulesPdfBytes = fileBytes;
+              _rulesPdfFileName = fileName;
+            });
+          } else {
+            if (mounted) {
+              AppFeedback.error(
+                context,
+                'No se pudieron extraer los bytes del archivo',
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.error(context, 'No se pudo cargar el archivo PDF: $e');
+      }
+    }
+  }
+
+  void _removeRulesPdf() {
+    setState(() {
+      _rulesPdfBytes = null;
+      _rulesPdfFileName = null;
+    });
   }
 
   Future<void> _pickDateTime({required bool isStart}) async {
@@ -175,9 +278,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
 
       final contact = _contactPhoneController.text.trim();
       final description = _descriptionController.text.trim();
-      final fullDescription = contact.isNotEmpty
-          ? '$description\n\nContactos: $contact'
-          : description;
 
       final ticketQuantity = _isUnlimitedStock
           ? 999999
@@ -192,15 +292,19 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'category_id': _selectedCategoryId,
         'title': title,
         'slug': slug,
-        'description': fullDescription,
+        'description': description.isNotEmpty
+            ? description
+            : 'la mejor de todas',
+        'contact_phone': contact.isNotEmpty ? contact : null,
         'start_at': startAt.toIso8601String(),
         'end_at': endAt.toIso8601String(),
         'timezone': 'America/La_Paz',
-        'status': 'draft',
+        'status': 'published',
+        'moderation_status': 'approved',
         'visibility': 'public',
         'requires_approval': false,
-        'published_at': null,
-        'capacity': ?parsedCapacity,
+        'published_at': DateTime.now().toIso8601String(),
+        'capacity': parsedCapacity,
       };
 
       final locationData = {
@@ -217,21 +321,27 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       final parsedPrice = double.tryParse(_priceController.text.trim()) ?? 0.0;
       final ticketTypesData = [
         {
-          'name': 'Entrada General',
-          'description': 'Acceso general al evento',
+          'name': _isTheatreEvent ? 'Butaca Numerada' : 'Entrada General',
+          'description': _isTheatreEvent
+              ? 'Asiento numerado en teatro'
+              : 'Acceso general al evento',
           'price': parsedPrice,
           'quantity': ticketQuantity,
           'currency': 'BOB',
           'is_active': true,
-        }
+        },
       ];
 
-      await ref.read(eventsRepositoryProvider).createFullEvent(
+      await ref
+          .read(eventsRepositoryProvider)
+          .createFullEvent(
             eventData: eventData,
             locationData: locationData,
             ticketTypesData: ticketTypesData,
             bannerBytes: _bannerBytes,
             qrBytes: null,
+            rulesPdfBytes: _rulesPdfBytes,
+            venueId: _isTheatreEvent ? _selectedVenueId : null,
           );
 
       ref.invalidate(orgEventsProvider);
@@ -242,12 +352,22 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         context.pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Evento creado en borrador correctamente'),
+            content: const Text('Evento creado y publicado correctamente'),
             backgroundColor: context.cardBg,
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('CREATE EVENT ERROR: $e');
+      if (e is PostgrestException) {
+        debugPrint(
+          'PG code=${e.code} msg=${e.message} details=${e.details} hint=${e.hint}',
+        );
+      }
+      if (e is StorageException) {
+        debugPrint('STORAGE status=${e.statusCode} msg=${e.message}');
+      }
+      debugPrintStack(stackTrace: st);
       if (mounted) {
         AppFeedback.error(context, friendlyError(e));
       }
@@ -263,7 +383,13 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       appBar: AppBar(
         backgroundColor: context.cardBg,
         elevation: 0,
-        title: Text('Crear Evento', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
+        title: Text(
+          'Crear Evento',
+          style: TextStyle(
+            color: context.textOnBg,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -291,6 +417,94 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 20),
 
+              // Tarjeta para subir el PDF de Reglamento / Código de vestimenta
+              Card(
+                color: context.cardBg,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: context.borderColor),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Reglamento o Código de Vestimenta (PDF)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Adjunta las normas o especificaciones para los asistentes (opcional).',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 12),
+                      if (_rulesPdfFileName != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.picture_as_pdf,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _rulesPdfFileName!,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  size: 20,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: _removeRulesPdf,
+                                tooltip: 'Quitar archivo',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        OutlinedButton.icon(
+                          onPressed: _pickRulesPdf,
+                          icon: const Icon(Icons.upload_file),
+                          label: const Text('Seleccionar documento PDF'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
               EventTicketsEditor(
                 priceController: _priceController,
                 stockController: _ticketStockController,
@@ -298,6 +512,85 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                 onUnlimitedStockChanged: (val) {
                   setState(() => _isUnlimitedStock = val);
                 },
+              ),
+              const SizedBox(height: 20),
+
+              // Sección para Teatro y Butacas Numeradas
+              Card(
+                color: context.cardBg,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: context.borderColor),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          '¿Evento en Teatro / Butacas numeradas?',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text(
+                          'Generará el plano físico con selección de asientos',
+                        ),
+                        value: _isTheatreEvent,
+                        onChanged: (val) =>
+                            setState(() => _isTheatreEvent = val),
+                      ),
+                      if (_isTheatreEvent) ...[
+                        const SizedBox(height: 10),
+                        ref
+                            .watch(venuesListProvider)
+                            .when(
+                              loading: () => const LinearProgressIndicator(),
+                              error: (e, _) => Text(
+                                'Error al cargar teatros: $e',
+                                style: const TextStyle(color: AppColors.error),
+                              ),
+                              data: (venues) {
+                                if (venues.isEmpty) {
+                                  return const Text(
+                                    'No hay plantillas de recintos registradas en la base de datos.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  );
+                                }
+                                return DropdownButtonFormField<String>(
+                                  initialValue: _selectedVenueId,
+                                  decoration: InputDecoration(
+                                    labelText: 'Selecciona el Teatro o Recinto',
+                                    prefixIcon: const Icon(
+                                      Icons.theater_comedy_outlined,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  items: venues.map((v) {
+                                    return DropdownMenuItem<String>(
+                                      value: v['id'] as String,
+                                      child: Text(v['name'] as String),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) =>
+                                      setState(() => _selectedVenueId = val),
+                                  validator: (val) =>
+                                      _isTheatreEvent && val == null
+                                      ? 'Selecciona un recinto para clonar las butacas'
+                                      : null,
+                                );
+                              },
+                            ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
 

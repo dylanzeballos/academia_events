@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../data/models/seat_model.dart';
 import '../../../data/models/ticket_type_model.dart';
+import '../../../data/services/events_service.dart';
+import '../../../providers/events_provider.dart';
 import '../../../providers/ticket_provider.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import 'ticket_qr_screen.dart';
 
 class PurchaseTicketsScreen extends ConsumerStatefulWidget {
-  const PurchaseTicketsScreen({super.key, required this.eventId});
+  const PurchaseTicketsScreen({
+    super.key,
+    required this.eventId,
+    this.preselectedSeats = const [],
+  });
+
   final String eventId;
+  final List<SeatModel> preselectedSeats;
 
   @override
   ConsumerState<PurchaseTicketsScreen> createState() =>
@@ -22,11 +32,17 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
   bool _isBuying = false;
 
   final List<TextEditingController> _nameControllers = [];
+  late List<SeatModel> _selectedSeats;
 
   @override
   void initState() {
     super.initState();
-    _syncNameControllers(1);
+    _selectedSeats = List.from(widget.preselectedSeats);
+    final initialQuantity = _selectedSeats.isNotEmpty
+        ? _selectedSeats.length
+        : 1;
+    _quantity = initialQuantity;
+    _syncNameControllers(initialQuantity);
   }
 
   @override
@@ -53,7 +69,12 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
     });
   }
 
-  double get _total => (_selected?.price ?? 0) * _quantity;
+  double get _total {
+    if (_selectedSeats.isNotEmpty) {
+      return _selectedSeats.fold<double>(0.0, (acc, s) => acc + s.price);
+    }
+    return (_selected?.price ?? 0) * _quantity;
+  }
 
   Future<void> _confirmPurchase() async {
     final selected = _selected;
@@ -77,8 +98,19 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
         quantity: _quantity,
         attendeeNames: attendeeNames,
       );
+
+      // Confirmar la compra definitiva de las butacas en la base de datos
+      if (_selectedSeats.isNotEmpty) {
+        final seatIds = _selectedSeats.map((s) => s.id).toList();
+        await const EventsService().confirmSeatPurchase(
+          orderId: result.orderId,
+          seatIds: seatIds,
+        );
+      }
+
       if (!mounted) return;
       ref.invalidate(eventTicketTypesProvider(widget.eventId));
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => TicketQrScreen(result: result)),
       );
@@ -95,9 +127,10 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
     final ticketTypesAsync = ref.watch(
       eventTicketTypesProvider(widget.eventId),
     );
+    final bool hasTheatreSeats = _selectedSeats.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Comprar entradas')),
+      appBar: AppBar(title: const Text('Confirmar compra')),
       body: ticketTypesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) =>
@@ -117,26 +150,128 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // 1. Resumen de Butacas Reservadas (si viene del teatro)
+                  if (hasTheatreSeats) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.event_seat,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Tus butacas seleccionadas',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _selectedSeats.map((s) {
+                              return Chip(
+                                label: Text(
+                                  s.displayName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                backgroundColor: Colors.white,
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 2. Tipo de Entrada
+                  // 2. Tipo de Entrada
                   const Text(
                     'Tipo de entrada',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  RadioGroup<TicketTypeModel>(
-                    groupValue: _selected,
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() {
-                        _selected = value;
-                        _onQuantityChanged(1);
-                      });
-                    },
-                    child: Column(
+                  if (hasTheatreSeats)
+                    // Si ya seleccionó butacas, solo mostramos el tipo asignado sin radio interactivo
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.confirmation_number_outlined,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _selected?.name ?? 'Entrada Butaca',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                Text(
+                                  '${_selected?.price.toStringAsFixed(2) ?? "0.00"} ${_selected?.currency ?? "BOB"} por butaca',
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    // Para eventos generales sin butacas, se mantiene la lista de selección
+                    Column(
                       children: [
                         for (final type in types)
                           RadioListTile<TicketTypeModel>(
                             value: type,
-                            enabled: type.hasStock,
+                            groupValue: _selected,
+                            onChanged: type.hasStock
+                                ? (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      _selected = value;
+                                      _onQuantityChanged(1);
+                                    });
+                                  }
+                                : null,
                             title: Text(type.name),
                             subtitle: Text(
                               type.hasStock
@@ -146,37 +281,9 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                           ),
                       ],
                     ),
-                  ),
                   const Divider(height: 32),
-                  const Text(
-                    'Cantidad',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: _quantity > 1
-                            ? () => _onQuantityChanged(_quantity - 1)
-                            : null,
-                      ),
-                      Text(
-                        '$_quantity',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed:
-                            (_selected?.hasStock ?? false) &&
-                                _quantity < (_selected?.available ?? 0)
-                            ? () => _onQuantityChanged(_quantity + 1)
-                            : null,
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 32),
+
+                  // 4. Titulares de cada boleto
                   const Text(
                     'Titulares de las entradas',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -188,12 +295,16 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                   ),
                   const SizedBox(height: 12),
                   ...List.generate(_quantity, (index) {
+                    final seatLabel =
+                        hasTheatreSeats && _selectedSeats.length > index
+                        ? ' [${_selectedSeats[index].displayName}]'
+                        : '';
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: TextFormField(
                         controller: _nameControllers[index],
                         decoration: InputDecoration(
-                          labelText: 'Asistente #${index + 1}',
+                          labelText: 'Asistente #${index + 1}$seatLabel',
                           hintText: 'Ej. Carlos Mendoza',
                           prefixIcon: const Icon(Icons.person_outline),
                           border: OutlineInputBorder(
@@ -214,6 +325,8 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                     );
                   }),
                   const Divider(height: 32),
+
+                  // 5. Total a pagar
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -225,7 +338,7 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                         ),
                       ),
                       Text(
-                        '${_total.toStringAsFixed(2)} ${_selected?.currency ?? ''}',
+                        '${_total.toStringAsFixed(2)} ${_selected?.currency ?? 'BOB'}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -234,11 +347,16 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
+
                   ElevatedButton(
-                    onPressed: (_selected?.hasStock ?? false) && !_isBuying
+                    onPressed:
+                        ((_selected?.hasStock ?? false) || hasTheatreSeats) &&
+                            !_isBuying
                         ? _confirmPurchase
                         : null,
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -248,7 +366,10 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              color: AppColors.onPrimary,
+                              strokeWidth: 2,
+                            ),
                           )
                         : const Text(
                             'Confirmar compra',

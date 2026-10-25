@@ -14,6 +14,8 @@ abstract interface class IEventsRepository {
     List<Map<String, dynamic>>? ticketTypesData,
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
+    Uint8List? rulesPdfBytes,
+    String? venueId,
   });
   Future<void> updateEvent(String id, Map<String, dynamic> data);
   Future<void> deleteEvent(String id);
@@ -29,9 +31,6 @@ class EventsRepository implements IEventsRepository {
 
   @override
   Future<List<EventModel>> fetchWeekEvents(DateTime weekReference) async {
-    // La referencia es el INICIO de la ventana (hoy o el día seleccionado):
-    // se consulta desde ese día hasta 7 días después para que siempre se vean
-    // los eventos próximos, no anclados a la semana natural lun-dom.
     final start = DateTime(
       weekReference.year,
       weekReference.month,
@@ -82,39 +81,55 @@ class EventsRepository implements IEventsRepository {
     List<Map<String, dynamic>>? ticketTypesData,
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
+    Uint8List? rulesPdfBytes,
+    String? venueId,
   }) async {
-    // 1. Insertar evento base para generar su id
     final eventRow = await service.insertEvent(eventData);
     final eventId = eventRow['id'] as String;
 
-    // 2. Subir banner a Storage y actualizar cover_image_url
     if (bannerBytes != null) {
-      final imageUrl =
-          await service.uploadImage('event-banners', '$eventId/banner', bannerBytes);
+      final imageUrl = await service.uploadImage(
+        'event-banners',
+        '$eventId/banner',
+        bannerBytes,
+      );
       await service.updateEvent(eventId, {'cover_image_url': imageUrl});
     }
 
-    // 3. Insertar ubicación
+    if (rulesPdfBytes != null) {
+      final pdfUrl = await service.uploadRulesPdf(eventId, rulesPdfBytes);
+      await service.updateEvent(eventId, {'rules_pdf_url': pdfUrl});
+    }
+
     if ((locationData['location_name'] as String?)?.isNotEmpty == true ||
         (locationData['address_line_1'] as String?)?.isNotEmpty == true ||
         locationData['department_id'] != null) {
       await service.insertLocation({'event_id': eventId, ...locationData});
     }
 
-    // 4. Subir QR a Storage e insertarlo en event_images
     if (qrBytes != null) {
-      final qrUrl = await service.uploadImage('event-qrs', '$eventId/qr', qrBytes);
+      final qrUrl = await service.uploadImage(
+        'event-qrs',
+        '$eventId/qr',
+        qrBytes,
+      );
       await service.insertEventImage(eventId, qrUrl);
     }
 
-    // 5. Insertar tipos de entradas (ticket_types) vinculados a este evento
+    if (venueId != null && venueId.isNotEmpty) {
+      final defaultPrice =
+          (ticketTypesData?.firstOrNull?['price'] as num?)?.toDouble() ?? 50.0;
+      await service.cloneVenueSeats(
+        eventId: eventId,
+        venueId: venueId,
+        defaultPrice: defaultPrice,
+      );
+    }
+
     if (ticketTypesData != null && ticketTypesData.isNotEmpty) {
-      final ticketsWithEventId = ticketTypesData.map((t) {
-        return {
-          ...t,
-          'event_id': eventId,
-        };
-      }).toList();
+      final ticketsWithEventId = ticketTypesData
+          .map((t) => {...t, 'event_id': eventId})
+          .toList();
       await service.insertTicketTypes(ticketsWithEventId);
     }
   }
@@ -191,7 +206,6 @@ class ClassesRepository implements IClassesRepository {
 
   @override
   Future<List<EventModel>> fetchWeekClasses(DateTime weekReference) async {
-    // Igual que en eventos: la referencia es el inicio de la ventana móvil.
     final start = DateTime(
       weekReference.year,
       weekReference.month,
@@ -213,8 +227,9 @@ class ClassesRepository implements IClassesRepository {
       final startDate = _parseDate(schedule['start_date']);
       final endDate = _parseDate(schedule['end_date']);
 
-      // day_of_week: 0=domingo..6=sábado. weekday: 1=lunes..7=domingo.
-      final scheduleWeekday = schedule['day_of_week'] == 0 ? 7 : schedule['day_of_week'];
+      final scheduleWeekday = schedule['day_of_week'] == 0
+          ? 7
+          : schedule['day_of_week'];
 
       var day = start;
       while (day.isBefore(endExclusive)) {
