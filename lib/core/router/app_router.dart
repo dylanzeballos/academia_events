@@ -13,7 +13,7 @@ import 'package:academia_events/providers/layout_mode_provider.dart';
 
 import 'app_nav_shells.dart';
 
-// ── Rutas exactas a las vistas del sistema anterior
+// Vistas
 import '../../features/auth/views/forgot_password_view.dart';
 import '../../features/auth/views/login_view.dart';
 import '../../features/auth/views/register_view.dart';
@@ -48,86 +48,163 @@ import '../../features/public/views/organization_detail_view.dart';
 import '../../features/tickets/views/student_tickets_view.dart';
 import '../../features/checkin/views/checkin_screen.dart';
 import '../../features/admin/views/admin_dashboard_view.dart';
+import '../../features/notification/views/notifications_view.dart';
+
+// Llave para pantallas completas que tapan el BottomNavBar
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthStateNotifier(ref);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     refreshListenable: notifier,
     initialLocation: AppRoutes.studentHome,
     redirect: (context, state) => _handleRedirect(ref, state),
     routes: [
-      GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginView()),
-      GoRoute(path: AppRoutes.register, builder: (_, _) => const RegisterView()),
-      GoRoute(path: AppRoutes.forgotPassword, builder: (_, _) => const ForgotPasswordView()),
-      GoRoute(path: AppRoutes.updatePassword, builder: (_, _) => const UpdatePasswordView()),
-      GoRoute(path: AppRoutes.platformAdmin, builder: (_, _) => const AdminDashboardView()),
-
-      // Callback OAuth (Google Login)
+      // ─────────────────────────────────────────────
+      // 1. RUTAS GLOBALES Y AUTENTICACIÓN
+      // ─────────────────────────────────────────────
       GoRoute(
-        path: '/auth/callback',
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.login,
+        builder: (_, _) => const LoginView(),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.register,
+        builder: (_, _) => const RegisterView(),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.forgotPassword,
+        builder: (_, _) => const ForgotPasswordView(),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.updatePassword,
+        builder: (_, _) => const UpdatePasswordView(),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.platformAdmin,
+        builder: (_, _) => const AdminDashboardView(),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.authCallback,
         builder: (_, _) => const _AuthCallbackPage(),
+      ),
+
+      // ─────────────────────────────────────────────
+      // 2. RUTAS SECUNDARIAS (PANTALLAS COMPLETAS)
+      // ─────────────────────────────────────────────
+      // Profesores (Se abre desde el Dashboard)
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.academyTeachers,
+        builder: (_, _) => const AcademyTeachersView(),
+      ),
+
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: AppRoutes.academyClassesView,
+        builder: (context, state) => Scaffold(
+          backgroundColor: context.scaffoldBg,
+          appBar: AppBar(
+            backgroundColor: context.cardBg,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: context.textOnBg,
+                size: 20,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: Text(
+              'Clases y Actividades',
+              style: TextStyle(
+                color: context.textOnBg,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ),
+          body: const AcademyClassesView(),
+        ),
       ),
 
       // Organizaciones
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.organizations,
         builder: (_, _) => const OrganizationListView(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.organizationsCreate,
         builder: (_, _) => const OrganizationCreateView(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.organizationsDetailPattern,
-        builder: (context, state) => OrganizationDetailView(
-          organizationId: state.pathParameters['id'],
-        ),
+        builder: (context, state) =>
+            OrganizationDetailView(organizationId: state.pathParameters['id']),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.myInvitations,
         builder: (_, _) => const MyInvitationsView(),
       ),
 
       // Clases
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.classList,
         builder: (_, _) => const ClassListView(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.classCreate,
         builder: (_, _) => const ClassCreateView(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.classDetailPattern,
-        builder: (context, state) => ClassDetailView(
-          classId: state.pathParameters['id'],
-        ),
+        builder: (context, state) =>
+            ClassDetailView(classId: state.pathParameters['id']),
       ),
 
       // Eventos
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.eventsList,
         builder: (_, _) => const EventsListView(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.eventCreate,
         builder: (_, _) => const EventCreateView(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.eventDetailPattern,
         builder: (context, state) {
-          final eventId = state.pathParameters['id'] ?? state.extra as String? ?? '';
+          final eventId =
+              state.pathParameters['id'] ?? state.extra as String? ?? '';
           return EventDetailView(eventId: eventId);
         },
       ),
 
-      // Public event discovery
+      // Públicas
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.publicEvents,
         builder: (_, _) => const PublicEventsView(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.publicEventDetail,
         builder: (context, state) {
           final eventId = state.pathParameters['id'] ?? '';
@@ -135,6 +212,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.organizationPublicDetail,
         builder: (context, state) {
           final organizationId = state.pathParameters['id'] ?? '';
@@ -145,30 +223,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Check-in QR
+      // Inscripciones y Check-in
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.academyCheckin,
         builder: (_, _) => const CheckinScreen(),
       ),
-
-      // Detalle e inscripción clases
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.myClassDetailPattern,
-        builder: (context, state) => MyClassDetailView(
-          enrollmentId: state.pathParameters['id'],
-        ),
+        builder: (context, state) =>
+            MyClassDetailView(enrollmentId: state.pathParameters['id']),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.enrollClassDetailPattern,
-        builder: (context, state) => ClassEnrollDetailView(
-          classId: state.pathParameters['id'],
-        ),
+        builder: (context, state) =>
+            ClassEnrollDetailView(classId: state.pathParameters['id']),
       ),
 
-      // Shell Estudiante
+      // ─────────────────────────────────────────────
+      // 3. SHELL ESTUDIANTE (5 PESTAÑAS)
+      // ─────────────────────────────────────────────
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => StudentShell(navigationShell: shell),
         branches: [
+          // 0: Horario
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -177,14 +257,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // 1: Tickets
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/student/tickets',
+                path: AppRoutes.studentTickets,
                 builder: (_, _) => const StudentTicketsView(),
               ),
             ],
           ),
+          // 2: Clases
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -193,6 +275,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // 3: Notificaciones
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.studentNotifications,
+                builder: (_, _) => const NotificationsView(),
+              ),
+            ],
+          ),
+          // 4: Perfil
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -204,10 +296,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Shell Academia
+      // ─────────────────────────────────────────────
+      // 4. SHELL ACADEMIA (5 PESTAÑAS)
+      // ─────────────────────────────────────────────
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => AcademyShell(navigationShell: shell),
         branches: [
+          // 0: Dashboard
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -216,6 +311,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // 1: Eventos
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -224,6 +320,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // 2: Clases
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -232,14 +329,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // 3: Notificaciones (Reemplaza la pestaña de Profes)
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.academyTeachers,
-                builder: (_, _) => const AcademyTeachersView(),
+                path: AppRoutes.academyNotifications,
+                builder: (_, _) => const NotificationsView(),
               ),
             ],
           ),
+          // 4: Perfil
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -269,7 +368,8 @@ String? _handleRedirect(Ref ref, GoRouterState state) {
   if (authState.isLoading) return null;
 
   final loc = state.matchedLocation;
-  final onAuthRoute = loc.startsWith('/login') ||
+  final onAuthRoute =
+      loc.startsWith('/login') ||
       loc.startsWith('/register') ||
       loc.startsWith('/forgot-password') ||
       loc.startsWith('/auth/callback');
@@ -302,7 +402,8 @@ String? _handleRedirect(Ref ref, GoRouterState state) {
   final role = roleAsync.asData?.value;
 
   if (role != null) {
-    if (loc.startsWith(AppRoutes.platformAdmin) && role != UserRole.platformAdmin) {
+    if (loc.startsWith(AppRoutes.platformAdmin) &&
+        role != UserRole.platformAdmin) {
       return AppRoutes.studentHome;
     }
     if (role == UserRole.platformAdmin &&
@@ -326,7 +427,6 @@ String? _handleRedirect(Ref ref, GoRouterState state) {
 
 class _AuthStateNotifier extends ChangeNotifier {
   _AuthStateNotifier(Ref ref) {
-    // Filtro para ignorar tokenRefreshed y errores transitorios evitando el error 429
     ref.listen(authStateProvider, (prev, next) {
       if (next.hasError) return;
 

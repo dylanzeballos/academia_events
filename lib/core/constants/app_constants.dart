@@ -1,40 +1,55 @@
-// lib/core/constants/app_constants.dart
-
 // ─────────────────────────────────────────────
 // Rutas nombradas (GoRouter)
 // ─────────────────────────────────────────────
 class AppRoutes {
   AppRoutes._();
 
+  // ── Auth ──
   static const String login = '/login';
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
   static const String updatePassword = '/update-password';
+  static const String authCallback = '/auth/callback'; // no habia antes
+  static const String platformAdmin = '/admin';
+
+  // ── Shell Estudiante (Pestañas fijas) ──
 
   static const String studentHome = '/student';
-  static const String studentCalendar = '/student/calendar';
+  static const String studentTickets = '/student/tickets'; // no habia antes
   static const String studentClasses = '/student/classes';
-  static const String academyCheckin = '/academy/checkin';
+  static const String studentNotifications = '/student/notifications'; //nuevo
   static const String studentProfile = '/student/profile';
+
+  // ── Secundarias Estudiante ──
+  static const String studentCalendar = '/student/calendar';
   static const String myClassDetail = '/mi-clase';
   static const String myClassDetailPattern = '/mi-clase/:id';
   static const String enrollClassDetail = '/inscribir';
   static const String enrollClassDetailPattern = '/inscribir/:id';
 
+  // ── Shell Academia (Pestañas fijas) ──
+
   static const String academyDashboard = '/academy';
   static const String academyEvents = '/academy/events';
   static const String academyClasses = '/academy/classes';
-  static const String academyTeachers = '/academy/teachers';
-  static const String academyTickets = '/academy/tickets';
+  static const String academyNotifications = '/academy/notifications';
   static const String academyProfile = '/academy/profile';
-  static const String platformAdmin = '/admin';
 
+  // ── Secundarias Academia (Pantallas completas accesibles desde el panel) ──
+  static const String academyTeachers = '/academy/teachers';
+  static const String academyCheckin = '/academy/checkin';
+  static const String academyTickets = '/academy/tickets';
+  // En AppRoutes:
+  static const String academyClassesView = '/classes-view';
+
+  // ── Organizaciones ──
   static const String organizations = '/organizations';
   static const String organizationsCreate = '/organizations/create';
   static const String organizationsDetail = '/organizations/detail';
   static const String organizationsDetailPattern = '/organizations/detail/:id';
   static const String myInvitations = '/invitations';
 
+  // ── Clases y Eventos Generales ──
   static const String classList = '/classes';
   static const String classCreate = '/classes/create';
   static const String classDetail = '/classes/detail';
@@ -45,11 +60,11 @@ class AppRoutes {
   static const String eventDetail = '/events/detail';
   static const String eventDetailPattern = '/events/detail/:id';
 
+  // ── Público ──
   static const String publicEvents = '/eventos';
   static const String publicEventDetail = '/eventos/detalle/:id';
   static const String publicEventDetailBase = '/eventos/detalle';
   static const String publicCalendar = '/calendario';
-
   static const String organizationPublicDetail = '/organizaciones/:id';
   static const String organizationPublicDetailBase = '/organizaciones';
 }

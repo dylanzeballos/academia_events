@@ -1,4 +1,3 @@
-// lib/features/academy/views/dashboard/dashboard_stats_grid.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -25,31 +24,7 @@ class DashboardStatsGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _InteractiveStatCard(
-                icon: Icons.school_outlined,
-                label: 'Clases totales',
-                value: '${stats['totalClasses'] ?? 0}',
-                color: AppColors.primary,
-                onTap: () => context.push(AppRoutes.academyClasses),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _InteractiveStatCard(
-                icon: Icons.calendar_month_outlined,
-                label: 'Horarios activos',
-                value: '${stats['upcomingSessions'] ?? stats['activeClasses'] ?? 0}',
-                color: AppColors.secondary,
-                onTap: () => context.push(AppRoutes.academyClasses),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _InteractiveStatCard(
-                icon: Icons.qr_code_scanner_outlined,
+                icon: Icons.qr_code_scanner_rounded,
                 label: 'Check-in escáner',
                 value: 'QR',
                 color: AppColors.success,
@@ -59,15 +34,11 @@ class DashboardStatsGrid extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _InteractiveStatCard(
-                icon: Icons.people_outline,
-                label: 'Equipo / Miembros',
-                value: '${stats['totalMembers'] ?? 0}',
-                color: AppColors.warning,
-                onTap: () {
-                  context.push(
-                    '${AppRoutes.organizationsDetail}/${organization.id}',
-                  );
-                },
+                icon: Icons.school_outlined,
+                label: 'Clases activas',
+                value: '${stats['totalClasses'] ?? 0}',
+                color: AppColors.primary,
+                onTap: () => context.push(AppRoutes.academyClassesView),
               ),
             ),
           ],
@@ -77,10 +48,20 @@ class DashboardStatsGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _InteractiveStatCard(
+                icon: Icons.people_outline,
+                label: 'Equipo / Profes',
+                value: '${stats['totalMembers'] ?? 0}',
+                color: AppColors.warning,
+                onTap: () => context.push(AppRoutes.academyTeachers),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _InteractiveStatCard(
                 icon: Icons.visibility_outlined,
-                label: 'Visualizaciones',
+                label: 'Visitas perfil',
                 value: '${organization.viewsCount}',
-                color: AppColors.primary,
+                color: AppColors.secondary,
                 onTap: () {
                   context.push(
                     '${AppRoutes.organizationsDetail}/${organization.id}',
@@ -88,7 +69,6 @@ class DashboardStatsGrid extends StatelessWidget {
                 },
               ),
             ),
-            const Expanded(child: SizedBox()),
           ],
         ),
       ],
@@ -124,10 +104,8 @@ class _InteractiveStatCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        splashColor: color.withValues(alpha: 0.15),
-        highlightColor: color.withValues(alpha: 0.08),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

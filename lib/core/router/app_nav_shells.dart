@@ -14,27 +14,38 @@ class StudentShell extends ConsumerWidget {
     Icons.calendar_month_rounded,
     Icons.confirmation_number_rounded,
     Icons.collections_bookmark_rounded,
+    Icons.notifications_rounded,
     Icons.person_rounded,
   ];
   static const _inactiveIcons = [
     Icons.calendar_month_outlined,
     Icons.confirmation_number_outlined,
     Icons.collections_bookmark_outlined,
+    Icons.notifications_outlined,
     Icons.person_outline_rounded,
   ];
-  static const _labels = ['Horario', 'Tickets', 'Clases', 'Perfil'];
+  static const _labels = ['Horario', 'Tickets', 'Clases', 'Avisos', 'Perfil'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: context.scaffoldBg,
-      body: navigationShell,
-      bottomNavigationBar: InstagramNavBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: navigationShell.goBranch,
-        activeIcons: _activeIcons,
-        inactiveIcons: _inactiveIcons,
-        labels: _labels,
+    return PopScope(
+      canPop: navigationShell.currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && navigationShell.currentIndex != 0) {
+          // Si no está en Horario, regresa a la primera pestaña antes de cerrar la app
+          navigationShell.goBranch(0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: navigationShell,
+        bottomNavigationBar: InstagramNavBar(
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: navigationShell.goBranch,
+          activeIcons: _activeIcons,
+          inactiveIcons: _inactiveIcons,
+          labels: _labels,
+        ),
       ),
     );
   }
@@ -48,29 +59,38 @@ class AcademyShell extends StatelessWidget {
     Icons.dashboard_rounded,
     Icons.event_rounded,
     Icons.school_rounded,
-    Icons.people_rounded,
+    Icons.notifications_rounded,
     Icons.person_rounded,
   ];
   static const _inactiveIcons = [
     Icons.dashboard_outlined,
     Icons.event_outlined,
     Icons.school_outlined,
-    Icons.people_outline_rounded,
+    Icons.notifications_outlined,
     Icons.person_outline_rounded,
   ];
-  static const _labels = ['Panel', 'Eventos', 'Clases', 'Profes', 'Perfil'];
+  static const _labels = ['Panel', 'Eventos', 'Clases', 'Avisos', 'Perfil'];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.scaffoldBg,
-      body: navigationShell,
-      bottomNavigationBar: InstagramNavBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: navigationShell.goBranch,
-        activeIcons: _activeIcons,
-        inactiveIcons: _inactiveIcons,
-        labels: _labels,
+    return PopScope(
+      canPop: navigationShell.currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && navigationShell.currentIndex != 0) {
+          // Si no está en el Panel, regresa a la primera pestaña antes de salir
+          navigationShell.goBranch(0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: navigationShell,
+        bottomNavigationBar: InstagramNavBar(
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: navigationShell.goBranch,
+          activeIcons: _activeIcons,
+          inactiveIcons: _inactiveIcons,
+          labels: _labels,
+        ),
       ),
     );
   }

@@ -1,4 +1,3 @@
-// lib/features/academy/views/dashboard/dashboard_quick_actions.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,54 +18,52 @@ class DashboardQuickActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!canManage) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
-        Text(
-          'Creación rápida',
-          style: TextStyle(
-            color: context.textOnBg,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+        Expanded(
+          child: _ChipAction(
+            icon: Icons.qr_code_scanner_rounded,
+            label: 'Escanear QR',
+            color: AppColors.success,
+            onTap: () => context.push(AppRoutes.academyCheckin),
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.add_circle_outline,
-                label: 'Nueva\nclase',
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ClassCreateView()),
-                  );
-                  ref.invalidate(orgClassesProvider);
-                  ref.invalidate(orgWeeklyScheduleEntriesProvider);
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.celebration_outlined,
-                label: 'Nuevo\nevento',
-                onTap: () => context.push(AppRoutes.eventCreate),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _QuickActionCard(
-                icon: Icons.person_add_alt_1_outlined,
-                label: 'Invitar\nstaff',
-                onTap: () => _showInviteDialog(context, ref),
-              ),
-            ),
-          ],
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ChipAction(
+            icon: Icons.add_circle_outline_rounded,
+            label: '+ Clase',
+            color: AppColors.primary,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ClassCreateView()),
+              );
+              ref.invalidate(orgClassesProvider);
+              ref.invalidate(orgWeeklyScheduleEntriesProvider);
+            },
+          ),
         ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ChipAction(
+            icon: Icons.celebration_outlined,
+            label: '+ Evento',
+            color: AppColors.secondary,
+            onTap: () => context.push(AppRoutes.eventCreate),
+          ),
+        ),
+        if (canManage) ...[
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ChipAction(
+              icon: Icons.group_add_outlined,
+              label: 'Staff',
+              color: AppColors.warning,
+              onTap: () => _showInviteDialog(context, ref),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -96,7 +93,6 @@ class DashboardQuickActions extends ConsumerWidget {
                   labelText: 'Correo electrónico',
                   hintText: 'correo@ejemplo.com',
                   labelStyle: TextStyle(color: context.textMuted),
-                  hintStyle: TextStyle(color: context.textMuted.withValues(alpha: 0.6)),
                   prefixIcon: Icon(Icons.email_outlined, color: context.textMuted),
                 ),
               ),
@@ -181,7 +177,7 @@ class DashboardQuickActions extends ConsumerWidget {
                         color: AppColors.onPrimary,
                       ),
                     )
-                  : const Text('Enviar invitación'),
+                  : const Text('Enviar'),
             ),
           ],
         ),
@@ -190,42 +186,45 @@ class DashboardQuickActions extends ConsumerWidget {
   }
 }
 
-class _QuickActionCard extends StatelessWidget {
-  const _QuickActionCard({
+class _ChipAction extends StatelessWidget {
+  const _ChipAction({
     required this.icon,
     required this.label,
+    required this.color,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
+  final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Material(
       color: context.cardBg,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        side: BorderSide(color: context.divider),
-      ),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            border: Border.all(color: context.divider),
+          ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: AppColors.primary, size: 26),
-              const SizedBox(height: 6),
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 4),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: context.textOnBg,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  height: 1.2,
                 ),
               ),
             ],
