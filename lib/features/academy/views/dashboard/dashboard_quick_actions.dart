@@ -1,3 +1,4 @@
+// lib/features/academy/views/dashboard/dashboard_quick_actions.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +10,6 @@ import '../../../../data/models/organization_member_model.dart';
 import '../../../../providers/dance_class_provider.dart';
 import '../../../../providers/organization_provider.dart';
 import '../../../../shared/widgets/app_feedback.dart';
-import '../../../classes/views/class_create_view.dart';
 
 class DashboardQuickActions extends ConsumerWidget {
   const DashboardQuickActions({super.key, required this.canManage});
@@ -22,23 +22,12 @@ class DashboardQuickActions extends ConsumerWidget {
       children: [
         Expanded(
           child: _ChipAction(
-            icon: Icons.qr_code_scanner_rounded,
-            label: 'Escanear QR',
-            color: AppColors.success,
-            onTap: () => context.push(AppRoutes.academyCheckin),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _ChipAction(
             icon: Icons.add_circle_outline_rounded,
             label: '+ Clase',
             color: AppColors.primary,
             onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ClassCreateView()),
-              );
+              // Navega en pantalla completa tapando la barra inferior
+              await context.push(AppRoutes.classCreate);
               ref.invalidate(orgClassesProvider);
               ref.invalidate(orgWeeklyScheduleEntriesProvider);
             },
@@ -58,7 +47,7 @@ class DashboardQuickActions extends ConsumerWidget {
           Expanded(
             child: _ChipAction(
               icon: Icons.group_add_outlined,
-              label: 'Staff',
+              label: 'invitar',
               color: AppColors.warning,
               onTap: () => _showInviteDialog(context, ref),
             ),

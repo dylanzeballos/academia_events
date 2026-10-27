@@ -26,6 +26,7 @@ enum _CheckinMode { event, class_ }
 
 class CheckinScreen extends ConsumerStatefulWidget {
   const CheckinScreen({super.key});
+  
 
   @override
   ConsumerState<CheckinScreen> createState() => _CheckinScreenState();
