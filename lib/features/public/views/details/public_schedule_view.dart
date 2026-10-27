@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -145,7 +146,11 @@ class _PublicScheduleViewState extends ConsumerState<PublicScheduleView> {
           children: [
             Text(
               'Horario Semanal',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: context.textOnBg),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: context.textOnBg,
+              ),
             ),
             Text(
               widget.organizationName,
@@ -457,7 +462,12 @@ class _PublicScheduleDayColumn extends StatelessWidget {
       return Container(
         width: width,
         decoration: BoxDecoration(
-          border: Border(right: BorderSide(color: context.divider.withValues(alpha: 0.6), width: 0.7)),
+          border: Border(
+            right: BorderSide(
+              color: context.divider.withValues(alpha: 0.6),
+              width: 0.7,
+            ),
+          ),
         ),
       );
     }
@@ -469,15 +479,29 @@ class _PublicScheduleDayColumn extends StatelessWidget {
         match.danceClass.instructorName ??
         'Profesor';
 
+    // ── FILTRAMOS TODAS LAS SESIONES DE ESTA MISMA CLASE ──
+    final allSchedulesForThisClass = entries
+        .where((e) => e.danceClass.id == match.danceClass.id)
+        .map((e) => e.schedule)
+        .toList()
+      ..sort((a, b) => a.dayOfWeek.compareTo(b.dayOfWeek));
+
     return Container(
       width: width,
       decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: context.divider.withValues(alpha: 0.6), width: 0.7)),
+        border: Border(
+          right: BorderSide(
+            color: context.divider.withValues(alpha: 0.6),
+            width: 0.7,
+          ),
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 3),
       child: _PublicScheduleClassCard(
+        classId: match.danceClass.id,
         title: match.danceClass.title,
         startTime: match.schedule.startTime,
+        allSchedules: allSchedulesForThisClass,
         instructor: instructor,
         price: match.danceClass.price,
         themeColor: color,
@@ -489,119 +513,279 @@ class _PublicScheduleDayColumn extends StatelessWidget {
 
 class _PublicScheduleClassCard extends StatelessWidget {
   const _PublicScheduleClassCard({
+    required this.classId,
     required this.title,
     required this.startTime,
+    required this.allSchedules,
     required this.instructor,
     required this.price,
     required this.themeColor,
     required this.styleTag,
   });
 
+  final String classId;
   final String title;
   final String startTime;
+  final List<dynamic> allSchedules; // Lista con todos los días de esta clase
   final String instructor;
   final double price;
   final Color themeColor;
   final String styleTag;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
-      decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
-        border: Border.all(
-          color: themeColor.withValues(alpha: 0.5),
-          width: 1.1,
+  void _showEnrollConfirmDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: context.cardBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 3,
-            offset: const Offset(0, 1.5),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: themeColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                styleTag,
+                style: TextStyle(
+                  color: themeColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.textOnBg,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Profesor: $instructor',
+              style: TextStyle(color: context.textMuted, fontSize: 13),
+            ),
+            if (price > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Precio: ${price.toInt()} BOB',
+                style: TextStyle(
+                  color: themeColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+
+            // ── LISTA DE TODOS LOS DÍAS Y HORAS DE ESTA CLASE ──
+            Text(
+              'Días y horarios disponibles:',
+              style: TextStyle(
+                color: context.textOnBg,
+                fontSize: 12.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: context.scaffoldBg,
+                borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
+                border: Border.all(color: context.divider),
+              ),
+              child: Column(
+                children: allSchedules.map((s) {
+                  final sTime = s.startTime.toString().substring(0, 5);
+                  final eTime = s.endTime != null
+                      ? s.endTime.toString().substring(0, 5)
+                      : '';
+                  final range = eTime.isNotEmpty ? '$sTime - $eTime' : sTime;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.5),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 13,
+                          color: themeColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          s.dayName,
+                          style: TextStyle(
+                            color: context.textOnBg,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          range,
+                          style: TextStyle(
+                            color: context.textMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+            const SizedBox(height: 14),
+            Text(
+              '¿Deseas inscribirte a esta clase o elegir tu paquete de sesiones?',
+              style: TextStyle(color: context.textOnBg, fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+            ),
+            icon: const Icon(Icons.assignment_turned_in_outlined, size: 18),
+            label: const Text('Inscribirme'),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              context.push('${AppRoutes.enrollClassDetail}/$classId');
+            },
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
+        onTap: () => _showEnrollConfirmDialog(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+          decoration: BoxDecoration(
+            color: context.cardBg,
+            borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
+            border: Border.all(
+              color: themeColor.withValues(alpha: 0.5),
+              width: 1.1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 3,
+                offset: const Offset(0, 1.5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1.5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: themeColor,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    styleTag,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.onPrimary,
-                      fontSize: 7.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.3,
+              Row(
+                children: [
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: themeColor,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        styleTag,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.onPrimary,
+                          fontSize: 7.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 4),
+                  Text(
+                    startTime.substring(0, 5),
+                    style: TextStyle(
+                      color: context.textMuted,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 4),
-              Text(
-                startTime.substring(0, 5),
-                style: TextStyle(
-                  color: context.textMuted,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: context.textOnBg,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-                height: 1.15,
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Text(
-                  instructor,
-                  maxLines: 1,
+                  title,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: context.textMuted,
-                    fontSize: 8,
+                    color: context.textOnBg,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
                   ),
                 ),
               ),
-              if (price > 0)
-                Text(
-                  '${price.toInt()} Bs',
-                  style: TextStyle(
-                    color: themeColor,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w900,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      instructor,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.textMuted,
+                        fontSize: 8,
+                      ),
+                    ),
                   ),
-                ),
+                  if (price > 0)
+                    Text(
+                      '${price.toInt()} Bs',
+                      style: TextStyle(
+                        color: themeColor,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
