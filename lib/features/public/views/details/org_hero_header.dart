@@ -1,4 +1,4 @@
-// lib/features/organization/views/details/org_hero_header.dart
+// lib/features/public/views/details/org_hero_header.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,7 +18,6 @@ class OrgHeroHeader extends StatelessWidget {
     this.location,
     this.whatsappNumber = '',
     this.logoTag,
-    this.onShare,
   });
 
   final String name;
@@ -28,7 +27,6 @@ class OrgHeroHeader extends StatelessWidget {
   final String? location;
   final String whatsappNumber;
   final String? logoTag;
-  final VoidCallback? onShare;
 
   Future<void> _openWhatsApp(BuildContext context) async {
     final cleanPhone = whatsappNumber.replaceAll(RegExp(r'[^0-9]'), '');
@@ -170,67 +168,45 @@ class OrgHeroHeader extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.secondary],
-                    ),
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: whatsappNumber.trim().isEmpty
-                        ? null
-                        : () => _openWhatsApp(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.chat_bubble_outline,
-                      color: AppColors.onPrimary,
-                      size: 18,
-                    ),
-                    label: Text(
-                      whatsappNumber.trim().isEmpty
-                          ? 'Contacto no disponible'
-                          : 'WhatsApp',
-                      style: const TextStyle(
-                        color: AppColors.onPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
+        // Botón WhatsApp ocupando todo el ancho (sin botón compartir a la derecha)
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                colors: [AppColors.primary, AppColors.secondary],
+              ),
+            ),
+            child: ElevatedButton.icon(
+              onPressed: whatsappNumber.trim().isEmpty
+                  ? null
+                  : () => _openWhatsApp(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              icon: const Icon(
+                Icons.chat_bubble_outline,
+                color: AppColors.onPrimary,
+                size: 18,
+              ),
+              label: Text(
+                whatsappNumber.trim().isEmpty
+                    ? 'Contacto no disponible'
+                    : 'WhatsApp',
+                style: const TextStyle(
+                  color: AppColors.onPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
               ),
             ),
-            const SizedBox(width: 10),
-            Container(
-              height: 48,
-              width: 48,
-              decoration: BoxDecoration(
-                color: context.cardBg,
-                shape: BoxShape.circle,
-                border: Border.all(color: context.divider),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.share_outlined,
-                  color: context.textOnBg,
-                  size: 20,
-                ),
-                onPressed: onShare,
-              ),
-            ),
-          ],
+          ),
         ),
       ],
     );

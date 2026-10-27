@@ -1,5 +1,7 @@
+// lib/features/public/views/organization_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -119,7 +121,7 @@ class _PublicOrganizationDetailViewState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Portada, Avatar, Rating & Botones
+            // 1. Cabecera (Portada, Avatar, Info y WhatsApp a ancho completo)
             OrgHeroHeader(
               name: name,
               coverUrl: coverUrl,
@@ -130,6 +132,7 @@ class _PublicOrganizationDetailViewState
               whatsappNumber: phone,
             ),
 
+            // ── COMPARTIR Y CÓDIGO QR DE LA ACADEMIA ──
             if (org != null) ...[
               const SizedBox(height: 16),
               OrganizationShareSection(organization: org, compact: true),
@@ -137,7 +140,7 @@ class _PublicOrganizationDetailViewState
 
             const SizedBox(height: 16),
 
-            // ── BOTÓN DIRECTO: HORARIO SOLO LECTURA ──
+            // ── HORARIO SEMANAL DE CLASES ──
             Container(
               decoration: BoxDecoration(
                 color: context.cardBg,
@@ -224,6 +227,119 @@ class _PublicOrganizationDetailViewState
               ),
             ),
 
+            const SizedBox(height: 24),
+
+            // ── INSCRIPCIONES Y PLANES (BOTÓN DESTACADO) ──
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.stars_rounded, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'INSCRIPCIONES Y PLANES',
+                      style: TextStyle(
+                        color: context.textOnBg,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        AppColors.primary,
+                        Color(0xFF8B5CF6),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+                      onTap: () {
+                        context.push(
+                          '${AppRoutes.enrollClassDetail}/${widget.organizationId}',
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.assignment_turned_in_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Inscribirme a Clases',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    'Elige tu clase, paquete de sesiones o Pase VIP',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
             const SizedBox(height: 28),
 
             // 2. Instalaciones y Galería Oficial
@@ -231,6 +347,7 @@ class _PublicOrganizationDetailViewState
 
             const SizedBox(height: 28),
 
+            // 3. Ubicación y Cómo Llegar (Tarjeta GPS interactiva)
             if (org != null) OrgLocationSection(organization: org),
 
             const SizedBox(height: 32),

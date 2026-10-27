@@ -35,7 +35,9 @@ import '../../features/classes/views/class_create_view.dart';
 import '../../features/classes/views/class_detail_view.dart';
 import '../../features/enrollment/views/my_classes_view.dart';
 import '../../features/enrollment/views/my_class_detail_view.dart';
-import '../../features/enrollment/views/class_enroll_detail_view.dart';
+
+// ── IMPORT CORREGIDO AL NUEVO FEATURE PURCHASES ──
+import '../../features/purchases/views/class_enroll_detail_view.dart';
 
 import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
