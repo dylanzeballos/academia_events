@@ -1,5 +1,7 @@
 import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../core/config/supabase_config.dart';
 import '../models/seat_model.dart';
 
@@ -53,7 +55,7 @@ class EventsService {
           ticket_types(*)
         ''')
         .eq('organization_id', organizationId)
-        .order('start_at');
+        .order('created_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(response);
   }
@@ -108,7 +110,17 @@ class EventsService {
   }
 
   Future<void> deleteEvent(String id) async {
-    await supabase.from('events').delete().eq('id', id);
+    final deleted = await supabase
+        .from('events')
+        .delete()
+        .eq('id', id)
+        .select('id');
+
+    if (deleted.isEmpty) {
+      throw Exception(
+        'No tienes permisos para eliminar este evento en esta organización.',
+      );
+    }
   }
 
   // ─── TICKETS, STORAGE Y REGLAMENTO ────────────────────────────────
@@ -130,7 +142,11 @@ class EventsService {
     });
   }
 
-  Future<String> uploadImage(String bucket, String path, Uint8List bytes) async {
+  Future<String> uploadImage(
+    String bucket,
+    String path,
+    Uint8List bytes,
+  ) async {
     final contentType = _detectImageContentType(bytes);
     final ext = switch (contentType) {
       'image/png' => 'png',
@@ -139,7 +155,9 @@ class EventsService {
     };
     final fullPath = '$path.$ext';
 
-    await supabase.storage.from(bucket).uploadBinary(
+    await supabase.storage
+        .from(bucket)
+        .uploadBinary(
           fullPath,
           bytes,
           fileOptions: FileOptions(
@@ -155,7 +173,9 @@ class EventsService {
   Future<String> uploadRulesPdf(String eventId, Uint8List pdfBytes) async {
     final fullPath = '$eventId/reglamento.pdf';
 
-    await supabase.storage.from('event-documents').uploadBinary(
+    await supabase.storage
+        .from('event-documents')
+        .uploadBinary(
           fullPath,
           pdfBytes,
           fileOptions: const FileOptions(
@@ -262,25 +282,29 @@ class EventsService {
     required String venueId,
     required double defaultPrice,
   }) async {
-    await supabase.rpc('clone_venue_seats_to_event', params: {
-      'p_event_id': eventId,
-      'p_venue_id': venueId,
-      'p_default_price': defaultPrice,
-    });
+    await supabase.rpc(
+      'clone_venue_seats_to_event',
+      params: {
+        'p_event_id': eventId,
+        'p_venue_id': venueId,
+        'p_default_price': defaultPrice,
+      },
+    );
   }
 
   Future<SeatMapModel> fetchSeatMap(String eventId) async {
-    final res = await supabase.rpc('get_event_seat_map', params: {
-      'p_event_id': eventId,
-    });
+    final res = await supabase.rpc(
+      'get_event_seat_map',
+      params: {'p_event_id': eventId},
+    );
     return SeatMapModel.fromJson(Map<String, dynamic>.from(res as Map));
   }
 
   Future<int> holdSeat(String seatId) async {
-    final res = await supabase.rpc('hold_event_seat', params: {
-      'p_seat_id': seatId,
-      'p_minutes': 10,
-    });
+    final res = await supabase.rpc(
+      'hold_event_seat',
+      params: {'p_seat_id': seatId, 'p_minutes': 10},
+    );
     return (res as num).toInt();
   }
 
@@ -296,9 +320,9 @@ class EventsService {
     required String orderId,
     required List<String> seatIds,
   }) async {
-    await supabase.rpc('confirm_seat_purchase', params: {
-      'p_order_id': orderId,
-      'p_seat_ids': seatIds,
-    });
+    await supabase.rpc(
+      'confirm_seat_purchase',
+      params: {'p_order_id': orderId, 'p_seat_ids': seatIds},
+    );
   }
 }

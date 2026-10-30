@@ -51,6 +51,7 @@ class AppRoutes {
 
   // ── Clases y Eventos Generales ──
   static const String classList = '/classes';
+  static const String archivedEvents = '/events/archived';
   static const String classCreate = '/classes/create';
   static const String classDetail = '/classes/detail';
   static const String classDetailPattern = '/classes/detail/:id';

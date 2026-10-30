@@ -84,17 +84,21 @@ class EventsRepository implements IEventsRepository {
     Uint8List? rulesPdfBytes,
     String? venueId,
   }) async {
-    final eventRow = await service.insertEvent(eventData);
-    final eventId = eventRow['id'] as String;
+    // AHORA
+    final payload = Map<String, dynamic>.from(eventData);
 
     if (bannerBytes != null) {
+      final bannerPath = 'banner_${DateTime.now().millisecondsSinceEpoch}';
       final imageUrl = await service.uploadImage(
         'event-banners',
-        '$eventId/banner',
+        bannerPath,
         bannerBytes,
       );
-      await service.updateEvent(eventId, {'cover_image_url': imageUrl});
+      payload['cover_image_url'] = imageUrl;
     }
+
+    final eventRow = await service.insertEvent(payload);
+    final eventId = eventRow['id'] as String;
 
     if (rulesPdfBytes != null) {
       final pdfUrl = await service.uploadRulesPdf(eventId, rulesPdfBytes);

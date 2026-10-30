@@ -34,8 +34,14 @@ class EventDetailView extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: context.cardBg,
-        title: Text('Eliminar evento', style: TextStyle(color: context.textOnBg)),
-        content: Text('¿Estás seguro de eliminar "${event.title}"?', style: TextStyle(color: context.textMuted)),
+        title: Text(
+          'Eliminar evento',
+          style: TextStyle(color: context.textOnBg),
+        ),
+        content: Text(
+          '¿Estás seguro de eliminar "${event.title}"? Esta acción borrará todas sus entradas, ubicaciones y datos asociados.',
+          style: TextStyle(color: context.textMuted),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -50,16 +56,26 @@ class EventDetailView extends ConsumerWidget {
       ),
     );
 
-    if (confirm == true) {
+    if (confirm != true) return;
+
+    try {
       await ref.read(eventsRepositoryProvider).deleteEvent(event.id);
       ref.invalidate(orgEventsProvider);
       ref.invalidate(allEventsProvider);
       ref.invalidate(weekEventsProvider);
+
       if (context.mounted) {
-        Navigator.pop(context);
+        Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Evento eliminado'), backgroundColor: context.cardBg),
+          SnackBar(
+            content: const Text('Evento eliminado correctamente'),
+            backgroundColor: context.cardBg,
+          ),
         );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.error(context, friendlyError(e));
       }
     }
   }
@@ -76,16 +92,27 @@ class EventDetailView extends ConsumerWidget {
         backgroundColor: context.cardBg,
         elevation: 0,
         title: eventAsync.when(
-          data: (event) => Text(event.title, style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
-          loading: () => Text('Cargando...', style: TextStyle(color: context.textMuted)),
-          error: (_, _) => Text('Evento', style: TextStyle(color: context.textOnBg)),
+          data: (event) => Text(
+            event.title,
+            style: TextStyle(
+              color: context.textOnBg,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          loading: () =>
+              Text('Cargando...', style: TextStyle(color: context.textMuted)),
+          error: (_, _) =>
+              Text('Evento', style: TextStyle(color: context.textOnBg)),
         ),
         actions: [
           if (isAcademyMode)
             eventAsync.maybeWhen(
               data: (event) => IconButton(
                 tooltip: 'Puntos de acceso',
-                icon: Icon(Icons.meeting_room_outlined, color: context.textOnBg),
+                icon: Icon(
+                  Icons.meeting_room_outlined,
+                  color: context.textOnBg,
+                ),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => EventAccessPointsView(
@@ -130,10 +157,8 @@ class EventDetailView extends ConsumerWidget {
           message: friendlyError(e),
           onRetry: () => ref.invalidate(eventDetailProvider(eventId)),
         ),
-        data: (event) => _EventDetailContent(
-          event: event,
-          isAcademyMode: isAcademyMode,
-        ),
+        data: (event) =>
+            _EventDetailContent(event: event, isAcademyMode: isAcademyMode),
       ),
       bottomNavigationBar: eventAsync.maybeWhen(
         data: (event) {
@@ -157,10 +182,7 @@ class EventDetailView extends ConsumerWidget {
 }
 
 class _EventDetailContent extends StatelessWidget {
-  const _EventDetailContent({
-    required this.event,
-    required this.isAcademyMode,
-  });
+  const _EventDetailContent({required this.event, required this.isAcademyMode});
 
   final EventModel event;
   final bool isAcademyMode;
@@ -173,8 +195,7 @@ class _EventDetailContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (isAcademyMode)
-            _OrganizerStatusBanner(status: event.status),
+          if (isAcademyMode) _OrganizerStatusBanner(status: event.status),
 
           EventDetailHeader(event: event, accentColor: accent),
 

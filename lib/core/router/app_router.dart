@@ -27,6 +27,7 @@ import '../../features/organization/views/my_invitations_view.dart';
 
 import '../../features/academy/views/academy_dashboard_view.dart';
 import '../../features/academy/views/academy_events_view.dart';
+import '../../features/academy/views/academy_archived_events_view.dart';
 import '../../features/academy/views/academy_classes_view.dart';
 import '../../features/academy/views/academy_teachers_view.dart';
 
@@ -199,6 +200,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // Eventos Archivados Academia
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/academy/events/archived',
+        builder: (_, _) => const AcademyArchivedEventsView(),
+      ),
+
       // Públicas
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,
@@ -331,7 +339,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // 3: Notificaciones (Reemplaza la pestaña de Profes)
+          // 3: Notificaciones
           StatefulShellBranch(
             routes: [
               GoRoute(
