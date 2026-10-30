@@ -1,3 +1,4 @@
+// lib/data/models/seat_model.dart
 import 'dart:ui' show Color, Rect;
 
 enum SeatStatus { available, mine, held, sold, blocked }
@@ -27,27 +28,37 @@ class SeatModel {
     required this.status,
   });
 
-  /// Se puede tocar: libre o ya bloqueada por mí
+  /// Se puede tocar: libre o ya reservada temporalmente por mí
   bool get isSelectable =>
       status == SeatStatus.available || status == SeatStatus.mine;
 
   String get displayName => '$section $row-$label';
 
-  factory SeatModel.fromJson(Map<String, dynamic> j) => SeatModel(
-        id: j['id'] as String,
-        row: j['row'] as String,
-        number: (j['number'] as num).toInt(),
-        label: (j['label'] as String?) ?? '${j['number']}',
-        section: (j['section'] as String?) ?? 'General',
-        x: (j['x'] as num).toDouble(),
-        y: (j['y'] as num).toDouble(),
-        rotation: (j['rotation'] as num?)?.toDouble() ?? 0,
-        price: (j['price'] as num?)?.toDouble() ?? 0,
-        status: SeatStatus.values.firstWhere(
-          (s) => s.name == j['status'],
-          orElse: () => SeatStatus.blocked,
-        ),
-      );
+  factory SeatModel.fromJson(Map<String, dynamic> j) {
+    // Acepta tanto seat_row / seat_number (PostgreSQL) como row / number
+    final rowStr = (j['seat_row'] ?? j['row'] ?? '').toString();
+    final seatNum = (j['seat_number'] as num?)?.toInt() ??
+        (j['number'] as num?)?.toInt() ??
+        0;
+
+    final seatLabel = (j['seat_label'] ?? j['label'])?.toString();
+
+    return SeatModel(
+      id: (j['id'] ?? '').toString(),
+      row: rowStr,
+      number: seatNum,
+      label: (seatLabel != null && seatLabel.isNotEmpty) ? seatLabel : '$seatNum',
+      section: (j['section'] ?? 'General').toString(),
+      x: (j['x'] as num?)?.toDouble() ?? 0.0,
+      y: (j['y'] as num?)?.toDouble() ?? 0.0,
+      rotation: (j['rotation'] as num?)?.toDouble() ?? 0.0,
+      price: (j['price'] as num?)?.toDouble() ?? 50.0,
+      status: SeatStatus.values.firstWhere(
+        (s) => s.name == j['status'],
+        orElse: () => SeatStatus.available,
+      ),
+    );
+  }
 }
 
 class LayoutLabel {
@@ -74,32 +85,55 @@ class VenueLayout {
     if (j == null || j.isEmpty) return const VenueLayout();
 
     Rect? stage;
-    String stageLabel = 'ESCENARIO';
+    String stageLabel = (j['stageLabel'] ?? j['stage_label'] ?? 'ESCENARIO').toString();
     final st = j['stage'];
+
     if (st is Map) {
-      stage = Rect.fromLTWH(
-        (st['x'] as num).toDouble(),
-        (st['y'] as num).toDouble(),
-        (st['w'] as num).toDouble(),
-        (st['h'] as num).toDouble(),
-      );
-      stageLabel = (st['label'] as String?) ?? stageLabel;
+      // 1. Si viene con formato left, top, right, bottom (usado en PostgreSQL)
+      if (st.containsKey('left') && st.containsKey('top')) {
+        final l = (st['left'] as num?)?.toDouble() ?? 0.0;
+        final t = (st['top'] as num?)?.toDouble() ?? 0.0;
+        final r = (st['right'] as num?)?.toDouble() ?? (l + 10.0);
+        final b = (st['bottom'] as num?)?.toDouble() ?? (t + 2.0);
+        stage = Rect.fromLTRB(l, t, r, b);
+      }
+      // 2. Si viene con formato x, y, w, h
+      else if (st.containsKey('x') && st.containsKey('y')) {
+        final x = (st['x'] as num?)?.toDouble() ?? 0.0;
+        final y = (st['y'] as num?)?.toDouble() ?? 0.0;
+        final w = (st['w'] as num?)?.toDouble() ?? 10.0;
+        final h = (st['h'] as num?)?.toDouble() ?? 2.0;
+        stage = Rect.fromLTWH(x, y, w, h);
+      }
+
+      if (st['label'] != null) {
+        stageLabel = st['label'].toString();
+      }
     }
 
     final labels = <LayoutLabel>[
       for (final l in (j['labels'] as List? ?? const []))
-        LayoutLabel(
-          l['text'] as String,
-          (l['x'] as num).toDouble(),
-          (l['y'] as num).toDouble(),
-        ),
+        if (l is Map)
+          LayoutLabel(
+            (l['text'] ?? '').toString(),
+            (l['x'] as num?)?.toDouble() ?? 0.0,
+            (l['y'] as num?)?.toDouble() ?? 0.0,
+          ),
     ];
 
     final colors = <String, Color>{};
-    (j['section_colors'] as Map? ?? const {}).forEach((k, v) {
-      colors[k as String] =
-          Color(int.parse((v as String).replaceFirst('#', 'FF'), radix: 16));
-    });
+    final rawColors = j['sectionColors'] ?? j['section_colors'];
+
+    if (rawColors is Map) {
+      rawColors.forEach((k, v) {
+        if (v is String && v.isNotEmpty) {
+          try {
+            final hex = v.replaceFirst('#', '').padLeft(8, 'F');
+            colors[k.toString()] = Color(int.parse(hex, radix: 16));
+          } catch (_) {}
+        }
+      });
+    }
 
     return VenueLayout(
       stage: stage,
@@ -132,7 +166,8 @@ class SeatMapModel {
         holdSecondsLeft: (j['hold_seconds_left'] as num?)?.toInt(),
         seats: [
           for (final s in (j['seats'] as List? ?? const []))
-            SeatModel.fromJson(Map<String, dynamic>.from(s as Map)),
+            if (s is Map)
+              SeatModel.fromJson(Map<String, dynamic>.from(s)),
         ],
       );
 }
