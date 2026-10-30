@@ -1,6 +1,7 @@
 // lib/features/events/views/event_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
@@ -187,6 +188,95 @@ class _EventDetailContent extends StatelessWidget {
   final EventModel event;
   final bool isAcademyMode;
 
+  Future<void> _launchPhone(BuildContext context, String phone) async {
+    try {
+      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+      final Uri url = Uri.parse('tel:$cleanPhone');
+      if (!await launchUrl(url)) {
+        if (context.mounted) {
+          AppFeedback.warning(context, 'No se pudo abrir la app de llamadas');
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.error(context, 'Error al intentar llamar: $e');
+      }
+    }
+  }
+
+  Future<void> _launchWhatsApp(BuildContext context, String phone) async {
+    try {
+      var digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+
+      // Normalizar número boliviano (8 dígitos) agregando el código de país
+      if (digits.length == 8) {
+        digits = '591$digits';
+      }
+
+      // 1. Intentar con el esquema nativo de la app instalada
+      final Uri nativeUri = Uri.parse('whatsapp://send?phone=$digits');
+      if (await canLaunchUrl(nativeUri)) {
+        await launchUrl(nativeUri);
+        return;
+      }
+
+      // 2. Respaldo universal por navegador
+      final Uri webUri = Uri.parse('https://wa.me/$digits');
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.error(context, 'No se pudo abrir WhatsApp');
+      }
+    }
+  }
+
+  Future<void> _launchPdf(BuildContext context, String rawUrl) async {
+    try {
+      final cleanUrl = rawUrl.trim();
+      if (cleanUrl.isEmpty) {
+        if (context.mounted) {
+          AppFeedback.warning(context, 'No hay enlace de documento disponible');
+        }
+        return;
+      }
+
+      final Uri directUri = Uri.parse(cleanUrl);
+
+      // 1. Intentar abrir directamente con el visor nativo / navegador
+      bool launched = false;
+      try {
+        launched = await launchUrl(
+          directUri,
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (_) {
+        launched = false;
+      }
+
+      // 2. Respaldo para Android mediante el visor web de documentos
+      if (!launched) {
+        final Uri viewerUri = Uri.parse(
+          'https://docs.google.com/viewer?url=${Uri.encodeComponent(cleanUrl)}',
+        );
+        launched = await launchUrl(
+          viewerUri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
+      if (!launched && context.mounted) {
+        AppFeedback.error(
+          context,
+          'No se pudo abrir el archivo PDF. Verifica tu conexión.',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.error(context, 'Error al abrir el documento: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = AppColors.colorForOrganization(event.organizationId);
@@ -204,8 +294,150 @@ class _EventDetailContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 1. Horario del Evento
                 EventScheduleCard(event: event, accentColor: accent),
 
+                // 2. Capacidad y Asistencia
+                if (event.capacity != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: context.cardBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: context.divider),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.groups_outlined, size: 20, color: accent),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Capacidad permitida:',
+                          style: TextStyle(color: context.textMuted, fontSize: 13),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${event.capacity} personas',
+                          style: TextStyle(
+                            color: context.textOnBg,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // 3. Teléfono de Contacto Directo
+                if (event.contactPhone != null &&
+                    event.contactPhone!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: context.cardBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.divider),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.phone_in_talk_rounded,
+                            color: AppColors.success,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Contacto / Informes',
+                                style: TextStyle(
+                                  color: context.textMuted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                event.contactPhone!,
+                                style: TextStyle(
+                                  color: context.textOnBg,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Llamar',
+                          icon: const Icon(Icons.call, color: AppColors.primary, size: 20),
+                          onPressed: () => _launchPhone(context, event.contactPhone!),
+                        ),
+                        IconButton(
+                          tooltip: 'WhatsApp',
+                          icon: const Icon(Icons.chat_outlined, color: AppColors.success, size: 20),
+                          onPressed: () => _launchWhatsApp(context, event.contactPhone!),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // 4. Documento PDF / Reglamento
+                if (event.rulesPdfUrl != null &&
+                    event.rulesPdfUrl!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () => _launchPdf(context, event.rulesPdfUrl!),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.picture_as_pdf, color: AppColors.primary, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Reglamento y Código de Vestimenta',
+                                  style: TextStyle(
+                                    color: context.textOnBg,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  'Toca para ver el documento oficial del evento',
+                                  style: TextStyle(color: context.textMuted, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.open_in_new_rounded, size: 18, color: accent),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                // 5. Descripción del Evento
                 if (event.description != null &&
                     event.description!.isNotEmpty) ...[
                   const SizedBox(height: 20),
@@ -228,9 +460,11 @@ class _EventDetailContent extends StatelessWidget {
                   ),
                 ],
 
+                // 6. Fases de Precios / Entradas
                 const SizedBox(height: 20),
                 EventTicketsSection(event: event, accentColor: accent),
 
+                // 7. Ubicación y Mapa
                 const SizedBox(height: 20),
                 EventLocationSection(event: event, accentColor: accent),
 

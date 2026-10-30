@@ -30,7 +30,8 @@ class TicketTypeModel {
   bool get isSoldOut => availableQuantity <= 0;
   bool get hasStock => available > 0 && !isSoldOut;
 
-  factory TicketTypeModel.fromJson(Map<String, dynamic> json) => TicketTypeModel(
+  factory TicketTypeModel.fromJson(Map<String, dynamic> json) =>
+      TicketTypeModel(
         id: json['id'] as String,
         eventId: json['event_id'] as String,
         name: json['name'] as String,
@@ -40,20 +41,44 @@ class TicketTypeModel {
         quantity: json['quantity'] as int,
         soldQuantity: (json['sold_quantity'] as num?)?.toInt() ?? 0,
         salesStartAt: json['sales_start_at'] != null
-            ? DateTime.tryParse(json['sales_start_at'] as String)
+            ? DateTime.tryParse(json['sales_start_at'] as String)?.toLocal()
             : null,
         salesEndAt: json['sales_end_at'] != null
-            ? DateTime.tryParse(json['sales_end_at'] as String)
+            ? DateTime.tryParse(json['sales_end_at'] as String)?.toLocal()
             : null,
         isActive: (json['is_active'] as bool?) ?? true,
       );
 
   Map<String, dynamic> toJson() => {
+        'id': id,
+        'event_id': eventId,
         'name': name,
         'description': description,
         'price': price,
         'currency': currency,
         'quantity': quantity,
         'is_active': isActive,
+        if (salesStartAt != null) 'sales_start_at': salesStartAt!.toUtc().toIso8601String(),
+        if (salesEndAt != null) 'sales_end_at': salesEndAt!.toUtc().toIso8601String(),
       };
+
+  /// Verifica si el ticket se encuentra disponible para compra en este momento exacto
+  bool get isCurrentlyAvailable {
+    final now = DateTime.now();
+    if (salesStartAt != null && now.isBefore(salesStartAt!)) return false;
+    if (salesEndAt != null && now.isAfter(salesEndAt!)) return false;
+    return hasStock && isActive;
+  }
+
+  /// Verifica si la fecha límite de venta ya pasó
+  bool get isExpired {
+    if (salesEndAt == null) return false;
+    return DateTime.now().isAfter(salesEndAt!);
+  }
+
+  /// Verifica si aún no se ha abierto la etapa de venta
+  bool get isUpcoming {
+    if (salesStartAt == null) return false;
+    return DateTime.now().isBefore(salesStartAt!);
+  }
 }

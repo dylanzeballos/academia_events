@@ -4,7 +4,6 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:file_picker_platform_interface/file_picker_platform_interface.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,8 +19,8 @@ import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../widgets/create/event_basic_info_form.dart';
 import '../widgets/create/event_location_form.dart';
+import '../widgets/create/event_pricing_phases_editor.dart';
 import '../widgets/create/event_schedule_form.dart';
-import '../widgets/create/event_tickets_editor.dart';
 import '../widgets/create/image_picker_box.dart';
 import '../widgets/map.dart';
 
@@ -40,10 +39,8 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
   final _contactPhoneController = TextEditingController();
   final _capacityController = TextEditingController();
 
-  final _priceController = TextEditingController(text: '0');
-  final _ticketStockController = TextEditingController(text: '100');
-  bool _isUnlimitedStock = false;
-
+  // Lista de fases de tickets configuradas por fecha
+  List<Map<String, dynamic>> _configuredTicketsData = [];
   // Soporte de Teatro / Butacas numeradas
   bool _isTheatreEvent = false;
   String? _selectedVenueId;
@@ -77,8 +74,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
     _descriptionController.dispose();
     _contactPhoneController.dispose();
     _capacityController.dispose();
-    _priceController.dispose();
-    _ticketStockController.dispose();
     _locationNameController.dispose();
     _addressController.dispose();
     super.dispose();
@@ -124,25 +119,20 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
           Uint8List? fileBytes;
           String fileName = 'reglamento.pdf';
 
-          // 1. Obtener nombre del archivo
           try {
             fileName = (firstItem.name as String?) ?? fileName;
           } catch (_) {}
 
-          // 2. Extraer los bytes según la plataforma (Web o Móvil)
           try {
-            // Intentar leer propiedad directa .bytes
             fileBytes = firstItem.bytes as Uint8List?;
           } catch (_) {}
 
-          // Si vino null o falló y tiene método readAsBytes() (WebPlatformFile / XFile)
           if (fileBytes == null) {
             try {
               fileBytes = await firstItem.readAsBytes();
             } catch (_) {}
           }
 
-          // Si es Web y tiene readStream
           if (fileBytes == null) {
             try {
               final stream = firstItem.readStream;
@@ -156,7 +146,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
             } catch (_) {}
           }
 
-          // Si es Móvil/Desktop nativo y tiene path
           if (fileBytes == null) {
             try {
               final String? filePath = firstItem.path as String?;
@@ -279,13 +268,9 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       final contact = _contactPhoneController.text.trim();
       final description = _descriptionController.text.trim();
 
-      final ticketQuantity = _isUnlimitedStock
-          ? 999999
-          : (int.tryParse(_ticketStockController.text.trim()) ?? 100);
-
       final parsedCapacity = _capacityController.text.trim().isNotEmpty
           ? int.tryParse(_capacityController.text.trim())
-          : (_isUnlimitedStock ? null : ticketQuantity);
+          : null;
 
       final eventData = {
         'organization_id': orgId,
@@ -294,7 +279,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'slug': slug,
         'description': description.isNotEmpty
             ? description
-            : 'la mejor de todas',
+            : 'Gran evento de baile',
         'contact_phone': contact.isNotEmpty ? contact : null,
         'start_at': startAt.toIso8601String(),
         'end_at': endAt.toIso8601String(),
@@ -318,19 +303,21 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'longitude': _selectedLatLng.longitude,
       };
 
-      final parsedPrice = double.tryParse(_priceController.text.trim()) ?? 0.0;
-      final ticketTypesData = [
-        {
-          'name': _isTheatreEvent ? 'Butaca Numerada' : 'Entrada General',
-          'description': _isTheatreEvent
-              ? 'Asiento numerado en teatro'
-              : 'Acceso general al evento',
-          'price': parsedPrice,
-          'quantity': ticketQuantity,
-          'currency': 'BOB',
-          'is_active': true,
-        },
-      ];
+      // Fases configuradas o tarifa estándar de respaldo
+      final ticketTypesData = _configuredTicketsData.isNotEmpty
+          ? _configuredTicketsData
+          : [
+              {
+                'name': _isTheatreEvent ? 'Butaca Numerada' : 'Entrada General',
+                'description': 'Acceso general al evento',
+                'price': 50.0,
+                'quantity': 100,
+                'currency': 'BOB',
+                'is_active': true,
+                'sales_start_at': DateTime.now().toIso8601String(),
+                'sales_end_at': endAt.toIso8601String(),
+              },
+            ];
 
       await ref
           .read(eventsRepositoryProvider)
@@ -378,6 +365,14 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
 
   @override
   Widget build(BuildContext context) {
+    final eventStartDateTime = DateTime(
+      _startDate.year,
+      _startDate.month,
+      _startDate.day,
+      _startTime.hour,
+      _startTime.minute,
+    );
+
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       appBar: AppBar(
@@ -417,7 +412,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 20),
 
-              // Tarjeta para subir el PDF de Reglamento / Código de vestimenta
+              // Tarjeta para subir el PDF de Reglamento
               Card(
                 color: context.cardBg,
                 elevation: 0,
@@ -505,12 +500,12 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 20),
 
-              EventTicketsEditor(
-                priceController: _priceController,
-                stockController: _ticketStockController,
-                isUnlimitedStock: _isUnlimitedStock,
-                onUnlimitedStockChanged: (val) {
-                  setState(() => _isUnlimitedStock = val);
+              // Editor de Precios y Fases (Preventa, Venta General, En Puerta)
+              EventPricingPhasesEditor(
+                eventStartDate: eventStartDateTime,
+                isTheatreEvent: _isTheatreEvent,
+                onTicketsDataChanged: (phases) {
+                  _configuredTicketsData = phases;
                 },
               ),
               const SizedBox(height: 20),

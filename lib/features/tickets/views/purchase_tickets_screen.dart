@@ -1,3 +1,4 @@
+// lib/features/tickets/views/purchase_tickets_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,9 +39,8 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
   void initState() {
     super.initState();
     _selectedSeats = List.from(widget.preselectedSeats);
-    final initialQuantity = _selectedSeats.isNotEmpty
-        ? _selectedSeats.length
-        : 1;
+    final initialQuantity =
+        _selectedSeats.isNotEmpty ? _selectedSeats.length : 1;
     _quantity = initialQuantity;
     _syncNameControllers(initialQuantity);
   }
@@ -63,6 +63,10 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
   }
 
   void _onQuantityChanged(int newQuantity) {
+    if (newQuantity < 1) return;
+    final maxAvailable = _selected?.available ?? 10;
+    if (newQuantity > maxAvailable && maxAvailable > 0) return;
+
     setState(() {
       _quantity = newQuantity;
       _syncNameControllers(newQuantity);
@@ -99,7 +103,7 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
         attendeeNames: attendeeNames,
       );
 
-      // Confirmar la compra definitiva de las butacas en la base de datos
+      // Confirmar butacas si el evento es de teatro
       if (_selectedSeats.isNotEmpty) {
         final seatIds = _selectedSeats.map((s) => s.id).toList();
         await const EventsService().confirmSeatPurchase(
@@ -124,9 +128,8 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ticketTypesAsync = ref.watch(
-      eventTicketTypesProvider(widget.eventId),
-    );
+    final ticketTypesAsync =
+        ref.watch(eventTicketTypesProvider(widget.eventId));
     final bool hasTheatreSeats = _selectedSeats.isNotEmpty;
 
     return Scaffold(
@@ -141,7 +144,20 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
               child: Text('Este evento no tiene tickets a la venta'),
             );
           }
-          _selected ??= types.first;
+
+          // Determinar automáticamente la tarifa activa por fecha
+          if (_selected == null) {
+            final activePhases =
+                types.where((t) => t.isCurrentlyAvailable).toList();
+            if (activePhases.isNotEmpty) {
+              _selected = activePhases.first;
+            } else {
+              _selected = types.firstWhere(
+                (t) => !t.isExpired,
+                orElse: () => types.first,
+              );
+            }
+          }
 
           return Form(
             key: _formKey,
@@ -150,15 +166,15 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Resumen de Butacas Reservadas (si viene del teatro)
+                  // 1. Resumen de Butacas (si viene de teatro)
                   if (hasTheatreSeats) ...[
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.primary.withOpacity(0.3),
+                          color: AppColors.primary.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Column(
@@ -205,20 +221,21 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // 2. Tipo de Entrada
-                  // 2. Tipo de Entrada
+                  // 2. Fases de Precios Disponibles
                   const Text(
-                    'Tipo de entrada',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    'Tarifas y Fases de Venta',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'El precio varía automáticamente según la fecha de compra:',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+
                   if (hasTheatreSeats)
-                    // Si ya seleccionó butacas, solo mostramos el tipo asignado sin radio interactivo
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(10),
@@ -256,34 +273,173 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                       ),
                     )
                   else
-                    // Para eventos generales sin butacas, se mantiene la lista de selección
                     Column(
                       children: [
-                        for (final type in types)
-                          RadioListTile<TicketTypeModel>(
-                            value: type,
-                            groupValue: _selected,
-                            onChanged: type.hasStock
-                                ? (value) {
-                                    if (value == null) return;
-                                    setState(() {
-                                      _selected = value;
-                                      _onQuantityChanged(1);
-                                    });
-                                  }
-                                : null,
-                            title: Text(type.name),
-                            subtitle: Text(
-                              type.hasStock
-                                  ? '${type.price.toStringAsFixed(2)} ${type.currency} · ${type.available} disponibles'
-                                  : 'Agotado',
+                        for (final type in types) ...[
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selected?.id == type.id
+                                    ? AppColors.primary
+                                    : (type.isCurrentlyAvailable
+                                        ? Colors.grey.shade400
+                                        : Colors.grey.shade300),
+                                width: _selected?.id == type.id ? 2 : 1,
+                              ),
+                            ),
+                            child: RadioListTile<TicketTypeModel>(
+                              value: type,
+                              groupValue: _selected,
+                              onChanged: type.isCurrentlyAvailable
+                                  ? (value) {
+                                      if (value == null) return;
+                                      setState(() {
+                                        _selected = value;
+                                      });
+                                    }
+                                  : null,
+                              title: Row(
+                                children: [
+                                  Text(
+                                    type.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: type.isCurrentlyAvailable
+                                          ? null
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (type.isCurrentlyAvailable &&
+                                      type.name
+                                          .toLowerCase()
+                                          .contains('preventa'))
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.success
+                                            .withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'Activa',
+                                        style: TextStyle(
+                                          color: AppColors.success,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  const Spacer(),
+                                  Text(
+                                    'Bs. ${type.price.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: type.isCurrentlyAvailable
+                                          ? AppColors.primary
+                                          : Colors.grey,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                type.isExpired
+                                    ? 'Etapa Finalizada'
+                                    : (type.isUpcoming
+                                        ? 'Próximamente disponible'
+                                        : (type.salesEndAt != null
+                                            ? 'Válido hasta ${type.salesEndAt!.day}/${type.salesEndAt!.month} - ${type.available} disponibles'
+                                            : '${type.available} disponibles')),
+                                style: TextStyle(
+                                  color: type.isExpired
+                                      ? AppColors.error
+                                      : Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ),
+                        ],
                       ],
                     ),
-                  const Divider(height: 32),
 
-                  // 4. Titulares de cada boleto
+                  const SizedBox(height: 16),
+
+                  // ── SELECTOR DE CANTIDAD DE ENTRADAS (NUEVO) ──
+                  if (!hasTheatreSeats) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cantidad de entradas',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              Text(
+                                'Boletos a adquirir en esta orden',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline),
+                                color: _quantity > 1
+                                    ? AppColors.primary
+                                    : Colors.grey,
+                                onPressed: _quantity > 1
+                                    ? () => _onQuantityChanged(_quantity - 1)
+                                    : null,
+                              ),
+                              Text(
+                                '$_quantity',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline),
+                                color: AppColors.primary,
+                                onPressed: () =>
+                                    _onQuantityChanged(_quantity + 1),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  const Divider(height: 24),
+
+                  // 3. Titulares
                   const Text(
                     'Titulares de las entradas',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -297,8 +453,8 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                   ...List.generate(_quantity, (index) {
                     final seatLabel =
                         hasTheatreSeats && _selectedSeats.length > index
-                        ? ' [${_selectedSeats[index].displayName}]'
-                        : '';
+                            ? ' [${_selectedSeats[index].displayName}]'
+                            : '';
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: TextFormField(
@@ -326,22 +482,35 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                   }),
                   const Divider(height: 32),
 
-                  // 5. Total a pagar
+                  // 4. Total a pagar
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Total',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Total',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Fase: ${_selected?.name ?? ""} (${_quantity}x)',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
                       ),
                       Text(
-                        '${_total.toStringAsFixed(2)} ${_selected?.currency ?? 'BOB'}',
+                        'Bs. ${_total.toStringAsFixed(2)}',
                         style: const TextStyle(
-                          fontSize: 18,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
                         ),
                       ),
                     ],
@@ -349,8 +518,8 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                   const SizedBox(height: 24),
 
                   ElevatedButton(
-                    onPressed:
-                        ((_selected?.hasStock ?? false) || hasTheatreSeats) &&
+                    onPressed: ((_selected?.isCurrentlyAvailable ?? false) ||
+                                hasTheatreSeats) &&
                             !_isBuying
                         ? _confirmPurchase
                         : null,
@@ -371,9 +540,9 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                            'Confirmar compra',
-                            style: TextStyle(fontSize: 16),
+                        : Text(
+                            'Confirmar compra (${_selected?.name ?? "Boleto"})',
+                            style: const TextStyle(fontSize: 16),
                           ),
                   ),
                   const SizedBox(height: 16),

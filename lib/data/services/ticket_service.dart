@@ -17,7 +17,10 @@ class TicketService {
     try {
       final rows = await supabase
           .from('ticket_types')
-          .select('id, event_id, name, description, price, currency, quantity, sold_quantity')
+          .select('''
+            id, event_id, name, description, price, currency, quantity, sold_quantity,
+            sales_start_at, sales_end_at, is_active
+          ''')
           .eq('event_id', eventId)
           .eq('is_active', true)
           .order('price', ascending: true);
@@ -33,11 +36,14 @@ class TicketService {
     List<String>? attendeeNames,
   }) async {
     try {
-      final result = await supabase.rpc('create_event_order', params: {
-        'p_ticket_type_id': ticketTypeId,
-        'p_quantity': quantity,
-        'p_attendee_names': ?attendeeNames,
-      });
+      final result = await supabase.rpc(
+        'create_event_order',
+        params: {
+          'p_ticket_type_id': ticketTypeId,
+          'p_quantity': quantity,
+          'p_attendee_names': ?attendeeNames,
+        },
+      );
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
       throw TicketException(e.message);
@@ -50,11 +56,14 @@ class TicketService {
     String? providerPaymentId,
   }) async {
     try {
-      final result = await supabase.rpc('confirm_event_order_payment', params: {
-        'p_order_id': orderId,
-        'p_provider': provider,
-        'p_provider_payment_id': providerPaymentId,
-      });
+      final result = await supabase.rpc(
+        'confirm_event_order_payment',
+        params: {
+          'p_order_id': orderId,
+          'p_provider': provider,
+          'p_provider_payment_id': providerPaymentId,
+        },
+      );
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
       throw TicketException(e.message);
@@ -151,8 +160,10 @@ class TicketService {
       return {
         'order_id': row['id']?.toString() ?? orderId,
         'order_number': row['order_number']?.toString() ?? '',
-        'subtotal': (row['subtotal'] as num?)?.toDouble() ?? 
-                    (row['total_amount'] as num?)?.toDouble() ?? 0.0,
+        'subtotal':
+            (row['subtotal'] as num?)?.toDouble() ??
+            (row['total_amount'] as num?)?.toDouble() ??
+            0.0,
         'quantity': ticketsList.length,
         'event_title': eventTitle,
         'tickets': ticketsList,
