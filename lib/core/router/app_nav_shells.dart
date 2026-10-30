@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:academia_events/core/theme/app_colors.dart';
 import 'package:academia_events/core/utils/theme_extensions.dart';
+import 'package:academia_events/providers/notification_provider.dart';
 
 class StudentShell extends ConsumerWidget {
   const StudentShell({super.key, required this.navigationShell});
@@ -32,7 +33,6 @@ class StudentShell extends ConsumerWidget {
       canPop: navigationShell.currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && navigationShell.currentIndex != 0) {
-          // Si no está en Horario, regresa a la primera pestaña antes de cerrar la app
           navigationShell.goBranch(0);
         }
       },
@@ -77,7 +77,6 @@ class AcademyShell extends StatelessWidget {
       canPop: navigationShell.currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && navigationShell.currentIndex != 0) {
-          // Si no está en el Panel, regresa a la primera pestaña antes de salir
           navigationShell.goBranch(0);
         }
       },
@@ -96,7 +95,7 @@ class AcademyShell extends StatelessWidget {
   }
 }
 
-class InstagramNavBar extends StatelessWidget {
+class InstagramNavBar extends ConsumerWidget {
   const InstagramNavBar({
     super.key,
     required this.selectedIndex,
@@ -113,7 +112,10 @@ class InstagramNavBar extends StatelessWidget {
   final List<String> labels;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Escucha el conteo no leído en tiempo real
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
+
     return Container(
       decoration: BoxDecoration(
         color: context.cardBg,
@@ -122,10 +124,31 @@ class InstagramNavBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 56,
+          height: 58,
           child: Row(
             children: List.generate(activeIcons.length, (i) {
               final isSelected = i == selectedIndex;
+              final isNotificationTab = i == 3; // 'Avisos' está en la posición 3
+
+              Widget iconWidget = Icon(
+                isSelected ? activeIcons[i] : inactiveIcons[i],
+                size: 24,
+                color: isSelected ? AppColors.primary : context.textMuted,
+              );
+
+              // Inserta el Badge rojo si hay notificaciones sin leer
+              if (isNotificationTab && unreadCount > 0) {
+                iconWidget = Badge(
+                  backgroundColor: AppColors.error,
+                  textColor: Colors.white,
+                  smallSize: 8,
+                  label: unreadCount > 99
+                      ? const Text('99+', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))
+                      : Text('$unreadCount', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  child: iconWidget,
+                );
+              }
+
               return Expanded(
                 child: InkWell(
                   onTap: () => onDestinationSelected(i),
@@ -134,11 +157,7 @@ class InstagramNavBar extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        isSelected ? activeIcons[i] : inactiveIcons[i],
-                        size: 24,
-                        color: isSelected ? AppColors.primary : context.textMuted,
-                      ),
+                      iconWidget,
                       const SizedBox(height: 3),
                       Text(
                         labels[i],

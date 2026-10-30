@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "835516948606",
+    "project_id": "akademy-f406d",
+    "storage_bucket": "akademy-f406d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:835516948606:android:bf430ab15681ae8b85382f",
+        "android_client_info": {
+          "package_name": "com.example.academia_events"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBieqOwtfnSA3lB1FES0r7IoHWsdUJbYsI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
