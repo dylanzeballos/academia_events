@@ -41,20 +41,21 @@ class DateFormatter {
   static String capitalize(String text) =>
       text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
-  /// Devuelve los 7 días de la semana que contiene [reference].
+  /// Devuelve el domingo que inicia la semana de [reference].
+  static DateTime startOfWeek(DateTime reference) {
+    final date = DateTime(reference.year, reference.month, reference.day);
+    return date.subtract(Duration(days: date.weekday % 7));
+  }
+
+  /// Devuelve los 7 días de domingo a sábado de la semana de [reference].
   static List<DateTime> weekDays(DateTime reference) {
-    // Empezar en lunes (weekday==1)
-    final monday = reference.subtract(
-      Duration(days: reference.weekday - 1),
-    );
-    return List.generate(7, (i) => monday.add(Duration(days: i)));
+    final sunday = startOfWeek(reference);
+    return List.generate(7, (i) => sunday.add(Duration(days: i)));
   }
 
   /// Devuelve [count] días consecutivos comenzando en [start].
   ///
-  /// Usado por el calendario del estudiante: la ventana visible arranca en
-  /// el día de referencia (hoy o el día seleccionado) en vez de anclarse al
-  /// lunes, de modo que siempre se ven los eventos/clases próximos.
+  /// Devuelve [count] días consecutivos comenzando en [start].
   static List<DateTime> consecutiveDays(DateTime start, int count) =>
       List.generate(count, (i) => start.add(Duration(days: i)));
 

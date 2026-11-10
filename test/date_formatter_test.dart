@@ -3,6 +3,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:academia_events/core/utils/date_formatter.dart';
 
 void main() {
+  group('startOfWeek and weekDays', () {
+    test('uses Sunday through Saturday for any reference day', () {
+      final sunday = DateTime(2026, 11, 1);
+
+      expect(DateFormatter.startOfWeek(DateTime(2026, 11, 1)), sunday);
+      expect(DateFormatter.startOfWeek(DateTime(2026, 11, 5)), sunday);
+      expect(
+        DateFormatter.weekDays(DateTime(2026, 11, 5)),
+        List.generate(7, (index) => sunday.add(Duration(days: index))),
+      );
+    });
+  });
+
   group('rangeCoversDay', () {
     // El evento social bachatero: 19:00 del 2/9 → 14:00 del 3/9
     final start = DateTime(2026, 9, 2, 19);
@@ -10,41 +23,25 @@ void main() {
 
     test('cubre el día de inicio', () {
       expect(
-        DateFormatter.rangeCoversDay(
-          start,
-          end,
-          DateTime(2026, 9, 2),
-        ),
+        DateFormatter.rangeCoversDay(start, end, DateTime(2026, 9, 2)),
         isTrue,
       );
     });
 
     test('cubre el día en que termina (cruza medianoche)', () {
       expect(
-        DateFormatter.rangeCoversDay(
-          start,
-          end,
-          DateTime(2026, 9, 3),
-        ),
+        DateFormatter.rangeCoversDay(start, end, DateTime(2026, 9, 3)),
         isTrue,
       );
     });
 
     test('no cubre días fuera del rango', () {
       expect(
-        DateFormatter.rangeCoversDay(
-          start,
-          end,
-          DateTime(2026, 9, 4),
-        ),
+        DateFormatter.rangeCoversDay(start, end, DateTime(2026, 9, 4)),
         isFalse,
       );
       expect(
-        DateFormatter.rangeCoversDay(
-          start,
-          end,
-          DateTime(2026, 9, 1),
-        ),
+        DateFormatter.rangeCoversDay(start, end, DateTime(2026, 9, 1)),
         isFalse,
       );
     });
@@ -74,11 +71,7 @@ void main() {
 
     test('devuelve null si el día no toca el tramo', () {
       expect(
-        DateFormatter.clampRangeToDayMinutes(
-          start,
-          end,
-          DateTime(2026, 9, 4),
-        ),
+        DateFormatter.clampRangeToDayMinutes(start, end, DateTime(2026, 9, 4)),
         isNull,
       );
     });

@@ -65,22 +65,14 @@ class DayColumnBody extends StatelessWidget {
       }
     }
     for (final cluster in clusters) {
-      final laneEnds = <int>[];
-      for (final event in cluster.events) {
-        final availableLane = laneEnds.indexWhere(
-          (laneEnd) => laneEnd <= event.startMin,
-        );
-        if (availableLane == -1) {
-          event.laneIndex = laneEnds.length;
-          laneEnds.add(event.endMin);
-        } else {
-          event.laneIndex = availableLane;
-          laneEnds[availableLane] = event.endMin;
-        }
-      }
-      for (final event in cluster.events) {
-        event.laneCount = laneEnds.length;
-      }
+      cluster.events.sort((a, b) {
+        final aCreated = a.event.createdAt ?? a.event.startTime;
+        final bCreated = b.event.createdAt ?? b.event.startTime;
+        final creationOrder = aCreated.compareTo(bCreated);
+        return creationOrder != 0
+            ? creationOrder
+            : a.event.id.compareTo(b.event.id);
+      });
     }
 
     return GestureDetector(
@@ -122,65 +114,36 @@ class DayColumnBody extends StatelessWidget {
                     clusterIndex++
                   ) {
                     final cluster = clusters[clusterIndex];
-                    for (final eventRange in cluster.events) {
-                      final top = scale.yForMinutes(eventRange.startMin);
-                      final bottom = scale.yForMinutes(eventRange.endMin);
-                      final calculatedHeight = bottom - top;
-                      final minHeight = eventRange.laneCount > 1
-                          ? 46.0 * scale.zoom
-                          : _minSingleCardHeight * scale.zoom;
-                      final desiredHeight = calculatedHeight.clamp(
-                        minHeight,
-                        _maxSingleCardHeight * scale.zoom,
-                      );
-                      final nextInLane = cluster.events
-                          .where(
-                            (other) =>
-                                other.laneIndex == eventRange.laneIndex &&
-                                other.startMin >= eventRange.endMin,
-                          )
-                          .map((other) => other.startMin)
-                          .fold<int?>(null, (next, start) {
-                            if (next == null || start < next) return start;
-                            return next;
-                          });
-                      final nextClusterStart =
-                          clusterIndex + 1 < clusters.length
-                          ? clusters[clusterIndex + 1].startMin
-                          : null;
-                      final nextStart = nextInLane == null
-                          ? nextClusterStart
-                          : nextClusterStart == null
-                          ? nextInLane
-                          : math.min(nextInLane, nextClusterStart);
-                      final availableBeforeNext = nextStart == null
-                          ? double.infinity
-                          : scale.yForMinutes(nextStart) - top - 4 * scale.zoom;
-                      final height = math.min(
-                        desiredHeight,
-                        availableBeforeNext,
-                      );
-                      final laneWidth =
-                          constraints.maxWidth / eventRange.laneCount;
+                    final top = scale.yForMinutes(cluster.startMin);
+                    final bottom = scale.yForMinutes(cluster.endMin);
+                    final calculatedHeight = bottom - top;
+                    final eventCount = cluster.events.length;
+                    final desiredHeight = calculatedHeight.clamp(
+                      _minSingleCardHeight * scale.zoom * eventCount,
+                      _maxSingleCardHeight * scale.zoom * eventCount,
+                    );
+                    final nextClusterStart = clusterIndex + 1 < clusters.length
+                        ? clusters[clusterIndex + 1].startMin
+                        : null;
+                    final availableBeforeNext = nextClusterStart == null
+                        ? double.infinity
+                        : scale.yForMinutes(nextClusterStart) -
+                              top -
+                              4 * scale.zoom;
+                    final height = math.min(desiredHeight, availableBeforeNext);
 
-                      blocks.add(
-                        Positioned(
-                          top: top + 2 * scale.zoom,
-                          left:
-                              laneWidth * eventRange.laneIndex + 2 * scale.zoom,
-                          width: math
-                              .max(1, laneWidth - 4 * scale.zoom)
-                              .toDouble(),
-                          height: math
-                              .max(1, height - 2 * scale.zoom)
-                              .toDouble(),
-                          child: _EventClusterCard(
-                            eventRange: eventRange,
-                            zoom: scale.zoom,
-                          ),
+                    blocks.add(
+                      Positioned(
+                        top: top + 2 * scale.zoom,
+                        left: 2 * scale.zoom,
+                        right: 2 * scale.zoom,
+                        height: math.max(1, height - 2 * scale.zoom).toDouble(),
+                        child: _EventClusterCard(
+                          events: cluster.events,
+                          zoom: scale.zoom,
                         ),
-                      );
-                    }
+                      ),
+                    );
                   }
 
                   return ClipRect(child: Stack(children: blocks));
@@ -199,8 +162,6 @@ class _EventWithRange {
   final EventModel event;
   final int startMin;
   final int endMin;
-  int laneIndex = 0;
-  int laneCount = 1;
 }
 
 class _EventCluster {
@@ -211,43 +172,50 @@ class _EventCluster {
 }
 
 class _EventClusterCard extends StatelessWidget {
-  const _EventClusterCard({required this.eventRange, required this.zoom});
+  const _EventClusterCard({required this.events, required this.zoom});
 
-  final _EventWithRange eventRange;
+  final List<_EventWithRange> events;
   final double zoom;
 
   @override
   Widget build(BuildContext context) {
-    final eventColor =
-        AppColors.calendarEventColors[eventRange.laneIndex %
-            AppColors.calendarEventColors.length];
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          eventColor.withValues(alpha: 0.22),
-          context.cardBg,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.radiusSmall * zoom),
-        border: Border.all(
-          color: eventColor.withValues(alpha: 0.9),
-          width: 1.5 * zoom,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: eventColor.withValues(alpha: 0.16),
-            blurRadius: 4 * zoom,
-            offset: Offset(0, zoom),
-          ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSizes.radiusSmall * zoom),
+      child: Column(
+        children: [
+          for (var i = 0; i < events.length; i++) ...[
+            if (i > 0) SizedBox(height: 2 * zoom),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Color.alphaBlend(
+                    AppColors
+                        .calendarEventColors[i %
+                            AppColors.calendarEventColors.length]
+                        .withValues(alpha: 0.24),
+                    context.cardBg,
+                  ),
+                  border: Border(
+                    left: BorderSide(
+                      color:
+                          AppColors.calendarEventColors[i %
+                              AppColors.calendarEventColors.length],
+                      width: 3 * zoom,
+                    ),
+                  ),
+                ),
+                child: _InnerEventRow(
+                  eventRange: events[i],
+                  isSingle: events.length == 1,
+                  eventColor:
+                      AppColors.calendarEventColors[i %
+                          AppColors.calendarEventColors.length],
+                  zoom: zoom,
+                ),
+              ),
+            ),
+          ],
         ],
-      ),
-      child: _InnerEventRow(
-        eventRange: eventRange,
-        isSingle: true,
-        eventColor: eventColor,
-        zoom: zoom,
       ),
     );
   }

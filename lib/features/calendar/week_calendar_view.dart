@@ -52,7 +52,7 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
     final selectedWeek = ref.watch(selectedWeekProvider);
     final eventsAsync = ref.watch(weekEventsProvider);
     final selectedDayEvents = ref.watch(dayEventsProvider);
-    final weekDays = DateFormatter.consecutiveDays(selectedWeek, 7);
+    final weekDays = DateFormatter.weekDays(selectedWeek);
 
     if (_focusedDay != null && !_showList) {
       return eventsAsync.when(

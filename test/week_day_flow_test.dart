@@ -24,8 +24,7 @@ class _FakeEventsRepo implements IEventsRepository {
   @override
   Future<List<EventModel>> fetchOrganizationEvents(
     String organizationId,
-  ) async =>
-      events;
+  ) async => events;
 
   @override
   Future<EventModel> createEvent(Map<String, dynamic> data) =>
@@ -38,8 +37,9 @@ class _FakeEventsRepo implements IEventsRepository {
     List<Map<String, dynamic>>? ticketTypesData,
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
-  }) =>
-      throw UnimplementedError();
+    Uint8List? rulesPdfBytes,
+    String? venueId,
+  }) => throw UnimplementedError();
 
   @override
   Future<void> updateEvent(String id, Map<String, dynamic> data) =>
@@ -52,8 +52,7 @@ class _FakeEventsRepo implements IEventsRepository {
   Future<List<EventModel>> fetchAllEvents() async => events;
 
   @override
-  Future<EventModel> fetchEventById(String id) =>
-      throw UnimplementedError();
+  Future<EventModel> fetchEventById(String id) => throw UnimplementedError();
 }
 
 class _FakeClassesRepo implements IClassesRepository {
@@ -66,9 +65,7 @@ class _FakeClassesRepo implements IClassesRepository {
       classes;
 
   @override
-  Future<List<ClassModel>> fetchOrganizationClasses(
-    String organizationId,
-  ) =>
+  Future<List<ClassModel>> fetchOrganizationClasses(String organizationId) =>
       throw UnimplementedError();
 
   @override
@@ -88,16 +85,15 @@ EventModel _event({
   required String title,
   required DateTime start,
   required DateTime end,
-}) =>
-    EventModel(
-      id: id,
-      title: title,
-      organizationId: 'org-1',
-      organizationName: 'Org',
-      startTime: start,
-      endTime: end,
-      status: 'published',
-    );
+}) => EventModel(
+  id: id,
+  title: title,
+  organizationId: 'org-1',
+  organizationName: 'Org',
+  startTime: start,
+  endTime: end,
+  status: 'published',
+);
 
 void main() {
   setUpAll(() {
@@ -143,16 +139,21 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
-          eventsRepositoryProvider
-              .overrideWithValue(_FakeEventsRepo(events)),
-          classesRepositoryProvider
-              .overrideWithValue(_FakeClassesRepo(classes)),
+          eventsRepositoryProvider.overrideWithValue(_FakeEventsRepo(events)),
+          classesRepositoryProvider.overrideWithValue(
+            _FakeClassesRepo(classes),
+          ),
         ],
       );
       addTearDown(container.dispose);
 
       container.read(selectedWeekProvider.notifier).setWeek(monday);
       container.read(selectedDayProvider.notifier).setDay(monday);
+      expect(container.read(selectedWeekProvider), DateTime(2025, 1, 5));
+      container.read(selectedWeekProvider.notifier).nextWeek();
+      expect(container.read(selectedWeekProvider), DateTime(2025, 1, 12));
+      container.read(selectedWeekProvider.notifier).previousWeek();
+      expect(container.read(selectedWeekProvider), DateTime(2025, 1, 5));
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -188,7 +189,10 @@ void main() {
       final tileRect = tester.getRect(find.text('Evento Miércoles'));
       expect(tileRect.height, greaterThan(0));
       expect(tileRect.top, greaterThanOrEqualTo(0));
-      expect(tileRect.bottom, lessThanOrEqualTo(tester.view.physicalSize.height));
+      expect(
+        tileRect.bottom,
+        lessThanOrEqualTo(tester.view.physicalSize.height),
+      );
       // El timeline arranca en 00:00 (horas completas del costado).
       expect(find.text('00:00'), findsOneWidget);
 
@@ -204,13 +208,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Evento Miércoles'), findsOneWidget);
 
-      // Volver a la semana (la semana quedó anclada al día 8: ventana 8..14,
-      // de modo que el evento del viernes sigue visible en el grid semanal).
+      // Volver a la semana domingo 5-sábado 11: vuelven a verse los tres eventos.
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
       expect(find.text('Evento Miércoles'), findsOneWidget);
       expect(find.text('Evento Viernes'), findsOneWidget);
-      expect(find.text('Evento Lunes'), findsNothing);
+      expect(find.text('Evento Lunes'), findsOneWidget);
 
       await tester.tap(find.text('10'));
       await tester.pumpAndSettle();

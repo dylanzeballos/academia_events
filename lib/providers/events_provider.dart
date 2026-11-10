@@ -1,6 +1,8 @@
 import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/utils/date_formatter.dart';
 import '../data/models/event_filter_state.dart';
 import '../data/models/event_model.dart';
 import '../data/repositories/events_repository.dart';
@@ -32,14 +34,9 @@ final classesRepositoryProvider = Provider<IClassesRepository>((ref) {
 // ─── NOTIFIERS DE FECHA ───
 class SelectedWeekNotifier extends Notifier<DateTime> {
   @override
-  DateTime build() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
-  }
+  DateTime build() => DateFormatter.startOfWeek(DateTime.now());
 
-  void setWeek(DateTime week) {
-    state = DateTime(week.year, week.month, week.day);
-  }
+  void setWeek(DateTime week) => state = DateFormatter.startOfWeek(week);
 
   void nextWeek() => state = state.add(const Duration(days: 7));
   void previousWeek() => state = state.subtract(const Duration(days: 7));
