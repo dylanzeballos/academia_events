@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
@@ -10,8 +11,8 @@ import '../event_preview_sheet.dart';
 import 'timeline_indicators.dart';
 import 'timeline_scale.dart';
 
-String _hhmm(DateTime t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+String _hhmmAtMinute(int minute) =>
+    '${(minute ~/ 60).toString().padLeft(2, '0')}:${(minute % 60).toString().padLeft(2, '0')}';
 
 class DayColumnBody extends StatelessWidget {
   const DayColumnBody({
@@ -31,7 +32,8 @@ class DayColumnBody extends StatelessWidget {
   final VoidCallback onTap;
   final bool showNowLine;
 
-  static const double _minSingleCardHeight = 65.0;
+  static const double _minSingleCardHeight = 70.0;
+  static const double _maxSingleCardHeight = 110.0;
 
   @override
   Widget build(BuildContext context) {
@@ -51,14 +53,14 @@ class DayColumnBody extends StatelessWidget {
     final clusters = <_EventCluster>[];
     for (final item in dayEvents) {
       if (clusters.isEmpty) {
-        clusters.add(_EventCluster(item.startMin, item.endMin, [item.event]));
+        clusters.add(_EventCluster(item.startMin, item.endMin, [item]));
       } else {
         final last = clusters.last;
         if (item.startMin < last.endMin) {
           last.endMin = math.max(last.endMin, item.endMin);
-          last.events.add(item.event);
+          last.events.add(item);
         } else {
-          clusters.add(_EventCluster(item.startMin, item.endMin, [item.event]));
+          clusters.add(_EventCluster(item.startMin, item.endMin, [item]));
         }
       }
     }
@@ -96,18 +98,25 @@ class DayColumnBody extends StatelessWidget {
                 builder: (context, constraints) {
                   final blocks = <Widget>[];
 
-                  for (final cluster in clusters) {
+                  for (var i = 0; i < clusters.length; i++) {
+                    final cluster = clusters[i];
                     final top = scale.yForMinutes(cluster.startMin);
                     final bottomByTime = scale.yForMinutes(cluster.endMin);
-                    final minHeight = _minSingleCardHeight * cluster.events.length;
-                    final height = math.max(bottomByTime - top, minHeight);
+                    final calculatedHeight = bottomByTime - top;
+                    final minH = _minSingleCardHeight * cluster.events.length;
+                    final maxH = _maxSingleCardHeight * cluster.events.length;
+                    final desiredHeight = calculatedHeight.clamp(minH, maxH);
+                    final availableBeforeNext = i + 1 < clusters.length
+                        ? scale.yForMinutes(clusters[i + 1].startMin) - top - 4
+                        : double.infinity;
+                    final height = math.min(desiredHeight, availableBeforeNext);
 
                     blocks.add(
                       Positioned(
-                        top: top,
+                        top: top + 2,
                         left: 2,
                         right: 2,
-                        height: height,
+                        height: math.max(1, height - 2).toDouble(),
                         child: _MergedClusterCard(
                           events: cluster.events,
                           totalDurationHeight: height,
@@ -138,7 +147,7 @@ class _EventCluster {
   _EventCluster(this.startMin, this.endMin, this.events);
   int startMin;
   int endMin;
-  final List<EventModel> events;
+  final List<_EventWithRange> events;
 }
 
 class _MergedClusterCard extends StatelessWidget {
@@ -147,13 +156,15 @@ class _MergedClusterCard extends StatelessWidget {
     required this.totalDurationHeight,
   });
 
-  final List<EventModel> events;
+  final List<_EventWithRange> events;
   final double totalDurationHeight;
 
   @override
   Widget build(BuildContext context) {
-    final firstEvent = events.first;
-    final primaryColor = AppColors.colorForOrganization(firstEvent.organizationId);
+    final firstEvent = events.first.event;
+    final primaryColor = AppColors.colorForOrganization(
+      firstEvent.organizationId,
+    );
 
     return Container(
       width: double.infinity,
@@ -185,7 +196,7 @@ class _MergedClusterCard extends StatelessWidget {
               ),
             Expanded(
               child: _InnerEventRow(
-                event: events[i],
+                eventRange: events[i],
                 isSingle: events.length == 1,
               ),
             ),
@@ -197,104 +208,144 @@ class _MergedClusterCard extends StatelessWidget {
 }
 
 class _InnerEventRow extends StatelessWidget {
-  const _InnerEventRow({
-    required this.event,
-    required this.isSingle,
-  });
+  const _InnerEventRow({required this.eventRange, required this.isSingle});
 
-  final EventModel event;
+  final _EventWithRange eventRange;
   final bool isSingle;
 
   @override
   Widget build(BuildContext context) {
+    final event = eventRange.event;
     final color = AppColors.colorForOrganization(event.organizationId);
     final price = event.startingPrice;
     final priceLabel = price != null ? '\$${price.toInt()} Bs' : 'Free';
+    final timeRange =
+        '${_hhmmAtMinute(eventRange.startMin)} - ${_hhmmAtMinute(eventRange.endMin)}';
 
-    return InkWell(
-      onTap: () => EventPreviewSheet.show(context, event),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
-                  ),
-                  child: Text(
-                    _hhmm(event.startTime),
-                    style: TextStyle(
-                      color: context.scaffoldBg,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 5),
-                if (event.organizationName.isNotEmpty)
-                  Expanded(
-                    child: Text(
-                      event.organizationName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: color.withValues(alpha: 0.95),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 58;
+        return InkWell(
+          onTap: () => EventPreviewSheet.show(context, event),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 5 : 7,
+              vertical: compact ? 2 : 5,
+            ),
+            child: compact
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        timeRange,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
+                      Text(
+                        event.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.textOnBg,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(
+                                AppSizes.radiusSmall,
+                              ),
+                            ),
+                            child: Text(
+                              timeRange,
+                              style: TextStyle(
+                                color: context.scaffoldBg,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          if (event.organizationName.isNotEmpty)
+                            Expanded(
+                              child: Text(
+                                event.organizationName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: color.withValues(alpha: 0.95),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      Text(
+                        event.title,
+                        maxLines: isSingle ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.textOnBg,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          height: 1.1,
+                        ),
+                      ),
+                      if (isSingle && (event.description?.isNotEmpty ?? false))
+                        Text(
+                          event.description!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.textMuted,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            priceLabel,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 12,
+                            color: color,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-              ],
-            ),
-            Text(
-              event.title,
-              maxLines: isSingle ? 2 : 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: context.textOnBg,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                height: 1.1,
-              ),
-            ),
-            if (isSingle && (event.description?.isNotEmpty ?? false))
-              Text(
-                event.description!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: context.textMuted,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  priceLabel,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 12,
-                  color: color,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

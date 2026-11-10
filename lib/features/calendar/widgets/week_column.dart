@@ -42,11 +42,17 @@ import 'week_day_header.dart';
   if (!hasEvents) {
     return (requestedStart, requestedEnd);
   }
-  var start = (minHour - 1).clamp(0, 23);
-  var end = (maxHour + 1).clamp(1, 24);
-  if (end <= start) {
-    end = start + 1;
+
+  // Margen de mínimo 8 horas visibles para estandarizar la vista semanal
+  var start = (minHour - 2).clamp(0, 23);
+  var end = (maxHour + 2).clamp(1, 24);
+  
+  if (end - start < 8) {
+    final diff = 8 - (end - start);
+    start = (start - diff ~/ 2).clamp(0, 23);
+    end = (start + 8).clamp(1, 24);
   }
+
   return (start.toInt(), end.toInt());
 }
 

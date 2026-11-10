@@ -1,6 +1,7 @@
 // lib/core/router/app_nav_shells.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:academia_events/core/theme/app_colors.dart';
@@ -29,13 +30,9 @@ class StudentShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return PopScope(
-      canPop: navigationShell.currentIndex == 0,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && navigationShell.currentIndex != 0) {
-          navigationShell.goBranch(0);
-        }
-      },
+    return _BackButtonExitGuard(
+      isAtRoot: navigationShell.currentIndex == 0,
+      onBackToRoot: () => navigationShell.goBranch(0),
       child: Scaffold(
         backgroundColor: context.scaffoldBg,
         body: navigationShell,
@@ -73,13 +70,9 @@ class AcademyShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: navigationShell.currentIndex == 0,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && navigationShell.currentIndex != 0) {
-          navigationShell.goBranch(0);
-        }
-      },
+    return _BackButtonExitGuard(
+      isAtRoot: navigationShell.currentIndex == 0,
+      onBackToRoot: () => navigationShell.goBranch(0),
       child: Scaffold(
         backgroundColor: context.scaffoldBg,
         body: navigationShell,
@@ -91,6 +84,60 @@ class AcademyShell extends StatelessWidget {
           labels: _labels,
         ),
       ),
+    );
+  }
+}
+
+class _BackButtonExitGuard extends StatefulWidget {
+  const _BackButtonExitGuard({
+    required this.isAtRoot,
+    required this.onBackToRoot,
+    required this.child,
+  });
+
+  final bool isAtRoot;
+  final VoidCallback onBackToRoot;
+  final Widget child;
+
+  @override
+  State<_BackButtonExitGuard> createState() => _BackButtonExitGuardState();
+}
+
+class _BackButtonExitGuardState extends State<_BackButtonExitGuard> {
+  DateTime? _lastBackPress;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+
+        if (!widget.isAtRoot) {
+          _lastBackPress = null;
+          widget.onBackToRoot();
+          return;
+        }
+
+        final now = DateTime.now();
+        final lastPress = _lastBackPress;
+        if (lastPress != null &&
+            now.difference(lastPress) <= const Duration(seconds: 2)) {
+          SystemNavigator.pop();
+          return;
+        }
+
+        _lastBackPress = now;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Presiona otra vez para salir'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+      },
+      child: widget.child,
     );
   }
 }

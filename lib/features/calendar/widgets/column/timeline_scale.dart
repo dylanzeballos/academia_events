@@ -16,32 +16,17 @@ class TimelineScale {
       return;
     }
 
+    // Altura estándar fija y proporcional para que no se deformen los cards
     final base = <double>[];
-    final floor = <double>[];
     for (var h = startHour; h < endHour; h++) {
       final active = activeHours.contains(h);
       final desired = active ? activePxPerHour : _inactiveBasePx;
-      final f = active ? _activeFloorPx : _inactiveFloorPx;
-      base.add(math.max(desired, f));
-      floor.add(f);
-    }
-
-    final totalFloor = floor.fold(0.0, (sum, f) => sum + f);
-    final peak = base.fold(0.0, (sum, b) => sum + b);
-    final extraWeight = peak - totalFloor;
-
-    double pxFor(int i) {
-      if (availableHeight >= totalFloor) {
-        if (extraWeight <= 0) return base[i];
-        final leftover = availableHeight - totalFloor;
-        return floor[i] + leftover * (base[i] - floor[i]) / extraWeight;
-      }
-      return floor[i] * availableHeight / totalFloor;
+      base.add(math.max(desired, active ? _activeFloorPx : _inactiveFloorPx));
     }
 
     _perHour = List<double>.generate(
       n,
-      (i) => pxFor(i) * zoom,
+      (i) => base[i] * zoom,
       growable: false,
     );
 
@@ -58,9 +43,9 @@ class TimelineScale {
   final int endHour;
   final double zoom;
 
-  static const double _inactiveBasePx = 13;
-  static const double _activeFloorPx = 24;
-  static const double _inactiveFloorPx = 9;
+  static const double _inactiveBasePx = 28;
+  static const double _activeFloorPx = 45;
+  static const double _inactiveFloorPx = 20;
 
   late final List<double> _perHour;
   late final List<double> _top;
