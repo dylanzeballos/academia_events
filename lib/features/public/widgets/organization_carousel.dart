@@ -140,7 +140,7 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
     super.initState();
     _pageController = PageController(
       initialPage: _initialPage,
-      viewportFraction: 0.48,
+      viewportFraction: 0.68,
     );
     _autoPlayTimer = Timer.periodic(widget.autoPlayInterval, (_) => _advance());
   }
@@ -193,12 +193,12 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
             (weekEventsAsync.hasValue && matchingEvents.isEmpty);
         final carouselHeight =
             showExpandedCarousel && widget.expandedHeight != null
-                ? widget.expandedHeight!
-                : showExpandedCarousel
-                    ? (MediaQuery.sizeOf(context).height * 0.5)
-                        .clamp(widget.height * 1.5, 360.0)
-                        .toDouble()
-                    : widget.height;
+            ? widget.expandedHeight!
+            : showExpandedCarousel
+            ? (MediaQuery.sizeOf(context).height * 0.5)
+                  .clamp(widget.height * 1.5, 360.0)
+                  .toDouble()
+            : widget.height;
 
         final matchingOrganizationIds = matchingEvents
             .map((event) => event.organizationId)
@@ -215,14 +215,14 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
         final searchedOrgs = query.isEmpty
             ? List<OrganizationWithEventCount>.from(allOrgs)
             : allOrgs
-                .where(
-                  (organization) =>
-                      organization.name.toLowerCase().contains(query) ||
-                      organization.danceGenres.any(
-                        (genre) => genre.toLowerCase().contains(query),
-                      ),
-                )
-                .toList();
+                  .where(
+                    (organization) =>
+                        organization.name.toLowerCase().contains(query) ||
+                        organization.danceGenres.any(
+                          (genre) => genre.toLowerCase().contains(query),
+                        ),
+                  )
+                  .toList();
 
         final visibleOrgs = searchedOrgs.where((organization) {
           if (filter.organizationId != null &&
@@ -312,15 +312,26 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
               ),
               Expanded(
                 child: visibleOrgs.length == 1
-                    ? _OrgLogoItem(
-                        organization: visibleOrgs.first,
-                        isActive: true,
-                        compact: widget.compact,
-                        expanded: showExpandedCarousel,
-                        cardHeight: carouselHeight - 32,
-                        onTap: () => context.push(
-                          '${AppRoutes.organizationPublicDetailBase}/${visibleOrgs.first.id}',
-                          extra: visibleOrgs.first.name,
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Center(
+                          child: FractionallySizedBox(
+                            widthFactor: 0.72,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 380),
+                              child: _OrgLogoItem(
+                                organization: visibleOrgs.first,
+                                isActive: true,
+                                compact: widget.compact,
+                                expanded: showExpandedCarousel,
+                                cardHeight: carouselHeight - 32,
+                                onTap: () => context.push(
+                                  '${AppRoutes.organizationPublicDetailBase}/${visibleOrgs.first.id}',
+                                  extra: visibleOrgs.first.name,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       )
                     : PageView.builder(
@@ -333,16 +344,27 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                         itemBuilder: (context, index) {
                           final orgIndex = index % visibleOrgs.length;
                           final org = visibleOrgs[orgIndex];
-                          return _OrgLogoItem(
-                            organization: org,
-                            isActive:
-                                orgIndex == _currentPage % visibleOrgs.length,
-                            compact: widget.compact,
-                            expanded: showExpandedCarousel,
-                            cardHeight: carouselHeight - 32,
-                            onTap: () => context.push(
-                              '${AppRoutes.organizationPublicDetailBase}/${org.id}',
-                              extra: org.name,
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 380,
+                                ),
+                                child: _OrgLogoItem(
+                                  organization: org,
+                                  isActive:
+                                      orgIndex ==
+                                      _currentPage % visibleOrgs.length,
+                                  compact: widget.compact,
+                                  expanded: showExpandedCarousel,
+                                  cardHeight: carouselHeight - 32,
+                                  onTap: () => context.push(
+                                    '${AppRoutes.organizationPublicDetailBase}/${org.id}',
+                                    extra: org.name,
+                                  ),
+                                ),
+                              ),
                             ),
                           );
                         },
@@ -376,28 +398,17 @@ class _OrgLogoItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compactCard = (cardHeight ?? 0) < 240;
-    final bannerHeight = compactCard || !expanded ? 54.0 : 96.0;
-    final avatarSize = compactCard
-        ? 38.0
-        : expanded
-            ? 72.0
-            : compact
-                ? 30.0
-                : 50.0;
+    final avatarSize = compactCard ? 56.0 : 72.0;
 
     return GestureDetector(
       onTap: onTap,
       child: Center(
         child: Container(
-          width: expanded
-              ? 170
-              : compact
-                  ? 72
-                  : 140,
+          width: double.infinity,
           height: cardHeight,
           decoration: BoxDecoration(
             color: context.cardBg,
-            borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
             border: Border.all(
               color: isActive ? AppColors.primary : context.divider,
               width: isActive ? 2 : 1,
@@ -419,113 +430,90 @@ class _OrgLogoItem extends StatelessWidget {
                   ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: bannerHeight,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (organization.bannerUrl != null &&
-                          organization.bannerUrl!.isNotEmpty)
-                        CachedNetworkImage(
-                          imageUrl: organization.bannerUrl!,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, _, _) =>
-                              _BannerFallback(name: organization.name),
-                        )
-                      else
-                        _BannerFallback(name: organization.name),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.05),
-                              Colors.black.withValues(alpha: 0.55),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 8,
-                        bottom: 8,
-                        child: _CardBadge(
-                          label: '${organization.eventCount} eventos',
-                        ),
-                      ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (organization.bannerUrl != null &&
+                  organization.bannerUrl!.isNotEmpty)
+                CachedNetworkImage(
+                  imageUrl: organization.bannerUrl!,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, _, _) =>
+                      _BannerFallback(name: organization.name),
+                )
+              else
+                _BannerFallback(name: organization.name),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.18),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.78),
                     ],
+                    stops: const [0, 0.42, 1],
                   ),
                 ),
-                SizedBox(
-                  height: compactCard
-                      ? 6
-                      : expanded
-                          ? 14
-                          : 10,
-                ),
-                _OrgAvatar(
+              ),
+              Positioned(
+                top: 12,
+                left: 12,
+                child: _OrgAvatar(
                   name: organization.name,
                   logoUrl: organization.logoUrl,
                   size: avatarSize,
                   isActive: isActive,
                 ),
-                SizedBox(
-                  height: compactCard
-                      ? 4
-                      : expanded
-                          ? 8
-                          : compact
-                              ? 2
-                              : 5,
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: expanded ? 10 : 6),
-                  child: Text(
-                    organization.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: context.textOnBg,
-                      fontSize: compactCard
-                          ? 14
-                          : expanded
-                              ? 18
-                              : compact
-                                  ? 7
-                                  : 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                if (organization.danceGenres.isNotEmpty || expanded) ...[
-                  SizedBox(height: compactCard ? 3 : 6),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      organization.danceGenres.isNotEmpty
-                          ? organization.danceGenres.take(2).join(' & ')
-                          : 'Academia de baile',
-                      maxLines: compactCard ? 1 : 2,
+              ),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: _CardBadge(label: '${organization.eventCount} eventos'),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 14,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      organization.name,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: context.textMuted,
-                        fontSize: compactCard ? 10 : 11,
-                        height: 1.15,
+                        color: Colors.white,
+                        fontSize: compactCard ? 16 : 20,
+                        fontWeight: FontWeight.w800,
+                        shadows: const [
+                          Shadow(color: Colors.black54, blurRadius: 8),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ],
-            ),
+                    if (organization.danceGenres.isNotEmpty || expanded) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        organization.danceGenres.isNotEmpty
+                            ? organization.danceGenres.take(2).join(' & ')
+                            : 'Academia de baile',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: compactCard ? 11 : 13,
+                          shadows: const [
+                            Shadow(color: Colors.black54, blurRadius: 8),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

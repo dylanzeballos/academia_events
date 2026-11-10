@@ -125,6 +125,21 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
                   if (_showList) {
                     return _WeekEventList(events: allEvents);
                   }
+                  if (allEvents.isEmpty) {
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final carouselHeight = constraints.maxHeight - 12;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: OrganizationCarousel(
+                            height: carouselHeight,
+                            expandedHeight: carouselHeight,
+                            autoPlayInterval: const Duration(seconds: 4),
+                          ),
+                        );
+                      },
+                    );
+                  }
                   final calendar = WeekColumns(
                     weekDays: weekDays,
                     events: allEvents,
@@ -138,11 +153,14 @@ class _WeekCalendarViewState extends ConsumerState<WeekCalendarView> {
                       children: [
                         Expanded(child: calendar),
                         SizedBox(
-                          height: 160,
-                          child: OrganizationCarousel(
-                            height: 160,
-                            expandedHeight: 160,
-                            autoPlayInterval: const Duration(seconds: 4),
+                          height: 172,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: OrganizationCarousel(
+                              height: 160,
+                              expandedHeight: 160,
+                              autoPlayInterval: const Duration(seconds: 4),
+                            ),
                           ),
                         ),
                       ],
