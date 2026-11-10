@@ -64,6 +64,24 @@ class DayColumnBody extends StatelessWidget {
         }
       }
     }
+    for (final cluster in clusters) {
+      final laneEnds = <int>[];
+      for (final event in cluster.events) {
+        final availableLane = laneEnds.indexWhere(
+          (laneEnd) => laneEnd <= event.startMin,
+        );
+        if (availableLane == -1) {
+          event.laneIndex = laneEnds.length;
+          laneEnds.add(event.endMin);
+        } else {
+          event.laneIndex = availableLane;
+          laneEnds[availableLane] = event.endMin;
+        }
+      }
+      for (final event in cluster.events) {
+        event.laneCount = laneEnds.length;
+      }
+    }
 
     return GestureDetector(
       onTap: onTap,
@@ -98,31 +116,71 @@ class DayColumnBody extends StatelessWidget {
                 builder: (context, constraints) {
                   final blocks = <Widget>[];
 
-                  for (var i = 0; i < clusters.length; i++) {
-                    final cluster = clusters[i];
-                    final top = scale.yForMinutes(cluster.startMin);
-                    final bottomByTime = scale.yForMinutes(cluster.endMin);
-                    final calculatedHeight = bottomByTime - top;
-                    final minH = _minSingleCardHeight * cluster.events.length;
-                    final maxH = _maxSingleCardHeight * cluster.events.length;
-                    final desiredHeight = calculatedHeight.clamp(minH, maxH);
-                    final availableBeforeNext = i + 1 < clusters.length
-                        ? scale.yForMinutes(clusters[i + 1].startMin) - top - 4
-                        : double.infinity;
-                    final height = math.min(desiredHeight, availableBeforeNext);
+                  for (
+                    var clusterIndex = 0;
+                    clusterIndex < clusters.length;
+                    clusterIndex++
+                  ) {
+                    final cluster = clusters[clusterIndex];
+                    for (final eventRange in cluster.events) {
+                      final top = scale.yForMinutes(eventRange.startMin);
+                      final bottom = scale.yForMinutes(eventRange.endMin);
+                      final calculatedHeight = bottom - top;
+                      final minHeight = eventRange.laneCount > 1
+                          ? 46.0 * scale.zoom
+                          : _minSingleCardHeight * scale.zoom;
+                      final desiredHeight = calculatedHeight.clamp(
+                        minHeight,
+                        _maxSingleCardHeight * scale.zoom,
+                      );
+                      final nextInLane = cluster.events
+                          .where(
+                            (other) =>
+                                other.laneIndex == eventRange.laneIndex &&
+                                other.startMin >= eventRange.endMin,
+                          )
+                          .map((other) => other.startMin)
+                          .fold<int?>(null, (next, start) {
+                            if (next == null || start < next) return start;
+                            return next;
+                          });
+                      final nextClusterStart =
+                          clusterIndex + 1 < clusters.length
+                          ? clusters[clusterIndex + 1].startMin
+                          : null;
+                      final nextStart = nextInLane == null
+                          ? nextClusterStart
+                          : nextClusterStart == null
+                          ? nextInLane
+                          : math.min(nextInLane, nextClusterStart);
+                      final availableBeforeNext = nextStart == null
+                          ? double.infinity
+                          : scale.yForMinutes(nextStart) - top - 4 * scale.zoom;
+                      final height = math.min(
+                        desiredHeight,
+                        availableBeforeNext,
+                      );
+                      final laneWidth =
+                          constraints.maxWidth / eventRange.laneCount;
 
-                    blocks.add(
-                      Positioned(
-                        top: top + 2,
-                        left: 2,
-                        right: 2,
-                        height: math.max(1, height - 2).toDouble(),
-                        child: _MergedClusterCard(
-                          events: cluster.events,
-                          totalDurationHeight: height,
+                      blocks.add(
+                        Positioned(
+                          top: top + 2 * scale.zoom,
+                          left:
+                              laneWidth * eventRange.laneIndex + 2 * scale.zoom,
+                          width: math
+                              .max(1, laneWidth - 4 * scale.zoom)
+                              .toDouble(),
+                          height: math
+                              .max(1, height - 2 * scale.zoom)
+                              .toDouble(),
+                          child: _EventClusterCard(
+                            eventRange: eventRange,
+                            zoom: scale.zoom,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    }
                   }
 
                   return ClipRect(child: Stack(children: blocks));
@@ -141,6 +199,8 @@ class _EventWithRange {
   final EventModel event;
   final int startMin;
   final int endMin;
+  int laneIndex = 0;
+  int laneCount = 1;
 }
 
 class _EventCluster {
@@ -150,73 +210,66 @@ class _EventCluster {
   final List<_EventWithRange> events;
 }
 
-class _MergedClusterCard extends StatelessWidget {
-  const _MergedClusterCard({
-    required this.events,
-    required this.totalDurationHeight,
-  });
+class _EventClusterCard extends StatelessWidget {
+  const _EventClusterCard({required this.eventRange, required this.zoom});
 
-  final List<_EventWithRange> events;
-  final double totalDurationHeight;
+  final _EventWithRange eventRange;
+  final double zoom;
 
   @override
   Widget build(BuildContext context) {
-    final firstEvent = events.first.event;
-    final primaryColor = AppColors.colorForOrganization(
-      firstEvent.organizationId,
-    );
-
+    final eventColor =
+        AppColors.calendarEventColors[eventRange.laneIndex %
+            AppColors.calendarEventColors.length];
     return Container(
       width: double.infinity,
       height: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        color: Color.alphaBlend(
+          eventColor.withValues(alpha: 0.22),
+          context.cardBg,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.radiusSmall * zoom),
         border: Border.all(
-          color: primaryColor.withValues(alpha: 0.65),
-          width: 1.3,
+          color: eventColor.withValues(alpha: 0.9),
+          width: 1.5 * zoom,
         ),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: eventColor.withValues(alpha: 0.16),
+            blurRadius: 4 * zoom,
+            offset: Offset(0, zoom),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          for (int i = 0; i < events.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                thickness: 0.8,
-                color: primaryColor.withValues(alpha: 0.25),
-              ),
-            Expanded(
-              child: _InnerEventRow(
-                eventRange: events[i],
-                isSingle: events.length == 1,
-              ),
-            ),
-          ],
-        ],
+      child: _InnerEventRow(
+        eventRange: eventRange,
+        isSingle: true,
+        eventColor: eventColor,
+        zoom: zoom,
       ),
     );
   }
 }
 
 class _InnerEventRow extends StatelessWidget {
-  const _InnerEventRow({required this.eventRange, required this.isSingle});
+  const _InnerEventRow({
+    required this.eventRange,
+    required this.isSingle,
+    required this.eventColor,
+    required this.zoom,
+  });
 
   final _EventWithRange eventRange;
   final bool isSingle;
+  final Color eventColor;
+  final double zoom;
 
   @override
   Widget build(BuildContext context) {
     final event = eventRange.event;
-    final color = AppColors.colorForOrganization(event.organizationId);
+    final color = eventColor;
     final price = event.startingPrice;
     final priceLabel = price != null ? '\$${price.toInt()} Bs' : 'Free';
     final timeRange =
@@ -224,13 +277,15 @@ class _InnerEventRow extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxHeight < 58;
+        final compact =
+            constraints.maxHeight < 58 * zoom ||
+            constraints.maxWidth < 110 * zoom;
         return InkWell(
           onTap: () => EventPreviewSheet.show(context, event),
           child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: compact ? 5 : 7,
-              vertical: compact ? 2 : 5,
+              horizontal: (compact ? 5 : 7) * zoom,
+              vertical: (compact ? 2 : 5) * zoom,
             ),
             child: compact
                 ? Column(
@@ -243,7 +298,7 @@ class _InnerEventRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: color,
-                          fontSize: 8,
+                          fontSize: 8 * zoom,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -253,7 +308,7 @@ class _InnerEventRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: context.textOnBg,
-                          fontSize: 9,
+                          fontSize: 9 * zoom,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -266,26 +321,26 @@ class _InnerEventRow extends StatelessWidget {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 2,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 5 * zoom,
+                              vertical: 2 * zoom,
                             ),
                             decoration: BoxDecoration(
                               color: color.withValues(alpha: 0.85),
                               borderRadius: BorderRadius.circular(
-                                AppSizes.radiusSmall,
+                                AppSizes.radiusSmall * zoom,
                               ),
                             ),
                             child: Text(
                               timeRange,
                               style: TextStyle(
                                 color: context.scaffoldBg,
-                                fontSize: 9,
+                                fontSize: 9 * zoom,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 5),
+                          SizedBox(width: 5 * zoom),
                           if (event.organizationName.isNotEmpty)
                             Expanded(
                               child: Text(
@@ -294,7 +349,7 @@ class _InnerEventRow extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: color.withValues(alpha: 0.95),
-                                  fontSize: 10,
+                                  fontSize: 10 * zoom,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -307,7 +362,7 @@ class _InnerEventRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: context.textOnBg,
-                          fontSize: 11,
+                          fontSize: 11 * zoom,
                           fontWeight: FontWeight.w800,
                           height: 1.1,
                         ),
@@ -319,7 +374,7 @@ class _InnerEventRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: context.textMuted,
-                            fontSize: 9,
+                            fontSize: 9 * zoom,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -330,13 +385,13 @@ class _InnerEventRow extends StatelessWidget {
                             priceLabel,
                             style: TextStyle(
                               color: color,
-                              fontSize: 10,
+                              fontSize: 10 * zoom,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                           Icon(
                             Icons.arrow_forward_rounded,
-                            size: 12,
+                            size: 12 * zoom,
                             color: color,
                           ),
                         ],

@@ -11,17 +11,17 @@ class WeekDayHeader extends StatelessWidget {
     required this.day,
     required this.isSelected,
     required this.onTap,
+    this.zoom = 1,
   });
 
   final DateTime day;
   final bool isSelected;
   final VoidCallback onTap;
+  final double zoom;
 
   bool get _isToday {
     final now = DateTime.now();
-    return day.year == now.year &&
-        day.month == now.month &&
-        day.day == now.day;
+    return day.year == now.year && day.month == now.month && day.day == now.day;
   }
 
   @override
@@ -30,11 +30,11 @@ class WeekDayHeader extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: AppDurations.fast,
-        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        margin: EdgeInsets.symmetric(horizontal: 2 * zoom, vertical: 4 * zoom),
+        padding: EdgeInsets.symmetric(vertical: 6 * zoom),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium * zoom),
           border: _isToday && !isSelected
               ? Border.all(color: AppColors.primary.withValues(alpha: 0.5))
               : null,
@@ -45,22 +45,22 @@ class WeekDayHeader extends StatelessWidget {
             Text(
               DateFormatter.shortDay(day).toUpperCase(),
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 9 * zoom,
                 fontWeight: FontWeight.w600,
                 color: isSelected ? AppColors.onPrimary : context.textMuted,
               ),
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: 2 * zoom),
             Text(
               DateFormatter.dayNumber(day),
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 15 * zoom,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w400,
                 color: isSelected
                     ? AppColors.onPrimary
                     : _isToday
-                        ? AppColors.primary
-                        : context.textOnBg,
+                    ? AppColors.primary
+                    : context.textOnBg,
               ),
             ),
           ],

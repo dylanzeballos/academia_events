@@ -46,7 +46,7 @@ import 'week_day_header.dart';
   // Margen de mínimo 8 horas visibles para estandarizar la vista semanal
   var start = (minHour - 2).clamp(0, 23);
   var end = (maxHour + 2).clamp(1, 24);
-  
+
   if (end - start < 8) {
     final diff = 8 - (end - start);
     start = (start - diff ~/ 2).clamp(0, 23);
@@ -97,7 +97,7 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
   bool _atRightEdge = true;
 
   double _zoom = 1;
-  static const double _minZoom = 1;
+  static const double _minZoom = 0.7;
   static const double _maxZoom = 4;
 
   TimelineScale? _activeScale;
@@ -177,9 +177,12 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
       return;
     }
     _syncingHorizontal = true;
-    if ((_hScrollController.offset - _hStripScrollController.offset).abs() > 0.1) {
+    if ((_hScrollController.offset - _hStripScrollController.offset).abs() >
+        0.1) {
       _hStripScrollController.jumpTo(_hScrollController.offset);
-    } else if ((_hStripScrollController.offset - _hScrollController.offset).abs() > 0.1) {
+    } else if ((_hStripScrollController.offset - _hScrollController.offset)
+            .abs() >
+        0.1) {
       _hScrollController.jumpTo(_hStripScrollController.offset);
     }
     _syncingHorizontal = false;
@@ -196,7 +199,10 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
     super.didUpdateWidget(oldWidget);
     if (!widget.autoScrollToEarliest) return;
     if (oldWidget.weekDays.isEmpty || widget.weekDays.isEmpty) return;
-    final dayChanged = !_isSameDay(oldWidget.weekDays.first, widget.weekDays.first);
+    final dayChanged = !_isSameDay(
+      oldWidget.weekDays.first,
+      widget.weekDays.first,
+    );
     if (dayChanged) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEarliest());
     }
@@ -207,10 +213,13 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
     if (!_scrollController.hasClients) return;
     final day = widget.weekDays.first;
 
-    final dayEvents = widget.events
-        .where((e) => DateFormatter.rangeCoversDay(e.startTime, e.endTime, day))
-        .toList()
-      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    final dayEvents =
+        widget.events
+            .where(
+              (e) => DateFormatter.rangeCoversDay(e.startTime, e.endTime, day),
+            )
+            .toList()
+          ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
     if (dayEvents.isEmpty) {
       _scrollController.jumpTo(0);
@@ -223,7 +232,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
       first.endTime,
       day,
     );
-    final startMin = range?.$1 ?? DateFormatter.minutesFromMidnight(first.startTime);
+    final startMin =
+        range?.$1 ?? DateFormatter.minutesFromMidnight(first.startTime);
 
     final scale = _activeScale;
     double target = 0;
@@ -244,7 +254,13 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
     final dayEvents = <int, List<EventModel>>{};
     for (final day in widget.weekDays) {
       dayEvents[day.weekday] = widget.events
-          .where((e) => DateFormatter.rangeCoversDay(e.startTime, e.endTime, day))
+          .where(
+            (event) => DateFormatter.rangeCoversDay(
+              event.startTime,
+              event.endTime,
+              day,
+            ),
+          )
           .toList();
     }
 
@@ -265,8 +281,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
         );
         if (range == null) continue;
         final (startMin, endMin) = range;
-        for (var h = startMin ~/ 60; h * 60 < endMin; h++) {
-          activeHours.add(h);
+        for (var hour = startMin ~/ 60; hour * 60 < endMin; hour++) {
+          activeHours.add(hour);
         }
       }
     }
@@ -281,46 +297,48 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        final gridWidth = availableWidth - _timelineLabelWidth;
-        final colWidth = math.max(
+        final labelWidth = _timelineLabelWidth * _zoom;
+        final gridWidth = availableWidth - labelWidth;
+        final baseColWidth = math.max(
           gridWidth / daysToRender.length,
           _minDayColumnWidth,
         );
+        final colWidth = baseColWidth * _zoom;
         final totalDaysWidth = colWidth * daysToRender.length;
-        final overflows = totalDaysWidth > gridWidth;
-        final showSlideHint = overflows && !_atRightEdge;
+        final showSlideHint = totalDaysWidth > gridWidth && !_atRightEdge;
 
         return Stack(
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.showDayStrip && widget.weekDays.length > 1)
-                  SingleChildScrollView(
-                    controller: _hStripScrollController,
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        const SizedBox(width: _timelineLabelWidth),
-                        ...daysToRender.map(
-                          (day) => SizedBox(
-                            width: colWidth,
-                            child: WeekDayHeader(
-                              day: day,
-                              isSelected: _isSameDay(day, widget.selectedDay),
-                              onTap: () => widget.onDaySelected(day),
+            Listener(
+              onPointerDown: _onPointerDown,
+              onPointerMove: _onPointerMove,
+              onPointerUp: _onPointerUp,
+              onPointerCancel: _onPointerCancel,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.showDayStrip && widget.weekDays.length > 1)
+                    SingleChildScrollView(
+                      controller: _hStripScrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          SizedBox(width: labelWidth),
+                          ...daysToRender.map(
+                            (day) => SizedBox(
+                              width: colWidth,
+                              child: WeekDayHeader(
+                                day: day,
+                                isSelected: _isSameDay(day, widget.selectedDay),
+                                onTap: () => widget.onDaySelected(day),
+                                zoom: _zoom,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                Expanded(
-                  child: Listener(
-                    onPointerDown: _onPointerDown,
-                    onPointerMove: _onPointerMove,
-                    onPointerUp: _onPointerUp,
-                    onPointerCancel: _onPointerCancel,
+                  Expanded(
                     child: LayoutBuilder(
                       builder: (context, innerConstraints) {
                         final scale = TimelineScale(
@@ -342,8 +360,11 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 SizedBox(
-                                  width: _timelineLabelWidth,
-                                  child: TimelineLabels(scale: scale),
+                                  width: labelWidth,
+                                  child: TimelineLabels(
+                                    scale: scale,
+                                    zoom: _zoom,
+                                  ),
                                 ),
                                 Expanded(
                                   child: SingleChildScrollView(
@@ -357,11 +378,17 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                                             width: colWidth,
                                             child: DayColumnBody(
                                               day: day,
-                                              isSelected: _isSameDay(day, widget.selectedDay),
-                                              events: dayEvents[day.weekday] ?? const [],
+                                              isSelected: _isSameDay(
+                                                day,
+                                                widget.selectedDay,
+                                              ),
+                                              events:
+                                                  dayEvents[day.weekday] ??
+                                                  const [],
                                               scale: scale,
                                               showNowLine: widget.showNowLine,
-                                              onTap: () => widget.onDaySelected(day),
+                                              onTap: () =>
+                                                  widget.onDaySelected(day),
                                             ),
                                           );
                                         }).toList(),
@@ -376,8 +403,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                       },
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             if (showSlideHint)
               Positioned(

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/utils/theme_extensions.dart';
 import 'timeline_scale.dart';
 
 class TimelineLabels extends StatelessWidget {
-  const TimelineLabels({super.key, required this.scale});
+  const TimelineLabels({super.key, required this.scale, this.zoom = 1});
 
   final TimelineScale scale;
+  final double zoom;
   static const double _minLabelGap = 14;
 
   @override
@@ -35,7 +37,7 @@ class TimelineLabels extends StatelessWidget {
           child: Text(
             '${hour.toString().padLeft(2, '0')}:00',
             textAlign: TextAlign.right,
-            style: TextStyle(color: context.textMuted, fontSize: 10),
+            style: TextStyle(color: context.textMuted, fontSize: 10 * zoom),
           ),
         ),
       );
