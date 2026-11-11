@@ -89,8 +89,12 @@ class DayColumnBody extends StatelessWidget {
         child: Stack(
           children: [
             ...List.generate(scale.totalHours + 1, (i) {
+              final hour = scale.startHour + i;
+              if (!scale.shouldDrawHourBoundary(hour)) {
+                return const SizedBox.shrink();
+              }
               return Positioned(
-                top: scale.topAt(scale.startHour + i),
+                top: scale.topAt(hour),
                 left: 0,
                 right: 0,
                 child: Divider(

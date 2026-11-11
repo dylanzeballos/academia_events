@@ -43,16 +43,8 @@ import 'week_day_header.dart';
     return (requestedStart, requestedEnd);
   }
 
-  // Margen de mínimo 8 horas visibles para estandarizar la vista semanal
-  var start = (minHour - 2).clamp(0, 23);
-  var end = (maxHour + 2).clamp(1, 24);
-
-  if (end - start < 8) {
-    final diff = 8 - (end - start);
-    start = (start - diff ~/ 2).clamp(0, 23);
-    end = (start + 8).clamp(1, 24);
-  }
-
+  final start = minHour.clamp(0, 23);
+  final end = maxHour.clamp(1, 24);
   return (start.toInt(), end.toInt());
 }
 
@@ -345,9 +337,11 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                           startHour: startHour,
                           endHour: endHour,
                           activeHours: activeHours,
-                          availableHeight: innerConstraints.maxHeight,
                           activePxPerHour: widget.heightPerHour,
+                          availableHeight: innerConstraints.maxHeight,
                           zoom: _zoom,
+                          collapseInactiveHours: widget.weekDays.length > 1,
+                          centerContentIfShort: widget.weekDays.length > 1,
                         );
                         _activeScale = scale;
 

@@ -151,7 +151,6 @@ class _ClassListViewState extends ConsumerState<ClassListView> {
             startHour: _startHour,
             endHour: _endHour,
             activeHours: {for (var h = _startHour; h < _endHour; h++) h},
-            availableHeight: 0,
             activePxPerHour: 80.0,
           );
 

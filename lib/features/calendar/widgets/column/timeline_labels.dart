@@ -19,6 +19,11 @@ class TimelineLabels extends StatelessWidget {
     for (var i = 0; i <= totalHours; i++) {
       final hour = scale.startHour + i;
       final isBoundary = i == 0 || i == totalHours;
+      if (scale.collapseInactiveHours &&
+          !isBoundary &&
+          !scale.isActiveHour(hour)) {
+        continue;
+      }
       final segPx = i < totalHours
           ? scale.pxPerHourAt(hour)
           : scale.pxPerHourAt(hour - 1);
