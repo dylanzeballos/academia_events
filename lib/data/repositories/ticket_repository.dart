@@ -1,7 +1,9 @@
 import '../models/event_order_model.dart';
 import '../models/event_purchase_result_model.dart';
 import '../models/event_ticket_model.dart';
+import '../models/pagosya_checkout_model.dart';
 import '../models/ticket_type_model.dart';
+import '../services/pagosya_service.dart';
 import '../services/ticket_service.dart';
 
 abstract interface class ITicketRepository {
@@ -13,18 +15,17 @@ abstract interface class ITicketRepository {
     List<String>? attendeeNames,
   });
 
-  Future<EventPurchaseResult> confirmEventOrderPayment({
+  /// Genera el checkout de PagosYa para una orden pendiente.
+  Future<PagosyaCheckout> createPagosyaCheckout({
     required String orderId,
-    String provider = 'simulated',
-    String? providerPaymentId,
+    List<String>? seatIds,
   });
 
-  /// Atajo: crea la orden y confirma el pago en un solo llamado (simulado).
-  Future<EventPurchaseResult> purchaseEventTickets({
-    required String ticketTypeId,
-    required int quantity,
-    List<String>? attendeeNames,
-  });
+  /// Consulta el estado del pago (webhook + reconciliación).
+  Future<PagosyaCheckoutStatus> refreshCheckout(String orderId);
+
+  /// Entradas + tokens QR de una orden ya pagada.
+  Future<EventPurchaseResult> fetchOrderTickets(String orderId);
 
   Future<List<EventTicketModel>> fetchUserEventTickets();
 
@@ -33,10 +34,12 @@ abstract interface class ITicketRepository {
 }
 
 class TicketRepository implements ITicketRepository {
-  const TicketRepository({TicketService? service})
-      : _service = service ?? const TicketService();
+  const TicketRepository({TicketService? service, PagosyaService? pagosya})
+    : _service = service ?? const TicketService(),
+      _pagosya = pagosya ?? const PagosyaService();
 
   final TicketService _service;
+  final PagosyaService _pagosya;
 
   @override
   Future<List<TicketTypeModel>> fetchTicketTypes(String eventId) async {
@@ -59,40 +62,25 @@ class TicketRepository implements ITicketRepository {
   }
 
   @override
-  Future<EventPurchaseResult> confirmEventOrderPayment({
+  Future<PagosyaCheckout> createPagosyaCheckout({
     required String orderId,
-    String provider = 'simulated',
-    String? providerPaymentId,
-  }) async {
-    final raw = await _service.confirmEventOrderPayment(
-      orderId: orderId,
-      provider: provider,
-      providerPaymentId: providerPaymentId,
+    List<String>? seatIds,
+  }) {
+    return _pagosya.createCheckout(
+      kind: 'ticket',
+      referenceId: orderId,
+      seatIds: seatIds,
     );
-    return EventPurchaseResult.fromJson(raw);
   }
 
   @override
-  Future<EventPurchaseResult> purchaseEventTickets({
-    required String ticketTypeId,
-    required int quantity,
-    List<String>? attendeeNames,
-  }) async {
-    // 1. Llamar al servicio directamente para obtener el mapa sin riesgo de fallo en EventOrderModel
-    final rawOrder = await _service.createEventOrder(
-      ticketTypeId: ticketTypeId,
-      quantity: quantity,
-      attendeeNames: attendeeNames,
-    );
+  Future<PagosyaCheckoutStatus> refreshCheckout(String orderId) {
+    return _pagosya.refreshCheckout(orderId: orderId);
+  }
 
-    // 2. Extraer el orderId tolerando cualquier nombre de clave ('order_id' o 'id')
-    final orderId = (rawOrder['order_id'] ?? rawOrder['id'] ?? '')?.toString();
-    if (orderId == null || orderId.isEmpty) {
-      throw const TicketException('No se pudo obtener el ID de la orden generada');
-    }
-
-    // 3. Confirmar pago simulado
-    return confirmEventOrderPayment(orderId: orderId);
+  @override
+  Future<EventPurchaseResult> fetchOrderTickets(String orderId) {
+    return _pagosya.fetchOrderTickets(orderId);
   }
 
   @override

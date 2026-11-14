@@ -22,21 +22,10 @@ class CheckInService {
   /// sin crear nada.
   Future<Map<String, dynamic>> previewClassPass(String enrollmentId) async {
     try {
-      final result = await supabase.rpc('preview_class_pass', params: {
-        'p_enrollment_id': enrollmentId,
-      });
-      return Map<String, dynamic>.from(result as Map);
-    } on PostgrestException catch (e) {
-      throw CheckInException(_friendlyError(e.message));
-    }
-  }
-
-  /// Compra (pago simulado) de un pase de clase para una inscripción.
-  Future<Map<String, dynamic>> purchaseClassPass(String enrollmentId) async {
-    try {
-      final result = await supabase.rpc('purchase_class_pass', params: {
-        'p_enrollment_id': enrollmentId,
-      });
+      final result = await supabase.rpc(
+        'preview_class_pass',
+        params: {'p_enrollment_id': enrollmentId},
+      );
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
       throw CheckInException(_friendlyError(e.message));
@@ -75,12 +64,15 @@ class CheckInService {
     String? accessPointId,
   }) async {
     try {
-      final result = await supabase.rpc('register_event_check_in', params: {
-        'p_token_hash': tokenHash,
-        'p_event_id': eventId,
-        'p_device_id': deviceId,
-        'p_access_point_id': accessPointId,
-      });
+      final result = await supabase.rpc(
+        'register_event_check_in',
+        params: {
+          'p_token_hash': tokenHash,
+          'p_event_id': eventId,
+          'p_device_id': deviceId,
+          'p_access_point_id': accessPointId,
+        },
+      );
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
       throw CheckInException(_friendlyError(e.message));
@@ -94,11 +86,14 @@ class CheckInService {
     String? deviceId,
   }) async {
     try {
-      final result = await supabase.rpc('register_class_check_in', params: {
-        'p_token_hash': tokenHash,
-        'p_session_id': sessionId,
-        'p_device_id': deviceId,
-      });
+      final result = await supabase.rpc(
+        'register_class_check_in',
+        params: {
+          'p_token_hash': tokenHash,
+          'p_session_id': sessionId,
+          'p_device_id': deviceId,
+        },
+      );
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
       throw CheckInException(_friendlyError(e.message));
@@ -109,8 +104,10 @@ class CheckInService {
 
   String _friendlyError(String message) {
     final msg = message.toLowerCase();
-    if (msg.contains('permiso') || msg.contains('permission') ||
-        msg.contains('row-level security') || msg.contains('authorization')) {
+    if (msg.contains('permiso') ||
+        msg.contains('permission') ||
+        msg.contains('row-level security') ||
+        msg.contains('authorization')) {
       return 'No tienes autorización para realizar esta acción.';
     }
     return 'No se pudo completar la operación. Intenta de nuevo.';

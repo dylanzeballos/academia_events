@@ -50,26 +50,6 @@ class TicketService {
     }
   }
 
-  Future<Map<String, dynamic>> confirmEventOrderPayment({
-    required String orderId,
-    String provider = 'simulated',
-    String? providerPaymentId,
-  }) async {
-    try {
-      final result = await supabase.rpc(
-        'confirm_event_order_payment',
-        params: {
-          'p_order_id': orderId,
-          'p_provider': provider,
-          'p_provider_payment_id': providerPaymentId,
-        },
-      );
-      return Map<String, dynamic>.from(result as Map);
-    } on PostgrestException catch (e) {
-      throw TicketException(e.message);
-    }
-  }
-
   Future<List<Map<String, dynamic>>> fetchUserEventTickets() async {
     try {
       final userId = supabase.auth.currentUser?.id;

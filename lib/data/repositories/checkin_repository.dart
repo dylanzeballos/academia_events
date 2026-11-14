@@ -6,8 +6,6 @@ import '../services/checkin_service.dart';
 abstract interface class ICheckInRepository {
   Future<Map<String, dynamic>> previewClassPass(String enrollmentId);
 
-  Future<Map<String, dynamic>> purchaseClassPass(String enrollmentId);
-
   Future<List<ClassPassModel>> fetchMyClassPasses();
 
   Future<List<ClassTicketModel>> fetchMyClassTickets();
@@ -28,18 +26,13 @@ abstract interface class ICheckInRepository {
 
 class CheckInRepository implements ICheckInRepository {
   const CheckInRepository({CheckInService? service})
-      : _service = service ?? const CheckInService();
+    : _service = service ?? const CheckInService();
 
   final CheckInService _service;
 
   @override
   Future<Map<String, dynamic>> previewClassPass(String enrollmentId) async {
     return _service.previewClassPass(enrollmentId);
-  }
-
-  @override
-  Future<Map<String, dynamic>> purchaseClassPass(String enrollmentId) async {
-    return _service.purchaseClassPass(enrollmentId);
   }
 
   @override

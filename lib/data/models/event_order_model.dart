@@ -11,10 +11,11 @@ class EventOrderModel {
   final double totalAmount;
   final String currency;
 
-  factory EventOrderModel.fromJson(Map<String, dynamic> json) => EventOrderModel(
+  factory EventOrderModel.fromJson(Map<String, dynamic> json) =>
+      EventOrderModel(
         orderId: json['order_id'] as String,
-        orderNumber: json['order_number'] as String,
-        totalAmount: (json['total_amount'] as num).toDouble(),
-        currency: json['currency'] as String,
+        orderNumber: json['order_number'] as String? ?? '',
+        totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+        currency: json['currency'] as String? ?? 'BOB',
       );
 }
