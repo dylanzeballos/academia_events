@@ -28,6 +28,7 @@ import '../utils/vip_attendance_exporter.dart';
 import '../widgets/organization_share_section.dart';
 import 'organization_members_view.dart';
 import 'organization_membership_view.dart';
+import 'organization_payments_view.dart';
 
 class OrganizationDetailView extends ConsumerStatefulWidget {
   const OrganizationDetailView({super.key, this.organizationId});
@@ -39,15 +40,14 @@ class OrganizationDetailView extends ConsumerStatefulWidget {
       _OrganizationDetailViewState();
 }
 
-class _OrganizationDetailViewState
-    extends ConsumerState<OrganizationDetailView>
+class _OrganizationDetailViewState extends ConsumerState<OrganizationDetailView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabCtrl;
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
     final id = widget.organizationId;
     if (id != null && id.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -98,7 +98,10 @@ class _OrganizationDetailViewState
       return Scaffold(
         backgroundColor: context.scaffoldBg,
         body: Center(
-          child: Text('Sin organización', style: TextStyle(color: context.textMuted)),
+          child: Text(
+            'Sin organización',
+            style: TextStyle(color: context.textMuted),
+          ),
         ),
       );
     }
@@ -108,15 +111,16 @@ class _OrganizationDetailViewState
 
     return orgAsync.when(
       loading: () => const Scaffold(body: LoadingIndicator()),
-      error: (e, _) => Scaffold(
-        body: AppErrorState(message: friendlyError(e)),
-      ),
+      error: (e, _) => Scaffold(body: AppErrorState(message: friendlyError(e))),
       data: (org) {
         if (org == null) {
           return Scaffold(
             backgroundColor: context.scaffoldBg,
             body: Center(
-              child: Text('Organización no encontrada', style: TextStyle(color: context.textMuted)),
+              child: Text(
+                'Organización no encontrada',
+                style: TextStyle(color: context.textMuted),
+              ),
             ),
           );
         }
@@ -126,7 +130,13 @@ class _OrganizationDetailViewState
           appBar: AppBar(
             backgroundColor: context.cardBg,
             elevation: 0,
-            title: Text(org.name, style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
+            title: Text(
+              org.name,
+              style: TextStyle(
+                color: context.textOnBg,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             actions: [
               IconButton(
                 tooltip: 'Informe VIP mensual',
@@ -136,6 +146,8 @@ class _OrganizationDetailViewState
             ],
             bottom: TabBar(
               controller: _tabCtrl,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               indicatorColor: AppColors.primary,
               labelColor: AppColors.primary,
               unselectedLabelColor: context.textMuted,
@@ -143,6 +155,7 @@ class _OrganizationDetailViewState
                 Tab(text: 'INFO'),
                 Tab(text: 'MIEMBROS'),
                 Tab(text: 'MEMBRESÍA'),
+                Tab(text: 'COBROS'),
               ],
             ),
           ),
@@ -152,6 +165,7 @@ class _OrganizationDetailViewState
               _InfoTab(organization: org, isAdmin: isAdmin),
               const OrganizationMembersView(),
               OrganizationMembershipView(organizationId: org.id),
+              OrganizationPaymentsView(organizationId: org.id),
             ],
           ),
         );
@@ -192,15 +206,14 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.organization.name);
-    _legalNameCtrl =
-        TextEditingController(text: widget.organization.legalName);
+    _legalNameCtrl = TextEditingController(text: widget.organization.legalName);
     _descCtrl = TextEditingController(text: widget.organization.description);
     _emailCtrl = TextEditingController(text: widget.organization.email);
     _phoneCtrl = TextEditingController(text: widget.organization.phoneNumber);
-    _websiteCtrl =
-        TextEditingController(text: widget.organization.websiteUrl);
-    _locationNameCtrl =
-        TextEditingController(text: widget.organization.locationName);
+    _websiteCtrl = TextEditingController(text: widget.organization.websiteUrl);
+    _locationNameCtrl = TextEditingController(
+      text: widget.organization.locationName,
+    );
     _addressCtrl = TextEditingController(text: widget.organization.address);
     if (widget.organization.latitude != null &&
         widget.organization.longitude != null) {
@@ -218,9 +231,11 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
           .read(organizationRepositoryProvider)
           .fetchOrganizationDanceCategoryIds(widget.organization.id);
       if (!mounted) return;
-      setState(() => _selectedDanceIds
-        ..clear()
-        ..addAll(ids));
+      setState(
+        () => _selectedDanceIds
+          ..clear()
+          ..addAll(ids),
+      );
     } catch (_) {}
   }
 
@@ -246,12 +261,13 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
         'legal_name': _legalNameCtrl.text.trim().isEmpty
             ? null
             : _legalNameCtrl.text.trim(),
-        'description':
-            _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-        'email':
-            _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-        'phone_number':
-            _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        'description': _descCtrl.text.trim().isEmpty
+            ? null
+            : _descCtrl.text.trim(),
+        'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        'phone_number': _phoneCtrl.text.trim().isEmpty
+            ? null
+            : _phoneCtrl.text.trim(),
         'website_url': _websiteCtrl.text.trim().isEmpty
             ? null
             : _websiteCtrl.text.trim(),
@@ -385,8 +401,14 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: context.cardBg,
-        title: Text('Eliminar imagen', style: TextStyle(color: context.textOnBg)),
-        content: Text('Esta imagen se eliminará de la galería.', style: TextStyle(color: context.textMuted)),
+        title: Text(
+          'Eliminar imagen',
+          style: TextStyle(color: context.textOnBg),
+        ),
+        content: Text(
+          'Esta imagen se eliminará de la galería.',
+          style: TextStyle(color: context.textMuted),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -406,7 +428,9 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
     if (shouldDelete != true) return;
 
     try {
-      await ref.read(organizationRepositoryProvider).deleteOrganizationImage(image);
+      await ref
+          .read(organizationRepositoryProvider)
+          .deleteOrganizationImage(image);
       ref.invalidate(organizationImagesProvider(widget.organization.id));
     } catch (_) {
       if (mounted) {
@@ -431,9 +455,9 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
     final selectedStyleNames = danceCategories == null
         ? ''
         : danceCategories
-            .where((c) => _selectedDanceIds.contains(c.id))
-            .map((c) => c.name)
-            .join(', ');
+              .where((c) => _selectedDanceIds.contains(c.id))
+              .map((c) => c.name)
+              .join(', ');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -451,33 +475,41 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                 border: Border.all(color: context.divider),
                 image: _coverBytes != null
                     ? DecorationImage(
-                        image: MemoryImage(_coverBytes!), fit: BoxFit.cover)
+                        image: MemoryImage(_coverBytes!),
+                        fit: BoxFit.cover,
+                      )
                     : resolvedCover != null
-                        ? DecorationImage(
-                            image: NetworkImage(resolvedCover),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
+                    ? DecorationImage(
+                        image: NetworkImage(resolvedCover),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
               child: (_coverBytes == null && resolvedCover == null)
                   ? const Center(
-                      child: Icon(Icons.panorama_outlined,
-                          size: 44, color: AppColors.primary),
+                      child: Icon(
+                        Icons.panorama_outlined,
+                        size: 44,
+                        color: AppColors.primary,
+                      ),
                     )
                   : _editing
-                      ? const Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: EdgeInsets.all(10),
-                            child: CircleAvatar(
-                              radius: 17,
-                              backgroundColor: AppColors.primary,
-                              child: Icon(Icons.edit,
-                                  size: 17, color: AppColors.onPrimary),
-                            ),
+                  ? const Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: EdgeInsets.all(10),
+                        child: CircleAvatar(
+                          radius: 17,
+                          backgroundColor: AppColors.primary,
+                          child: Icon(
+                            Icons.edit,
+                            size: 17,
+                            color: AppColors.onPrimary,
                           ),
-                        )
-                      : null,
+                        ),
+                      ),
+                    )
+                  : null,
             ),
           ),
           const SizedBox(height: 20),
@@ -493,11 +525,13 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                     backgroundImage: _logoBytes != null
                         ? MemoryImage(_logoBytes!)
                         : resolvedLogo != null
-                            ? NetworkImage(resolvedLogo)
-                            : null,
+                        ? NetworkImage(resolvedLogo)
+                        : null,
                     child: (_logoBytes == null && resolvedLogo == null)
                         ? Text(
-                            org.name.isNotEmpty ? org.name[0].toUpperCase() : '?',
+                            org.name.isNotEmpty
+                                ? org.name[0].toUpperCase()
+                                : '?',
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontSize: 32,
@@ -549,7 +583,9 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
           galleryAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
             ),
             error: (error, _) => Text(
               'No se pudo cargar la galería: $error',
@@ -568,11 +604,11 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      childAspectRatio: 1,
-                    ),
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1,
+                        ),
                     itemCount: images.length,
                     itemBuilder: (context, index) => _GalleryImageTile(
                       image: images[index],
@@ -691,7 +727,11 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
             const SizedBox(height: 12),
             Text(
               'Ubicación',
-              style: TextStyle(color: context.textMuted, fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: context.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 4),
             const GeographicLocationPicker(),
@@ -734,7 +774,12 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
             danceCategoriesAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
               error: (_, _) => Text(
                 'No se pudieron cargar los estilos.',
@@ -774,14 +819,16 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.textOnBg,
                 side: BorderSide(color: context.divider),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMedium)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                ),
               ),
               icon: const Icon(Icons.map_outlined),
               label: Text(
                 _selectedLatLng == null
                     ? 'Seleccionar ubicación en el mapa'
                     : 'Cambiar ubicación (${_selectedLatLng!.latitude.toStringAsFixed(5)}, '
-                        '${_selectedLatLng!.longitude.toStringAsFixed(5)})',
+                          '${_selectedLatLng!.longitude.toStringAsFixed(5)})',
               ),
             ),
             const SizedBox(height: 24),
@@ -831,10 +878,7 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
               _InfoRow(label: 'Teléfono', value: org.phoneNumber!),
             if (org.websiteUrl != null && org.websiteUrl!.isNotEmpty)
               _InfoRow(label: 'Website', value: org.websiteUrl!),
-            _InfoRow(
-              label: 'Verificada',
-              value: org.isVerified ? 'Sí' : 'No',
-            ),
+            _InfoRow(label: 'Verificada', value: org.isVerified ? 'Sí' : 'No'),
             _InfoRow(
               label: 'Estado',
               value: org.isActive ? 'Activa' : 'Inactiva',
@@ -875,10 +919,7 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(color: context.textOnBg, fontSize: 15),
-          ),
+          Text(value, style: TextStyle(color: context.textOnBg, fontSize: 15)),
         ],
       ),
     );
@@ -912,13 +953,21 @@ class _GalleryImageTile extends ConsumerWidget {
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => Container(
                 color: context.divider.withValues(alpha: 0.3),
-                child: Icon(Icons.broken_image_outlined, color: context.textMuted),
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: context.textMuted,
+                ),
               ),
             )
           else
             Container(
               color: context.divider.withValues(alpha: 0.3),
-              child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              ),
             ),
           if (canDelete)
             Positioned(
@@ -935,8 +984,11 @@ class _GalleryImageTile extends ConsumerWidget {
                   padding: EdgeInsets.zero,
                   tooltip: 'Eliminar imagen',
                   onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline,
-                      color: Colors.white, size: 18),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
               ),
             ),

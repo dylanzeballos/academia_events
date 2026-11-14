@@ -7,7 +7,10 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_enrollment_model.dart';
+import '../../../data/services/pagosya_service.dart';
 import '../../../providers/checkin_provider.dart';
+import '../../../shared/widgets/app_feedback.dart';
+import '../../tickets/views/pagosya_checkout_screen.dart';
 
 class ClassPassPurchaseSheet extends ConsumerStatefulWidget {
   const ClassPassPurchaseSheet({super.key, required this.enrollment});
@@ -19,14 +22,46 @@ class ClassPassPurchaseSheet extends ConsumerStatefulWidget {
       _ClassPassPurchaseSheetState();
 }
 
-class _ClassPassPurchaseSheetState extends ConsumerState<ClassPassPurchaseSheet> {
-  bool _started = false;
+class _ClassPassPurchaseSheetState
+    extends ConsumerState<ClassPassPurchaseSheet> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _pay() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    try {
+      final checkout = await const PagosyaService().createCheckout(
+        kind: 'class_pass',
+        referenceId: widget.enrollment.id,
+      );
+
+      if (!mounted) return;
+
+      final paid = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => PagosyaCheckoutScreen(checkout: checkout),
+        ),
+      );
+
+      if (paid == true) {
+        ref.invalidate(myClassPassesProvider);
+        ref.invalidate(myClassTicketsProvider);
+        ref.invalidate(classPassQuoteProvider(widget.enrollment.id));
+        if (mounted) Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final purchaseAsync =
-        _started ? ref.watch(purchaseClassPassProvider(widget.enrollment.id)) : null;
-
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -47,59 +82,45 @@ class _ClassPassPurchaseSheetState extends ConsumerState<ClassPassPurchaseSheet>
               const SizedBox(height: 20),
               _Summary(enrollment: widget.enrollment),
               const SizedBox(height: 20),
-              if (purchaseAsync == null)
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                    ),
-                  ),
-                  onPressed: () {
-                    setState(() => _started = true);
-                    ref.invalidate(purchaseClassPassProvider(widget.enrollment.id));
-                  },
-                  icon: const Icon(Icons.payment),
-                  label: const Text(
-                    'Confirmar pago (simulado)',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                )
-              else
-                purchaseAsync.when(
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                  error: (e, _) => _ErrorPanel(
-                    message: e.toString(),
-                    onRetry: () {
-                      ref.invalidate(purchaseClassPassProvider(widget.enrollment.id));
-                    },
-                    onClose: () {
-                      setState(() => _started = false);
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  data: (result) {
-                    final success = result['success'] == true;
-                    if (!success) {
-                      return _ErrorPanel(
-                        message: (result['reason'] as String?) ??
-                            'No se pudo comprar el pase.',
-                        onRetry: null,
-                        onClose: () => Navigator.of(context).pop(),
-                      );
-                    }
-                    ref.invalidate(myClassPassesProvider);
-                    ref.invalidate(myClassTicketsProvider);
-                    return _SuccessPanel(
-                      result: result,
-                      onDone: () => Navigator.of(context).pop(),
-                    );
-                  },
+              if (_error != null) ...[
+                _ErrorPanel(
+                  message: _error!,
+                  onRetry: null,
+                  onClose: () => setState(() => _error = null),
                 ),
+                const SizedBox(height: 12),
+              ],
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  ),
+                ),
+                onPressed: _busy ? null : _pay,
+                icon: _busy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.qr_code_2),
+                label: Text(
+                  _busy ? 'Generando cobro...' : 'Pagar con QR',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Se abrirá el QR de pago. El pase se activa automáticamente al confirmarse.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.textMuted, fontSize: 12),
+              ),
             ],
           ),
         ),
@@ -134,7 +155,9 @@ class _Summary extends ConsumerWidget {
       child: quoteAsync.when(
         loading: () => const Padding(
           padding: EdgeInsets.symmetric(vertical: 24),
-          child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
         ),
         error: (_, _) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 24),
@@ -183,10 +206,16 @@ class _Summary extends ConsumerWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.event_available, size: 16, color: context.textMuted),
+                  Icon(
+                    Icons.event_available,
+                    size: 16,
+                    color: context.textMuted,
+                  ),
                   const SizedBox(width: 6),
                   Text(
-                    count == 1 ? '1 sesión programada' : '$count sesiones programadas',
+                    count == 1
+                        ? '1 sesión programada'
+                        : '$count sesiones programadas',
                     style: TextStyle(color: context.textMuted, fontSize: 13),
                   ),
                 ],
@@ -195,7 +224,11 @@ class _Summary extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.flag_outlined, size: 16, color: context.textMuted),
+                    Icon(
+                      Icons.flag_outlined,
+                      size: 16,
+                      color: context.textMuted,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Última sesión: ${DateFormat('d MMM yyyy', 'es').format(lastDate)}',
@@ -207,7 +240,11 @@ class _Summary extends ConsumerWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(Icons.payments_outlined, size: 16, color: context.textMuted),
+                  Icon(
+                    Icons.payments_outlined,
+                    size: 16,
+                    color: context.textMuted,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '${_formatAmount(price, currency)} por sesión',
@@ -217,7 +254,10 @@ class _Summary extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
@@ -253,77 +293,6 @@ class _Summary extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
-}
-
-class _SuccessPanel extends StatelessWidget {
-  const _SuccessPanel({required this.result, required this.onDone});
-
-  final Map<String, dynamic> result;
-  final VoidCallback onDone;
-
-  @override
-  Widget build(BuildContext context) {
-    final generated = result['tickets_generated'] as int? ?? 0;
-    final endsAt = result['ends_at'] != null
-        ? DateTime.tryParse(result['ends_at'] as String)
-        : null;
-    final total = (result['total_amount'] as num?) ?? 0;
-    final currency = (result['currency'] as String?) ?? 'BOB';
-    final symbol = currency.trim().toUpperCase() == 'BOB' ? 'Bs. ' : '';
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.check_circle, color: AppColors.success, size: 56),
-        const SizedBox(height: 12),
-        Text(
-          'Pase activado',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: context.textOnBg,
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          generated == 1
-              ? 'Se generó 1 ticket de sesión.'
-              : 'Se generaron $generated tickets de sesión.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: context.textMuted, fontSize: 14),
-        ),
-        if (total > 0) ...[
-          const SizedBox(height: 4),
-          Text(
-            'Total pagado: $symbol${total.toStringAsFixed(2)}.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.textMuted, fontSize: 13),
-          ),
-        ],
-        if (endsAt != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            'Última sesión incluida: ${DateFormat('d MMM yyyy', 'es').format(endsAt.toLocal())}.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.textMuted, fontSize: 13),
-          ),
-        ],
-        const SizedBox(height: 20),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: AppColors.onPrimary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-            ),
-          ),
-          onPressed: onDone,
-          child: const Text('Listo'),
-        ),
-      ],
     );
   }
 }

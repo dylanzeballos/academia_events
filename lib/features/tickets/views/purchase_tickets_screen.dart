@@ -5,11 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/seat_model.dart';
 import '../../../data/models/ticket_type_model.dart';
-import '../../../data/services/events_service.dart';
-import '../../../providers/events_provider.dart';
 import '../../../providers/ticket_provider.dart';
 import '../../../shared/widgets/app_feedback.dart';
-import 'ticket_qr_screen.dart';
+import 'pagosya_checkout_screen.dart';
 
 class PurchaseTicketsScreen extends ConsumerStatefulWidget {
   const PurchaseTicketsScreen({
@@ -39,8 +37,9 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
   void initState() {
     super.initState();
     _selectedSeats = List.from(widget.preselectedSeats);
-    final initialQuantity =
-        _selectedSeats.isNotEmpty ? _selectedSeats.length : 1;
+    final initialQuantity = _selectedSeats.isNotEmpty
+        ? _selectedSeats.length
+        : 1;
     _quantity = initialQuantity;
     _syncNameControllers(initialQuantity);
   }
@@ -97,26 +96,28 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
     setState(() => _isBuying = true);
     try {
       final repo = ref.read(ticketRepositoryProvider);
-      final result = await repo.purchaseEventTickets(
+
+      // 1. Orden pendiente (todavía NO se acredita el pago).
+      final order = await repo.createEventOrder(
         ticketTypeId: selected.id,
         quantity: _quantity,
         attendeeNames: attendeeNames,
       );
 
-      // Confirmar butacas si el evento es de teatro
-      if (_selectedSeats.isNotEmpty) {
-        final seatIds = _selectedSeats.map((s) => s.id).toList();
-        await const EventsService().confirmSeatPurchase(
-          orderId: result.orderId,
-          seatIds: seatIds,
-        );
-      }
+      // 2. Checkout en PagosYa (la clave spk_ vive en el backend).
+      final seatIds = _selectedSeats.map((s) => s.id).toList();
+      final checkout = await repo.createPagosyaCheckout(
+        orderId: order.orderId,
+        seatIds: seatIds,
+      );
 
       if (!mounted) return;
       ref.invalidate(eventTicketTypesProvider(widget.eventId));
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => TicketQrScreen(result: result)),
+        MaterialPageRoute(
+          builder: (_) => PagosyaCheckoutScreen(checkout: checkout),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -128,8 +129,9 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ticketTypesAsync =
-        ref.watch(eventTicketTypesProvider(widget.eventId));
+    final ticketTypesAsync = ref.watch(
+      eventTicketTypesProvider(widget.eventId),
+    );
     final bool hasTheatreSeats = _selectedSeats.isNotEmpty;
 
     return Scaffold(
@@ -147,8 +149,9 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
 
           // Determinar automáticamente la tarifa activa por fecha
           if (_selected == null) {
-            final activePhases =
-                types.where((t) => t.isCurrentlyAvailable).toList();
+            final activePhases = types
+                .where((t) => t.isCurrentlyAvailable)
+                .toList();
             if (activePhases.isNotEmpty) {
               _selected = activePhases.first;
             } else {
@@ -284,8 +287,8 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                                 color: _selected?.id == type.id
                                     ? AppColors.primary
                                     : (type.isCurrentlyAvailable
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade300),
+                                          ? Colors.grey.shade400
+                                          : Colors.grey.shade300),
                                 width: _selected?.id == type.id ? 2 : 1,
                               ),
                             ),
@@ -313,17 +316,18 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   if (type.isCurrentlyAvailable &&
-                                      type.name
-                                          .toLowerCase()
-                                          .contains('preventa'))
+                                      type.name.toLowerCase().contains(
+                                        'preventa',
+                                      ))
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.success
-                                            .withValues(alpha: 0.15),
+                                        color: AppColors.success.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: const Text(
@@ -352,10 +356,10 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                                 type.isExpired
                                     ? 'Etapa Finalizada'
                                     : (type.isUpcoming
-                                        ? 'Próximamente disponible'
-                                        : (type.salesEndAt != null
-                                            ? 'Válido hasta ${type.salesEndAt!.day}/${type.salesEndAt!.month} - ${type.available} disponibles'
-                                            : '${type.available} disponibles')),
+                                          ? 'Próximamente disponible'
+                                          : (type.salesEndAt != null
+                                                ? 'Válido hasta ${type.salesEndAt!.day}/${type.salesEndAt!.month} - ${type.available} disponibles'
+                                                : '${type.available} disponibles')),
                                 style: TextStyle(
                                   color: type.isExpired
                                       ? AppColors.error
@@ -453,8 +457,8 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                   ...List.generate(_quantity, (index) {
                     final seatLabel =
                         hasTheatreSeats && _selectedSeats.length > index
-                            ? ' [${_selectedSeats[index].displayName}]'
-                            : '';
+                        ? ' [${_selectedSeats[index].displayName}]'
+                        : '';
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: TextFormField(
@@ -518,7 +522,8 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                   const SizedBox(height: 24),
 
                   ElevatedButton(
-                    onPressed: ((_selected?.isCurrentlyAvailable ?? false) ||
+                    onPressed:
+                        ((_selected?.isCurrentlyAvailable ?? false) ||
                                 hasTheatreSeats) &&
                             !_isBuying
                         ? _confirmPurchase

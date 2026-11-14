@@ -6,6 +6,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/display_labels.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/services/membership_service.dart';
+import '../../../data/services/pagosya_service.dart';
+import '../../tickets/views/pagosya_checkout_screen.dart';
 
 class OrganizationMembershipView extends StatefulWidget {
   const OrganizationMembershipView({super.key, required this.organizationId});
@@ -166,7 +168,9 @@ class _OrganizationMembershipViewState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Importe: ${plan['price']} ${plan['currency']}. La pasarela aún no está conectada; el pago quedará pendiente de verificación manual.',
+              'Importe: ${plan['price']} ${plan['currency']}. Al continuar se '
+              'genera un QR de pago; la membresía se activa automáticamente al '
+              'confirmarse.',
               style: TextStyle(color: context.textMuted, fontSize: 13),
             ),
             const SizedBox(height: 12),
@@ -202,23 +206,40 @@ class _OrganizationMembershipViewState
     }
     setState(() => _busy = true);
     try {
-      await _service.request(
+      final request = await _service.request(
         organizationId: widget.organizationId,
         planId: plan['id'].toString(),
         paymentNote: note.text.trim(),
       );
+
+      final subscriptionId = request['subscription_id']?.toString();
+      if (subscriptionId == null || subscriptionId.isEmpty) {
+        throw Exception('No se pudo registrar la solicitud de membresía');
+      }
+
+      final checkout = await const PagosyaService().createCheckout(
+        kind: 'membership',
+        referenceId: subscriptionId,
+      );
+
+      if (!mounted) return;
+
+      final paid = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => PagosyaCheckoutScreen(checkout: checkout),
+        ),
+      );
+
       await _reload();
-      if (mounted) {
+      if (mounted && paid == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              'Solicitud registrada. La membresía quedará activa cuando administración verifique el pago.',
-            ),
+            content: const Text('Membresía activada correctamente.'),
             backgroundColor: context.cardBg,
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
