@@ -9,6 +9,7 @@ enum AdminSection {
   classes('Clases', 'dance_classes'),
   memberships('Membresías', 'subscriptions'),
   payments('Pagos', 'payments'),
+  pagosya('PagosYa', ''),
   publicationPayments('Pagos de publicación', 'event_publication_payments'),
   classPublicationPayments('Publicación de clases', 'dance_class_publication_payments'),
   sales('Ventas', 'orders'),
