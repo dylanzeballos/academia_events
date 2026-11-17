@@ -40,6 +40,8 @@ class ClassEnrollmentService {
   // ─── Consultas de inscripciones del usuario ──────
 
   Future<List<Map<String, dynamic>>> fetchMyEnrollments() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return [];
     try {
       return await supabase
           .from('class_enrollments')
@@ -48,6 +50,7 @@ class ClassEnrollmentService {
             enrolled_at, cancelled_at, created_at, updated_at,
             dance_classes(id, title, cover_image_url, organizations(id, name))
           ''')
+          .eq('user_id', userId)
           .order('enrolled_at', ascending: false);
     } catch (e) {
       return [];
