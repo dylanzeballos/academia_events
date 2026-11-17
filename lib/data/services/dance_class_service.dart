@@ -447,6 +447,12 @@ class DanceClassService {
 
   String _friendlyError(String message) {
     final msg = message.toLowerCase();
+    if (msg.contains('membresía') || msg.contains('membresia')) {
+      return 'Se requiere una membresía activa para crear clases.';
+    }
+    if (msg.contains('pago de publicación')) {
+      return 'Se requiere el pago de publicación para publicar la clase.';
+    }
     if (msg.contains('permission denied') || msg.contains('row-level security')) {
       return 'No tienes permiso para realizar esta acción.';
     }

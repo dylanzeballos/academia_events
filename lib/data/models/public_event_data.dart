@@ -226,6 +226,7 @@ class OrganizationWithEventCount {
     this.municipalityId,
     this.cityId,
     this.eventCount = 0,
+    this.hasMembership = false,
   });
 
   final String id;
@@ -241,6 +242,9 @@ class OrganizationWithEventCount {
   final String? cityId;
   final int eventCount;
 
+  /// Membresía activa vigente: habilita el carrusel del calendario.
+  final bool hasMembership;
+
   OrganizationWithEventCount copyWith({
     String? id,
     String? name,
@@ -254,6 +258,7 @@ class OrganizationWithEventCount {
     String? municipalityId,
     String? cityId,
     int? eventCount,
+    bool? hasMembership,
   }) {
     return OrganizationWithEventCount(
       id: id ?? this.id,
@@ -268,6 +273,7 @@ class OrganizationWithEventCount {
       municipalityId: municipalityId ?? this.municipalityId,
       cityId: cityId ?? this.cityId,
       eventCount: eventCount ?? this.eventCount,
+      hasMembership: hasMembership ?? this.hasMembership,
     );
   }
 }

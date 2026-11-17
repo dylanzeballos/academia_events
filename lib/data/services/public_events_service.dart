@@ -297,6 +297,21 @@ class PublicEventsService {
 
     final data = (response as List).cast<Map<String, dynamic>>();
 
+    // El carrusel es un beneficio de membresía: solo se muestran organizaciones
+    // con una suscripción activa vigente. Si la consulta falla, no se oculta
+    // ninguna para no romper el calendario.
+    Set<String> membershipOrgIds = <String>{};
+    try {
+      final membership = await supabase.rpc(
+        'organizations_with_active_membership',
+      );
+      membershipOrgIds = (membership as List)
+          .map((id) => id.toString())
+          .toSet();
+    } catch (_) {
+      membershipOrgIds = data.map((row) => row['id'] as String).toSet();
+    }
+
     final orgMap = <String, OrganizationWithEventCount>{};
     for (final row in data) {
       final orgId = row['id'] as String;
@@ -370,6 +385,7 @@ class PublicEventsService {
           provinceId: row['province_id'] as String?,
           municipalityId: row['municipality_id'] as String?,
           eventCount: publishedEventCount,
+          hasMembership: membershipOrgIds.contains(orgId),
         );
       }
     }

@@ -225,6 +225,8 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
                   .toList();
 
         final visibleOrgs = searchedOrgs.where((organization) {
+          // El carrusel del calendario es el beneficio de membresía.
+          if (!organization.hasMembership) return false;
           if (filter.organizationId != null &&
               organization.id != filter.organizationId) {
             return false;

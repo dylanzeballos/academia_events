@@ -56,6 +56,17 @@ abstract final class AppFeedback {
 String friendlyError(Object error) {
   final text = error.toString().replaceFirst('Exception: ', '');
   final lower = text.toLowerCase();
+  if (lower.contains('membresía') ||
+      lower.contains('membresia') ||
+      lower.contains('pago de publicación')) {
+    return text;
+  }
+  if (lower.contains('cuenta de cobros') ||
+      lower.contains('cobros qr') ||
+      lower.contains('banco del comercio') ||
+      lower.contains('pasarela de pagos no está configurada')) {
+    return text;
+  }
   if (lower.contains('permission') ||
       lower.contains('row-level security') ||
       lower.contains('not authorized') ||

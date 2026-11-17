@@ -6,6 +6,9 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
+import '../../../providers/membership_provider.dart';
+import '../../../providers/organization_provider.dart';
+import '../../organization/widgets/membership_required_notice.dart';
 
 class ClassCreateView extends ConsumerStatefulWidget {
   const ClassCreateView({super.key});
@@ -68,6 +71,11 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(createClassProvider);
+    final orgId = ref.watch(selectedOrganizationIdProvider);
+    final membership = orgId == null
+        ? null
+        : ref.watch(organizationMembershipProvider(orgId));
+    final canCreate = membership?.value == true;
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -86,6 +94,26 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (orgId == null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'No hay una academia seleccionada.',
+                    style: TextStyle(color: context.textMuted),
+                  ),
+                )
+              else if (membership?.isLoading == true)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: LinearProgressIndicator(),
+                )
+              else if (membership?.hasError == true)
+                MembershipRequiredNotice(
+                  organizationId: orgId,
+                  error: true,
+                )
+              else if (membership?.value == false)
+                MembershipRequiredNotice(organizationId: orgId),
               TextFormField(
                 controller: _titleController,
                 style: TextStyle(color: context.textOnBg),
@@ -303,10 +331,11 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                       borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                     ),
                   ),
-                  onPressed: state.isLoading
+                  onPressed: (state.isLoading || !canCreate)
                       ? null
                       : () async {
                           if (!_formKey.currentState!.validate()) return;
+                          final messenger = ScaffoldMessenger.of(context);
                           final ok = await ref.read(createClassProvider.notifier).createWithDays(
                                 title: _titleController.text.trim(),
                                 description: _descController.text.trim(),
@@ -316,7 +345,16 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                                 endTime: _formatTime(_endTime),
                                 selectedDays: _selectedDays,
                               );
-                          if (ok && context.mounted) Navigator.pop(context);
+                          if (ok && context.mounted) {
+                            Navigator.pop(context);
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Clase creada. La publicación se habilita al registrar el pago del QR.',
+                                ),
+                              ),
+                            );
+                          }
                         },
                   child: state.isLoading
                       ? const CircularProgressIndicator(color: AppColors.onPrimary)

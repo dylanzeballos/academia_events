@@ -15,8 +15,10 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../providers/events_provider.dart';
+import '../../../providers/membership_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/app_feedback.dart';
+import '../../organization/widgets/membership_required_notice.dart';
 import '../widgets/create/event_basic_info_form.dart';
 import '../widgets/create/event_location_form.dart';
 import '../widgets/create/event_pricing_phases_editor.dart';
@@ -284,11 +286,10 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'start_at': startAt.toIso8601String(),
         'end_at': endAt.toIso8601String(),
         'timezone': 'America/La_Paz',
-        'status': 'published',
-        'moderation_status': 'approved',
+        'status': 'draft',
+        'moderation_status': 'pending_approval',
         'visibility': 'public',
-        'requires_approval': false,
-        'published_at': DateTime.now().toIso8601String(),
+        'requires_approval': true,
         'capacity': parsedCapacity,
       };
 
@@ -339,7 +340,9 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         context.pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Evento creado y publicado correctamente'),
+            content: const Text(
+              'Evento creado. La publicación se habilita al registrar el pago del QR de publicación.',
+            ),
             backgroundColor: context.cardBg,
           ),
         );
@@ -365,6 +368,12 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
 
   @override
   Widget build(BuildContext context) {
+    final orgId = ref.watch(selectedOrganizationIdProvider);
+    final membership = orgId == null
+        ? null
+        : ref.watch(organizationMembershipProvider(orgId));
+    final canCreate = membership?.value == true;
+
     final eventStartDateTime = DateTime(
       _startDate.year,
       _startDate.month,
@@ -393,6 +402,26 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (orgId == null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'No hay una academia seleccionada.',
+                    style: TextStyle(color: context.textMuted),
+                  ),
+                )
+              else if (membership?.isLoading == true)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: LinearProgressIndicator(),
+                )
+              else if (membership?.hasError == true)
+                MembershipRequiredNotice(
+                  organizationId: orgId,
+                  error: true,
+                )
+              else if (membership?.value == false)
+                MembershipRequiredNotice(organizationId: orgId),
               ImagePickerBox(
                 label: 'Panfleto / Afiche del Evento',
                 icon: Icons.add_photo_alternate_outlined,
@@ -633,7 +662,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               const SizedBox(height: 28),
 
               ElevatedButton(
-                onPressed: _isLoading ? null : _submit,
+                onPressed: (_isLoading || !canCreate) ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.onPrimary,

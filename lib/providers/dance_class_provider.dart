@@ -192,7 +192,7 @@ class CreateClassNotifier extends Notifier<CreateClassState> {
         'price': price,
         'currency': 'BOB',
         'instructor_id': instructorId,
-        'status': 'published',
+        'status': 'draft',
       });
 
       // Inserción en tabla: dance_class_schedules
