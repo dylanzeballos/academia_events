@@ -4,12 +4,17 @@
 import {
   adminClient,
   errorResponse,
+  isPlatformAdmin,
+  isSandboxCheckoutId,
   json,
   pagosya,
   PagosyaError,
   requireOrgRole,
   requirePlatformAdmin,
   requireUser,
+  sandboxCheckout,
+  sandboxCheckoutId,
+  sandboxMode,
 } from "../_shared/pagosya.ts";
 
 type Body = {
@@ -31,15 +36,32 @@ type Body = {
 };
 
 const BANK_URL = "https://www.pagosya.com.bo/plataformas/componente";
+const CHECKOUT_TTL_MINUTES = 15;
+
+/** Vencimiento del checkout: el del proveedor si viene; si no, 15 minutos. */
+function checkoutExpiry(iso?: string | null): string {
+  return iso ?? new Date(Date.now() + CHECKOUT_TTL_MINUTES * 60_000).toISOString();
+}
 
 function checkoutUrls(result: Record<string, any>) {
+  const rawId =
+    result.checkout_id ?? result.id ?? result.checkout?.checkout_id ?? null;
+  const isSandbox =
+    result.sandbox === true || result.environment === "sandbox";
   return {
-    checkoutId:
-      result.checkout_id ?? result.id ?? result.checkout?.checkout_id ?? null,
+    checkoutId: rawId
+      ? (isSandbox ? sandboxCheckoutId(String(rawId)) : String(rawId))
+      : null,
     checkoutUrl:
       result.checkout_url ?? result.url ?? result.checkout?.url ?? null,
     qrDataUrl:
-      result.qr?.data_url ?? result.qr_data_url ?? result.checkout?.qr?.data_url ?? null,
+      result.qr?.data_url ??
+      result.qr_data_url ??
+      result.qr_image ??
+      result.checkout?.qr?.data_url ??
+      null,
+    expiresAt:
+      result.expires_at ?? result.checkout?.expires_at ?? result.expiresAt ?? null,
   };
 }
 
@@ -61,6 +83,7 @@ Deno.serve(async (req) => {
     // ---------------------------------------------------------------- checkout
     if (action === "create_checkout") {
       const kind = body.kind ?? "ticket";
+      const sandbox = sandboxMode();
       const referenceId = body.reference_id ?? body.order_id;
       if (!referenceId) throw new PagosyaError("REFERENCE_ID_REQUIRED", 400);
 
@@ -102,32 +125,38 @@ Deno.serve(async (req) => {
             currency: order.currency,
             order_number: order.order_number,
             reused: true,
+            sandbox: isSandboxCheckoutId(order.pagosya_checkout_id),
+            expires_at: checkoutExpiry(),
           });
         }
 
-        const affiliateId = await affiliateFor(admin, organizationId);
+        const affiliateId = sandbox ? "sandbox" : await affiliateFor(admin, organizationId);
         const { data: profile } = await admin
           .from("profiles")
           .select("first_name, last_name, phone_number")
           .eq("id", user.id)
           .maybeSingle();
 
-        const result = await pagosya("create_checkout", {
-          affiliate_id: affiliateId,
-          checkout: {
-            amount: Number(order.total_amount),
-            currency: order.currency,
-            order_id: order.id,
-            expiration_minutes: 15,
-            success_url: appUrl("/pago/confirmado"),
-            cancel_url: appUrl("/pago/cancelado"),
-            customer: {
-              name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Cliente",
-              email: user.email ?? undefined,
-              phone: profile?.phone_number ?? undefined,
-            },
+        const checkoutPayload = {
+          amount: Number(order.total_amount),
+          currency: order.currency,
+          order_id: order.id,
+          expiration_minutes: 15,
+          success_url: appUrl("/pago/confirmado"),
+          cancel_url: appUrl("/pago/cancelado"),
+          customer: {
+            name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Cliente",
+            email: user.email ?? undefined,
+            phone: profile?.phone_number ?? undefined,
           },
-        });
+        };
+
+        const result = sandbox
+          ? await sandboxCheckout(checkoutPayload)
+          : await pagosya("create_checkout", {
+              affiliate_id: affiliateId,
+              checkout: checkoutPayload,
+            });
 
         const urls = checkoutUrls(result);
         if (!urls.checkoutId) throw new PagosyaError("PAGOSYA_WITHOUT_CHECKOUT_ID", 502);
@@ -152,6 +181,8 @@ Deno.serve(async (req) => {
           total_amount: order.total_amount,
           currency: order.currency,
           order_number: order.order_number,
+          sandbox,
+          expires_at: checkoutExpiry(urls.expiresAt),
         });
       }
 
@@ -166,7 +197,9 @@ Deno.serve(async (req) => {
           throw new PagosyaError(quote?.reason ?? "CLASS_PASS_NOT_AVAILABLE", 409);
         }
 
-        const affiliateId = await affiliateFor(admin, quote.organization_id);
+        const affiliateId = sandbox
+          ? "sandbox"
+          : await affiliateFor(admin, quote.organization_id);
 
         return json(
           req,
@@ -201,14 +234,18 @@ Deno.serve(async (req) => {
           throw new PagosyaError("SUBSCRIPTION_NOT_PAYABLE", 409);
         }
 
-        const { data: config } = await admin
-          .from("payment_platform_config")
-          .select("affiliate_id")
-          .eq("id", true)
-          .maybeSingle();
+        let affiliateId = "sandbox";
+        if (!sandbox) {
+          const { data: config } = await admin
+            .from("payment_platform_config")
+            .select("affiliate_id")
+            .eq("id", true)
+            .maybeSingle();
 
-        if (!config?.affiliate_id) {
-          throw new PagosyaError("PLATFORM_MERCHANT_NOT_CONFIGURED", 409);
+          if (!config?.affiliate_id) {
+            throw new PagosyaError("PLATFORM_MERCHANT_NOT_CONFIGURED", 409);
+          }
+          affiliateId = config.affiliate_id;
         }
 
         const plan = (subscription as any).subscription_plans;
@@ -222,7 +259,7 @@ Deno.serve(async (req) => {
             referenceId,
             amount: Number(plan.price),
             currency: plan.currency,
-            affiliateId: config.affiliate_id,
+            affiliateId,
             metadata: { plan: plan.name, billing_interval: subscription.billing_interval },
           }),
         );
@@ -255,14 +292,18 @@ Deno.serve(async (req) => {
 
         if (alreadyPaid) throw new PagosyaError("PUBLICATION_ALREADY_PAID", 409);
 
-        const { data: config } = await admin
-          .from("payment_platform_config")
-          .select("affiliate_id")
-          .eq("id", true)
-          .maybeSingle();
+        let affiliateId = "sandbox";
+        if (!sandbox) {
+          const { data: config } = await admin
+            .from("payment_platform_config")
+            .select("affiliate_id")
+            .eq("id", true)
+            .maybeSingle();
 
-        if (!config?.affiliate_id) {
-          throw new PagosyaError("PLATFORM_MERCHANT_NOT_CONFIGURED", 409);
+          if (!config?.affiliate_id) {
+            throw new PagosyaError("PLATFORM_MERCHANT_NOT_CONFIGURED", 409);
+          }
+          affiliateId = config.affiliate_id;
         }
 
         return json(
@@ -274,7 +315,7 @@ Deno.serve(async (req) => {
             referenceId,
             amount,
             currency: "BOB",
-            affiliateId: config.affiliate_id,
+            affiliateId,
             metadata: { title: entity.title },
           }),
         );
@@ -299,6 +340,16 @@ Deno.serve(async (req) => {
         }
         if (intent.status === "paid") {
           return json(req, { intent_id: intent.id, status: "paid", paid: true });
+        }
+        if (isSandboxCheckoutId(intent.pagosya_checkout_id)) {
+          // El sandbox no confirma pagos ni envía webhooks: sigue pendiente.
+          return json(req, {
+            intent_id: intent.id,
+            provider_status: "sandbox",
+            status: intent.status,
+            paid: false,
+            sandbox: true,
+          });
         }
         if (!intent.pagosya_checkout_id) {
           throw new PagosyaError("CHECKOUT_NOT_CREATED", 409);
@@ -362,6 +413,16 @@ Deno.serve(async (req) => {
       if (order.status === "paid" || order.status === "completed") {
         return json(req, { order_id: order.id, status: order.status, paid: true });
       }
+      if (isSandboxCheckoutId(order.pagosya_checkout_id)) {
+        // El sandbox no confirma pagos ni envía webhooks: sigue pendiente.
+        return json(req, {
+          order_id: order.id,
+          provider_status: "sandbox",
+          status: order.status,
+          paid: false,
+          sandbox: true,
+        });
+      }
       if (!order.pagosya_checkout_id) {
         throw new PagosyaError("CHECKOUT_NOT_CREATED", 409);
       }
@@ -403,6 +464,119 @@ Deno.serve(async (req) => {
         provider_status: providerStatus || null,
         status: current?.status ?? order.status,
         paid: current?.status === "paid" || current?.status === "completed",
+      });
+    }
+
+    // ------------------------------------------- confirmación simulada sandbox
+    // Solo disponible con PAGOSYA_MODE=sandbox y para checkouts `sandbox:`.
+    // Sirve para probar tickets, butacas, pases, membresías y publicaciones
+    // sin un pago real. Reutiliza el mismo camino que el webhook.
+    if (action === "sandbox_confirm") {
+      if (!sandboxMode()) throw new PagosyaError("SANDBOX_DISABLED", 403);
+      if (!body.order_id && !body.intent_id) {
+        throw new PagosyaError("REFERENCE_ID_REQUIRED", 400);
+      }
+
+      const platformAdmin = await isPlatformAdmin(admin, user.id);
+
+      let checkoutId: string;
+      let amount: number;
+      let currency: string;
+      let reference: Record<string, string>;
+
+      if (body.intent_id) {
+        const { data: intent } = await admin
+          .from("payment_intents")
+          .select(
+            "id, user_id, kind, reference_id, amount, currency, status, pagosya_checkout_id",
+          )
+          .eq("id", body.intent_id)
+          .maybeSingle();
+
+        if (!intent) throw new PagosyaError("INTENT_NOT_FOUND", 404);
+        if (intent.user_id !== user.id && !platformAdmin) {
+          throw new PagosyaError("FORBIDDEN", 403);
+        }
+        if (!isSandboxCheckoutId(intent.pagosya_checkout_id)) {
+          throw new PagosyaError("NOT_A_SANDBOX_CHECKOUT", 409);
+        }
+        if (intent.status === "paid") {
+          return json(req, {
+            intent_id: intent.id,
+            status: "paid",
+            paid: true,
+            sandbox: true,
+            already_paid: true,
+          });
+        }
+        if (intent.status !== "pending") {
+          throw new PagosyaError("INTENT_NOT_PENDING", 409);
+        }
+
+        checkoutId = String(intent.pagosya_checkout_id);
+        amount = Number(intent.amount);
+        currency = intent.currency;
+        reference = { intent_id: intent.id, reference_id: intent.reference_id };
+      } else {
+        const { data: order } = await admin
+          .from("orders")
+          .select("id, user_id, status, total_amount, currency, pagosya_checkout_id")
+          .eq("id", body.order_id!)
+          .maybeSingle();
+
+        if (!order) throw new PagosyaError("ORDER_NOT_FOUND", 404);
+        if (order.user_id !== user.id && !platformAdmin) {
+          throw new PagosyaError("FORBIDDEN", 403);
+        }
+        if (!isSandboxCheckoutId(order.pagosya_checkout_id)) {
+          throw new PagosyaError("NOT_A_SANDBOX_CHECKOUT", 409);
+        }
+        if (order.status === "paid" || order.status === "completed") {
+          return json(req, {
+            order_id: order.id,
+            status: order.status,
+            paid: true,
+            sandbox: true,
+            already_paid: true,
+          });
+        }
+        if (order.status !== "pending") {
+          throw new PagosyaError("ORDER_NOT_PENDING", 409);
+        }
+
+        checkoutId = String(order.pagosya_checkout_id);
+        amount = Number(order.total_amount);
+        currency = order.currency;
+        reference = { order_id: order.id };
+      }
+
+      // Sin affiliate_id: en sandbox no existe la fila de comercio y la
+      // validación de afiliado se omite cuando el campo es null.
+      const { data: applied, error } = await admin.rpc("pagosya_ingest_event", {
+        p_event: {
+          id: `sandbox-confirm:${checkoutId}`,
+          event: "checkout.completed",
+          external_id: reference.order_id ?? reference.reference_id,
+          data: {
+            checkout_id: checkoutId,
+            payment_id: `sandbox-pay-${checkoutId.replace(/^sandbox:/, "")}`,
+            amount,
+            currency,
+          },
+        },
+      });
+
+      if (error) throw new PagosyaError("SANDBOX_CONFIRM_FAILED", 500);
+      if (applied && applied.ok === false) {
+        throw new PagosyaError("SANDBOX_CONFIRM_REJECTED", 409);
+      }
+
+      return json(req, {
+        ...reference,
+        status: "paid",
+        paid: true,
+        sandbox: true,
+        applied: applied ?? null,
       });
     }
 
@@ -640,7 +814,9 @@ async function startIntent(
 ) {
   const { data: existing } = await admin
     .from("payment_intents")
-    .select("id, checkout_url, qr_data_url, pagosya_checkout_id, amount, currency")
+    .select(
+      "id, checkout_url, qr_data_url, pagosya_checkout_id, amount, currency, expires_at",
+    )
     .eq("kind", params.kind)
     .eq("reference_id", params.referenceId)
     .eq("status", "pending")
@@ -657,23 +833,32 @@ async function startIntent(
       total_amount: existing.amount,
       currency: existing.currency,
       reused: true,
+      sandbox: isSandboxCheckoutId(existing.pagosya_checkout_id),
+      expires_at: checkoutExpiry(existing.expires_at),
     };
   }
 
-  const result = await pagosya("create_checkout", {
-    affiliate_id: params.affiliateId,
-    checkout: {
-      amount: params.amount,
-      currency: params.currency,
-      order_id: params.referenceId,
-      expiration_minutes: 15,
-      success_url: appUrl("/pago/confirmado"),
-      cancel_url: appUrl("/pago/cancelado"),
-    },
-  });
+  const checkoutPayload = {
+    amount: params.amount,
+    currency: params.currency,
+    order_id: params.referenceId,
+    expiration_minutes: 15,
+    success_url: appUrl("/pago/confirmado"),
+    cancel_url: appUrl("/pago/cancelado"),
+  };
+
+  const sandbox = sandboxMode();
+  const result = sandbox
+    ? await sandboxCheckout(checkoutPayload)
+    : await pagosya("create_checkout", {
+        affiliate_id: params.affiliateId,
+        checkout: checkoutPayload,
+      });
 
   const urls = checkoutUrls(result);
   if (!urls.checkoutId) throw new PagosyaError("PAGOSYA_WITHOUT_CHECKOUT_ID", 502);
+
+  const expiresAt = checkoutExpiry(urls.expiresAt);
 
   const { data: intent, error } = await admin
     .from("payment_intents")
@@ -689,7 +874,7 @@ async function startIntent(
       checkout_url: urls.checkoutUrl,
       qr_data_url: urls.qrDataUrl,
       metadata: params.metadata,
-      expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+      expires_at: expiresAt,
     })
     .select("id")
     .single();
@@ -705,5 +890,7 @@ async function startIntent(
     qr_data_url: urls.qrDataUrl,
     total_amount: params.amount,
     currency: params.currency,
+    sandbox,
+    expires_at: expiresAt,
   };
 }

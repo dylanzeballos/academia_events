@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/class_enrollment_model.dart';
 import '../../../data/services/pagosya_service.dart';
+import '../../../data/services/ticket_service.dart';
 import '../../../providers/checkin_provider.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../tickets/views/pagosya_checkout_screen.dart';
@@ -53,6 +54,9 @@ class _ClassPassPurchaseSheetState
         ref.invalidate(classPassQuoteProvider(widget.enrollment.id));
         if (mounted) Navigator.of(context).pop();
       }
+    } on TicketException catch (e) {
+      // Mensajes de negocio del backend (cobros QR no activados, banco, etc.).
+      if (mounted) setState(() => _error = e.message);
     } catch (e) {
       if (mounted) setState(() => _error = friendlyError(e));
     } finally {

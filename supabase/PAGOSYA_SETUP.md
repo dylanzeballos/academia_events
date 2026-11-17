@@ -56,6 +56,58 @@ supabase secrets set --env-file supabase/functions/.env
 | `PAGOSYA_ALLOWED_ORIGINS` | Orígenes de tu web separados por coma; `*` en desarrollo |
 | `APP_BASE_URL` | Base para `success_url` / `cancel_url` |
 
+## 1b. Modo sandbox (clave `sk_test_`)
+
+Sirve para probar **la pantalla del QR y el flujo de compra sin cobrar nada**.
+PagosYa entrega un QR ficticio; el sandbox **no** simula afiliación SaaS, banco,
+comisiones, webhook ni confirmación de pagos.
+
+```bash
+# Activar (los secretos surten efecto sin redeploy)
+supabase secrets set PAGOSYA_MODE=sandbox PAGOSYA_SANDBOX_KEY=sk_test_...
+
+# Volver a producción
+supabase secrets set PAGOSYA_MODE=live
+```
+
+En local, crear `supabase/functions/.env` con las mismas variables y levantar:
+
+```bash
+supabase functions serve pagosya-api --env-file supabase/functions/.env
+```
+
+Desplegar el cambio de código (una vez):
+
+```bash
+supabase functions deploy pagosya-api
+```
+
+Comportamiento con `PAGOSYA_MODE=sandbox`:
+
+| Acción | Resultado |
+|---|---|
+| `create_checkout` | Llama a `sandbox-create-checkout` y devuelve `sandbox: true` + `qr_data_url` |
+| `checkout_id` | Se guarda como `sandbox:<uuid>` para distinguirlo de los reales |
+| `refresh_checkout` | Devuelve `provider_status: "sandbox"`, `paid: false` (no llama a PagosYa) |
+| `expires_at` | Se devuelve en `create_checkout`; la app lo usa para la cuenta atrás |
+| `sandbox_confirm` | Confirma un checkout `sandbox:` sin pago real (dueño o admin de plataforma) |
+| Onboarding/banco | **No** es necesario para generar el QR de prueba |
+| Webhook | Nunca llega: la orden queda `pending` hasta usar `sandbox_confirm` |
+
+Notas:
+
+- `PAGOSYA_PLATFORM_KEY` (`spk_`) sigue siendo necesaria para el panel de admin
+  (`overview`, `webhook_*`, `merchant_*`); el sandbox solo reemplaza el cobro.
+- `sandbox_confirm` reutiliza `pagosya_ingest_event` (el mismo camino del
+  webhook), así que emite tickets, asigna butacas, activa pases/membresías y es
+  idempotente. Solo existe con `PAGOSYA_MODE=sandbox`; en `live` responde
+  `SANDBOX_DISABLED`.
+- La app muestra el botón **"Simular pago (sandbox)"** en la pantalla de pago.
+- Las órdenes e intents de prueba se limpian solos con
+  `pagosya_expire_stale_payments(30)`.
+- Para probar la firma del webhook real hace falta el flujo de producción con
+  Bs 0,10 o Bs 1.
+
 ## 2. Registrar el webhook en PagosYa
 
 ```bash
@@ -191,6 +243,20 @@ En **Administración → PagosYa** el admin de plataforma tiene:
 Sin `PAGOSYA_PLATFORM_KEY`, las tarjetas de plan y webhook muestran el error de
 configuración, pero el panel carga igual.
 
+## 4f. Reglas de membresía y publicación
+
+Migración: `20261116170000_membership_publication_rules.sql`.
+
+- **Crear** eventos o clases exige una suscripción `active` con período vigente
+  (`guard_event_membership`, `guard_class_membership`).
+- Los eventos y clases nuevos se crean en **`draft`**.
+- **Publicar** exige el pago de publicación (`event_publication_payments` /
+  `dance_class_publication_payments`); el admin de plataforma puede omitirlo.
+- El **pago de publicación no exige membresía**: una organización cuya
+  membresía venció puede publicar pagando el QR.
+- El **carrusel** del calendario principal solo muestra organizaciones con
+  membresía activa (`organizations_with_active_membership()`).
+
 ## 5. Reconciliación automática + limpieza (ya programada)
 
 El job `pagosya-reconcile` está activo con frecuencia `*/5 * * * *` (cada 5
@@ -225,6 +291,17 @@ Si cambiás `PAGOSYA_CRON_SECRET`, actualizá también el secreto de Vault
 `pagosya_cron_secret` con el mismo valor.
 
 ## 6. Probar
+
+Pruebas automáticas del sandbox (valida clave, contrato y QR ficticio):
+
+```bash
+node scripts/pagosya-sandbox-smoke.mjs
+```
+
+Genera evidencia en `docs/pagosya-pruebas/<fecha>/`. El plan completo de pruebas
+(sandbox en la app y homologación en producción) está en `docs/pagosya-pruebas.md`.
+
+Flujo en producción:
 
 1. `select * from organization_payment_accounts;` → debe existir el affiliate.
 2. Compra de prueba con un monto autorizado (Bs 0,10 o Bs 1).

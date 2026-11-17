@@ -11,6 +11,8 @@ class PagosyaCheckout {
     this.intentId,
     this.checkoutUrl,
     this.qrDataUrl,
+    this.sandbox = false,
+    this.expiresAt,
   });
 
   /// `ticket` | `class_pass` | `membership`
@@ -24,6 +26,13 @@ class PagosyaCheckout {
   final String currency;
   final String? checkoutUrl;
   final String? qrDataUrl;
+
+  /// `true` cuando el checkout se generó con la clave de prueba de PagosYa.
+  /// El QR es ficticio y no se confirma ningún pago.
+  final bool sandbox;
+
+  /// Vencimiento del cobro según el backend (hora local).
+  final DateTime? expiresAt;
 
   bool get hasQr => (qrDataUrl ?? '').isNotEmpty;
   bool get hasUrl => (checkoutUrl ?? '').isNotEmpty;
@@ -43,6 +52,10 @@ class PagosyaCheckout {
       currency: json['currency'] as String? ?? 'BOB',
       checkoutUrl: json['checkout_url'] as String?,
       qrDataUrl: json['qr_data_url'] as String?,
+      sandbox: json['sandbox'] == true,
+      expiresAt: DateTime.tryParse(
+        json['expires_at']?.toString() ?? '',
+      )?.toLocal(),
     );
   }
 }

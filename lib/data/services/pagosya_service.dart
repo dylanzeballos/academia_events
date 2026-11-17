@@ -57,6 +57,22 @@ class PagosyaService {
     return PagosyaCheckoutStatus.fromJson(data);
   }
 
+  /// Confirma un checkout de **sandbox** sin pago real.
+  ///
+  /// Solo funciona con `PAGOSYA_MODE=sandbox` y sobre checkouts de prueba.
+  /// Reutiliza el mismo camino que el webhook real (tickets, butacas, pases,
+  /// membresías y publicaciones).
+  Future<Map<String, dynamic>> sandboxConfirm({
+    String? orderId,
+    String? intentId,
+  }) async {
+    return _invoke({
+      'action': 'sandbox_confirm',
+      if (orderId != null) 'order_id': orderId,
+      if (intentId != null) 'intent_id': intentId,
+    });
+  }
+
   Future<EventPurchaseResult> fetchOrderTickets(String orderId) async {
     try {
       final result = await supabase.rpc(
@@ -168,9 +184,11 @@ class PagosyaService {
   String _translate(String code) {
     switch (code) {
       case 'ORGANIZATION_NOT_ONBOARDED':
-        return 'La organización todavía no tiene su cuenta de cobros configurada.';
+        return 'La organización todavía no activó los cobros QR. '
+            'Pedile a un administrador que configure la cuenta de cobros.';
       case 'BANK_INTEGRATION_REQUIRED':
-        return 'El banco del comercio aún no está conectado.';
+        return 'La organización ya inició los cobros QR, pero el banco '
+            'todavía no está conectado.';
       case 'ORDER_ALREADY_PAID':
         return 'Esta orden ya fue pagada.';
       case 'ORDER_NOT_PENDING':
@@ -181,6 +199,10 @@ class PagosyaService {
         return 'Todavía no se generó el cobro para esta operación.';
       case 'CLASS_PASS_NOT_AVAILABLE':
         return 'El pase de clase no está disponible.';
+      case 'QUOTE_FAILED':
+        return 'No se pudo calcular el pase. Revisá que la clase tenga sesiones programadas.';
+      case 'FORBIDDEN':
+        return 'No tenés acceso a esta operación.';
       case 'SUBSCRIPTION_NOT_FOUND':
         return 'No se encontró la membresía.';
       case 'SUBSCRIPTION_NOT_PAYABLE':
@@ -205,6 +227,18 @@ class PagosyaService {
         return 'Tu sesión expiró. Vuelve a iniciar sesión.';
       case 'PAGOSYA_NOT_CONFIGURED':
         return 'La pasarela de pagos no está configurada.';
+      case 'PAGOSYA_SANDBOX_NOT_CONFIGURED':
+        return 'El modo sandbox está activo pero falta la clave de prueba.';
+      case 'PAGOSYA_SANDBOX_KEY_INVALID':
+        return 'La clave de sandbox debe empezar con sk_test_.';
+      case 'SANDBOX_DISABLED':
+        return 'La confirmación simulada solo está disponible en modo sandbox.';
+      case 'NOT_A_SANDBOX_CHECKOUT':
+        return 'Este cobro no fue generado en sandbox.';
+      case 'SANDBOX_CONFIRM_FAILED':
+        return 'No se pudo simular el pago (error del servidor).';
+      case 'SANDBOX_CONFIRM_REJECTED':
+        return 'La confirmación simulada fue rechazada. Revisa los datos del pedido.';
       default:
         return 'No se pudo procesar el pago ($code).';
     }

@@ -31,33 +31,81 @@ class PagosyaCheckoutScreen extends ConsumerStatefulWidget {
 
 class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
   static const _pollInterval = Duration(seconds: 4);
-  static const _maxAttempts = 75; // ~5 minutos
+  static const _maxAttempts = 150; // ~10 minutos de sondeo silencioso
+  static const _fallbackTtl = Duration(minutes: 15);
 
-  Timer? _timer;
+  Timer? _pollTimer;
+  Timer? _countdownTimer;
+
+  late final Uint8List? _qrBytes;
+  late final DateTime _expiresAt;
+  Duration _remaining = Duration.zero;
+
   bool _checking = false;
+  bool _polling = false;
   bool _finishing = false;
+  bool _expired = false;
   int _attempts = 0;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(_pollInterval, (_) => _poll(silent: true));
+
+    // Decodificar el QR una sola vez evita que se "recargue" en cada rebuild.
+    _qrBytes = _decodeQr(widget.checkout.qrDataUrl);
+    _expiresAt =
+        widget.checkout.expiresAt ?? DateTime.now().add(_fallbackTtl);
+    _remaining = _expiresAt.difference(DateTime.now());
+
+    if (_remaining <= Duration.zero) {
+      _expired = true;
+      _remaining = Duration.zero;
+    } else {
+      _pollTimer = Timer.periodic(_pollInterval, (_) => _poll(silent: true));
+      _countdownTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _tickCountdown(),
+      );
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _pollTimer?.cancel();
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
+  void _tickCountdown() {
+    if (!mounted || _expired) return;
+
+    final left = _expiresAt.difference(DateTime.now());
+    if (left <= Duration.zero) {
+      _pollTimer?.cancel();
+      _countdownTimer?.cancel();
+      setState(() {
+        _expired = true;
+        _remaining = Duration.zero;
+      });
+      return;
+    }
+
+    if (left.inSeconds != _remaining.inSeconds) {
+      setState(() => _remaining = left);
+    }
+  }
+
   Future<void> _poll({required bool silent}) async {
-    if (!mounted || _checking || _finishing) return;
+    if (!mounted || _polling || _checking || _finishing || _expired) return;
     if (_attempts >= _maxAttempts) {
-      _timer?.cancel();
+      _pollTimer?.cancel();
       return;
     }
     _attempts++;
-    setState(() => _checking = true);
+    _polling = true;
+
+    // El sondeo silencioso no toca el estado visual: así el QR no parpadea.
+    if (!silent) setState(() => _checking = true);
 
     try {
       final status = await const PagosyaService().refreshCheckout(
@@ -70,7 +118,10 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
       } else if (!silent && mounted) {
         AppFeedback.info(
           context,
-          'Todavía no registramos el pago. Si ya pagaste, espera unos segundos.',
+          widget.checkout.sandbox
+              ? 'El sandbox no confirma pagos. Usá «Simular pago (sandbox)» '
+                    'para completar la prueba.'
+              : 'Todavía no registramos el pago. Si ya pagaste, espera unos segundos.',
         );
       }
     } catch (e) {
@@ -78,10 +129,9 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
         AppFeedback.error(context, friendlyError(e));
       }
     } finally {
-      if (mounted) {
+      _polling = false;
+      if (!silent && mounted) {
         setState(() => _checking = false);
-      } else {
-        _checking = false;
       }
     }
   }
@@ -89,7 +139,8 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
   Future<void> _finish() async {
     if (_finishing) return;
     _finishing = true;
-    _timer?.cancel();
+    _pollTimer?.cancel();
+    _countdownTimer?.cancel();
 
     try {
       if (!widget.checkout.isTicket) {
@@ -127,8 +178,61 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
     }
   }
 
-  Uint8List? get _qrBytes {
-    final raw = widget.checkout.qrDataUrl;
+  /// Confirma el checkout de prueba sin pago real. Solo existe en sandbox.
+  Future<void> _simulatePayment() async {
+    if (_checking || _finishing || _expired) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.cardBg,
+        title: Text(
+          'Simular pago (sandbox)',
+          style: TextStyle(
+            color: context.textOnBg,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Se marcará este pedido como pagado sin cobro real y se emitirán '
+          'los tickets, butacas o el pase. ¿Continuar?',
+          style: TextStyle(color: context.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Simular'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _checking = true);
+
+    try {
+      await const PagosyaService().sandboxConfirm(
+        orderId: widget.checkout.isTicket ? widget.checkout.orderId : null,
+        intentId: widget.checkout.isTicket ? null : widget.checkout.intentId,
+      );
+      await _finish();
+    } catch (e) {
+      if (mounted) AppFeedback.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  static Uint8List? _decodeQr(String? raw) {
     if (raw == null || !raw.startsWith('data:image')) return null;
     final comma = raw.indexOf(',');
     if (comma < 0) return null;
@@ -137,6 +241,16 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  static String _formatRemaining(Duration d) {
+    final total = d.inSeconds < 0 ? 0 : d.inSeconds;
+    final h = total ~/ 3600;
+    final m = (total % 3600) ~/ 60;
+    final s = total % 60;
+    final mm = m.toString().padLeft(2, '0');
+    final ss = s.toString().padLeft(2, '0');
+    return h > 0 ? '$h:$mm:$ss' : '$mm:$ss';
   }
 
   @override
@@ -148,6 +262,10 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
       'membership' => 'Pagar membresía',
       _ => 'Pagar orden ${checkout.orderNumber}',
     };
+    final urgent = !_expired && _remaining <= const Duration(minutes: 1);
+    final timerColor = _expired
+        ? AppColors.error
+        : (urgent ? AppColors.warning : context.textMuted);
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -196,9 +314,67 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
                     'El pago se acredita automáticamente al confirmarse.',
                     style: TextStyle(color: context.textMuted, height: 1.4),
                   ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        _expired
+                            ? Icons.timer_off_outlined
+                            : Icons.timer_outlined,
+                        size: 16,
+                        color: timerColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _expired
+                            ? 'Cobro expirado'
+                            : 'Vence en ${_formatRemaining(_remaining)}',
+                        style: TextStyle(
+                          color: timerColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
+            if (checkout.sandbox) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.science_outlined,
+                      color: AppColors.warning,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Modo sandbox: este QR es ficticio y no procesa pagos. '
+                        'Usá «Simular pago» para probar tickets y butacas.',
+                        style: TextStyle(
+                          color: context.textOnBg,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             if (qrBytes != null)
               Center(
@@ -208,7 +384,12 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                   ),
-                  child: Image.memory(qrBytes, width: 240, height: 240),
+                  child: Image.memory(
+                    qrBytes,
+                    width: 240,
+                    height: 240,
+                    gaplessPlayback: true,
+                  ),
                 ),
               )
             else if (checkout.hasQr)
@@ -217,13 +398,14 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
                   checkout.qrDataUrl!,
                   width: 240,
                   height: 240,
+                  gaplessPlayback: true,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
             const SizedBox(height: 20),
             if (checkout.hasUrl)
               FilledButton.icon(
-                onPressed: _openGateway,
+                onPressed: _expired ? null : _openGateway,
                 icon: const Icon(Icons.open_in_new),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -233,7 +415,9 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
               ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: _finishing ? null : () => _poll(silent: false),
+              onPressed: _finishing || _expired
+                  ? null
+                  : () => _poll(silent: false),
               icon: _checking
                   ? const SizedBox(
                       width: 16,
@@ -247,14 +431,30 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
               ),
               label: const Text('Ya pagué, verificar'),
             ),
+            if (checkout.sandbox) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _checking || _finishing || _expired
+                    ? null
+                    : _simulatePayment,
+                icon: const Icon(Icons.play_circle_outline),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.warning,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                label: const Text('Simular pago (sandbox)'),
+              ),
+            ],
             const SizedBox(height: 16),
             Text(
-              checkout.isTicket
-                  ? 'El cobro vence a los 15 minutos. Si cierras la app, el pago se '
-                        'confirma igualmente y verás tus entradas en "Mis entradas".'
-                  : 'El cobro vence a los 15 minutos. La operación se activa '
-                        'automáticamente cuando el backend confirma el pago.',
-              textAlign: TextAlign.center,
+              _expired
+                  ? 'El cobro expiró. Cerrá esta pantalla y generá uno nuevo.'
+                  : checkout.isTicket
+                  ? 'Si cierras la app, la confirmación no depende de esta '
+                        'pantalla: verás tus entradas en "Mis entradas".'
+                  : 'La operación se activa automáticamente cuando el backend '
+                        'confirma el pago.',              textAlign: TextAlign.center,
               style: TextStyle(color: context.textMuted, fontSize: 12),
             ),
           ],

@@ -4,6 +4,11 @@ export const PAGOSYA_API_URL =
   Deno.env.get("PAGOSYA_API_URL") ??
   "https://nbjwpakpimrqfocsxkda.supabase.co/functions/v1/saas-platform";
 
+/** Endpoint de Checkout Web en sandbox (acepta solo claves `sk_test_`). */
+export const PAGOSYA_SANDBOX_URL =
+  Deno.env.get("PAGOSYA_SANDBOX_URL") ??
+  "https://nbjwpakpimrqfocsxkda.supabase.co/functions/v1/sandbox-create-checkout";
+
 export class PagosyaError extends Error {
   code: string;
   status: number;
@@ -80,6 +85,83 @@ export async function pagosya(
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// Sandbox (Checkout Web): QR ficticio, sin cobro, sin webhook ni confirmación.
+// Se activa SOLO con PAGOSYA_MODE=sandbox; en producción queda apagado.
+// ---------------------------------------------------------------------------
+
+export function sandboxMode(): boolean {
+  return (Deno.env.get("PAGOSYA_MODE") ?? "live").trim().toLowerCase() === "sandbox";
+}
+
+/** Los checkouts de prueba se guardan con prefijo para no confundirlos con los reales. */
+export const SANDBOX_CHECKOUT_PREFIX = "sandbox:";
+
+export function isSandboxCheckoutId(id: unknown): boolean {
+  return typeof id === "string" && id.startsWith(SANDBOX_CHECKOUT_PREFIX);
+}
+
+export function sandboxCheckoutId(id: string): string {
+  return isSandboxCheckoutId(id) ? id : `${SANDBOX_CHECKOUT_PREFIX}${id}`;
+}
+
+/**
+ * Crea un checkout ficticio en el sandbox de PagosYa.
+ * Requiere `PAGOSYA_SANDBOX_KEY` con una clave `sk_test_`.
+ */
+export async function sandboxCheckout(
+  checkout: Record<string, any>,
+): Promise<Record<string, any>> {
+  const key = Deno.env.get("PAGOSYA_SANDBOX_KEY");
+  if (!key) throw new PagosyaError("PAGOSYA_SANDBOX_NOT_CONFIGURED", 500);
+  if (!key.startsWith("sk_test_")) {
+    throw new PagosyaError("PAGOSYA_SANDBOX_KEY_INVALID", 500);
+  }
+  if (!checkout.success_url || !checkout.cancel_url) {
+    throw new PagosyaError("PAGOSYA_SANDBOX_URLS_REQUIRED", 400);
+  }
+
+  // El sandbox rechaza (409) un order_id repetido para la misma clave: se
+  // agrega un sufijo temporal. El order_id real queda en metadata.
+  const orderId = `sandbox-${checkout.order_id ?? "pedido"}-${Date.now()}`
+    .replace(/[^A-Za-z0-9._-]/g, "-")
+    .slice(0, 120);
+
+  const res = await fetch(PAGOSYA_SANDBOX_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      amount: checkout.amount,
+      currency: checkout.currency ?? "BOB",
+      order_id: orderId,
+      success_url: checkout.success_url,
+      cancel_url: checkout.cancel_url,
+      customer: checkout.customer,
+      metadata: { ...(checkout.metadata ?? {}), order_id: checkout.order_id },
+      expiration_minutes: 15,
+    }),
+  });
+
+  let result: Record<string, any> = {};
+  try {
+    result = await res.json();
+  } catch {
+    throw new PagosyaError("PAGOSYA_SANDBOX_INVALID_RESPONSE", 502);
+  }
+
+  if (!res.ok || result.error) {
+    throw new PagosyaError(
+      result.error ?? `PAGOSYA_SANDBOX_HTTP_${res.status}`,
+      res.status,
+    );
+  }
+
+  return { ...result, sandbox: true, environment: "sandbox" };
+}
+
 function hexToBytes(hex: string): Uint8Array {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) {
@@ -152,6 +234,15 @@ export async function requirePlatformAdmin(
   admin: SupabaseClient,
   userId: string,
 ): Promise<void> {
+  if (!(await isPlatformAdmin(admin, userId))) {
+    throw new PagosyaError("FORBIDDEN", 403);
+  }
+}
+
+export async function isPlatformAdmin(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<boolean> {
   const { data, error } = await admin
     .from("user_roles")
     .select("role")
@@ -160,7 +251,7 @@ export async function requirePlatformAdmin(
     .maybeSingle();
 
   if (error) throw new PagosyaError("ROLE_CHECK_FAILED", 500);
-  if (!data) throw new PagosyaError("FORBIDDEN", 403);
+  return Boolean(data);
 }
 
 export function errorResponse(req: Request, err: unknown): Response {
