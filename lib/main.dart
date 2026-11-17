@@ -14,26 +14,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Core & Providers
 import 'core/config/supabase_config.dart';
+import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_transition.dart';
+import 'providers/layout_mode_provider.dart';
+import 'providers/notification_service_provider.dart';
 import 'providers/theme_provider.dart';
 
-// Servicios de Notificación
-import 'data/repositories/fcm_token_repository.dart';
-import 'data/services/notification_service.dart';
-
-// Provider global para el servicio de notificaciones
-final notificationServiceProvider = Provider<NotificationService>((ref) {
-  final supabase = Supabase.instance.client;
-  return NotificationService(FcmTokenRepository(supabase));
-});
+/// Permite mostrar avisos in-app cuando llega un push con la app abierta.
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 // Manejador en segundo plano (app cerrada o minimizada)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  debugPrint('Notificación push en segundo plano: ${message.notification?.title}');
+  debugPrint(
+    'Notificación push en segundo plano: ${message.notification?.title}',
+  );
 }
 
 Future<void> main() async {
@@ -53,11 +52,7 @@ Future<void> main() async {
   // 4. Inicializar Supabase
   await initSupabase();
 
-  runApp(
-    const ProviderScope(
-      child: AcademiaApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: AcademiaApp()));
 }
 
 class AcademiaApp extends ConsumerStatefulWidget {
@@ -88,6 +83,72 @@ class _AcademiaAppState extends ConsumerState<AcademiaApp> {
         notificationService.initNotificationService();
       }
     });
+
+    // App abierta: FCM no muestra la notificación del sistema, así que se
+    // presenta un aviso flotante dentro de la app.
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+    // El usuario tocó una notificación con la app en segundo plano.
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _openNotifications();
+    });
+
+    // La app estaba cerrada y se abrió desde una notificación.
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      if (message == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openNotifications();
+      });
+    });
+  }
+
+  void _handleForegroundMessage(RemoteMessage message) {
+    final notification = message.notification;
+    final title = notification?.title;
+    final body = notification?.body;
+    if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
+      return;
+    }
+
+    final messenger = scaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 6),
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (title != null && title.isNotEmpty)
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              if (body != null && body.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(body),
+              ],
+            ],
+          ),
+          action: SnackBarAction(label: 'Ver', onPressed: _openNotifications),
+        ),
+      );
+  }
+
+  void _openNotifications() {
+    if (Supabase.instance.client.auth.currentUser == null) return;
+
+    final mode = ref.read(effectiveLayoutModeProvider);
+    final route = mode == AppLayoutMode.academy
+        ? AppRoutes.academyNotifications
+        : AppRoutes.studentNotifications;
+
+    ref.read(appRouterProvider).go(route);
   }
 
   @override
@@ -111,6 +172,7 @@ class _AcademiaAppState extends ConsumerState<AcademiaApp> {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
+        scaffoldMessengerKey: scaffoldMessengerKey,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: themeMode,

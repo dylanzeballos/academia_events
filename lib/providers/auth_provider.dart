@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../data/models/profile_model.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/services/auth_service.dart';
+import 'notification_service_provider.dart';
 
 final authRepositoryProvider = Provider<IAuthRepository>((ref) {
   return const AuthRepository(authService: AuthService());
@@ -14,7 +15,9 @@ final authStateProvider = StreamProvider<sb.AuthState>((ref) {
 });
 
 final isAuthenticatedProvider = Provider<bool>((ref) {
-  return ref.watch(authStateProvider).maybeWhen(
+  return ref
+      .watch(authStateProvider)
+      .maybeWhen(
         data: (state) =>
             state.event == sb.AuthChangeEvent.signedIn ||
             state.event == sb.AuthChangeEvent.tokenRefreshed,
@@ -53,10 +56,7 @@ class AuthController extends Notifier<AppAuthState> {
 
   IAuthRepository get _repo => ref.read(authRepositoryProvider);
 
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       await _repo.signIn(email: email, password: password);
@@ -91,8 +91,7 @@ class AuthController extends Notifier<AppAuthState> {
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _repo.signUp(
-          email: email, password: password, fullName: fullName);
+      await _repo.signUp(email: email, password: password, fullName: fullName);
       state = state.copyWith(isLoading: false);
     } on sb.AuthException catch (e) {
       state = state.copyWith(isLoading: false, error: e.message);
@@ -105,6 +104,12 @@ class AuthController extends Notifier<AppAuthState> {
   }
 
   Future<void> signOut() async {
+    // Desasocia este dispositivo del usuario antes de cerrar sesión.
+    try {
+      await ref.read(notificationServiceProvider).clearToken();
+    } catch (_) {
+      // El logout nunca debe fallar por un problema de notificaciones.
+    }
     await _repo.signOut();
     state = const AppAuthState();
   }
@@ -118,7 +123,9 @@ class AuthController extends Notifier<AppAuthState> {
       state = state.copyWith(isLoading: false, error: e.message);
     } catch (_) {
       state = state.copyWith(
-          isLoading: false, error: 'No se pudo enviar el correo.');
+        isLoading: false,
+        error: 'No se pudo enviar el correo.',
+      );
     }
   }
 
@@ -140,10 +147,11 @@ class AuthController extends Notifier<AppAuthState> {
   void clearError() => state = state.copyWith(clearError: true);
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AppAuthState>(() {
-  return AuthController();
-});
+final authControllerProvider = NotifierProvider<AuthController, AppAuthState>(
+  () {
+    return AuthController();
+  },
+);
 
 final currentProfileProvider = FutureProvider<ProfileModel?>((ref) async {
   ref.watch(authStateProvider);
