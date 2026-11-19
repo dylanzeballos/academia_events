@@ -119,8 +119,15 @@ class CreateOrgState {
   final bool isLoading;
   final String? error;
 
-  CreateOrgState copyWith({bool? isLoading, String? error}) {
-    return CreateOrgState(isLoading: isLoading ?? this.isLoading, error: error);
+  CreateOrgState copyWith({
+    bool? isLoading,
+    String? error,
+    bool clearError = false,
+  }) {
+    return CreateOrgState(
+      isLoading: isLoading ?? this.isLoading,
+      error: clearError ? null : (error ?? this.error),
+    );
   }
 }
 
@@ -199,7 +206,7 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
     }
   }
 
-  void clearError() => state = state.copyWith();
+  void clearError() => state = state.copyWith(clearError: true);
 }
 
 final createOrgProvider = NotifierProvider<CreateOrgNotifier, CreateOrgState>(
@@ -239,3 +246,9 @@ final myInvitationsProvider = FutureProvider<List<OrganizationInvitationModel>>(
     return repo.fetchMyInvitations();
   },
 );
+
+final organizationViewsStatsProvider =
+    FutureProvider.family<OrganizationViewsStats, String>((ref, orgId) async {
+      final repo = ref.watch(organizationRepositoryProvider);
+      return repo.fetchOrganizationViewsStats(orgId);
+    });

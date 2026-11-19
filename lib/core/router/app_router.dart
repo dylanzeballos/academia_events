@@ -30,6 +30,7 @@ import '../../features/academy/views/academy_events_view.dart';
 import '../../features/academy/views/academy_archived_events_view.dart';
 import '../../features/academy/views/academy_classes_view.dart';
 import '../../features/academy/views/academy_teachers_view.dart';
+import '../../features/academy/views/organization_views_stats_view.dart';
 
 import '../../features/classes/views/class_list_view.dart';
 import '../../features/classes/views/class_create_view.dart';
@@ -220,6 +221,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.myClassDetailPattern,
         builder: (context, state) =>
             MyClassDetailView(enrollmentId: state.pathParameters['id']),
+      ),
+
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/academy/views-stats/:id',
+        builder: (context, state) {
+          final orgId = state.pathParameters['id'] ?? '';
+          return OrganizationViewsStatsView(organizationId: orgId);
+        },
       ),
 
       // ─────────────────────────────────────────────
