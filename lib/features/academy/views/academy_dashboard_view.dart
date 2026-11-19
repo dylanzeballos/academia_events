@@ -17,7 +17,7 @@ import 'dashboard/dashboard_empty_orgs.dart';
 import 'dashboard/dashboard_org_selector.dart';
 import 'dashboard/dashboard_quick_actions.dart';
 import 'dashboard/dashboard_stats_grid.dart';
-import 'dashboard/upcoming_sessions_list.dart';
+import 'dashboard/views_recent_activity_card.dart';
 
 class AcademyDashboardView extends ConsumerStatefulWidget {
   const AcademyDashboardView({super.key});
@@ -116,6 +116,8 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
               ref.invalidate(orgStatsProvider);
               ref.invalidate(orgClassesProvider);
               ref.invalidate(orgWeeklyScheduleEntriesProvider);
+              ref.invalidate(organizationRecentActivityProvider(selectedOrgId));
+              ref.invalidate(organizationViewsStatsProvider(selectedOrgId));
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -162,29 +164,17 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 5. Sesiones de Hoy
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Sesiones programadas',
-                        style: TextStyle(
-                          color: context.textOnBg,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        'Ver horario',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
+                  // 5. Actividad Reciente
+                  Text(
+                    'Actividad reciente',
+                    style: TextStyle(
+                      color: context.textOnBg,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  const UpcomingSessionsList(),
+                  ViewsRecentActivityCard(organizationId: selectedOrgId),
                   const SizedBox(height: 16),
                 ],
               ),
@@ -201,7 +191,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
 // ─────────────────────────────────────────────
 class _TodayBanner extends StatelessWidget {
   const _TodayBanner({required this.statsAsync});
-  final AsyncValue<Map<dynamic, dynamic>> statsAsync;
+  final AsyncValue<Map<String, dynamic>> statsAsync;
 
   @override
   Widget build(BuildContext context) {
