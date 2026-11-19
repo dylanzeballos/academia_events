@@ -232,6 +232,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/academy/views-stats/:id',
+        builder: (context, state) {
+          final orgId = state.pathParameters['id'] ?? '';
+          return OrganizationViewsStatsView(organizationId: orgId);
+        },
+      ),
+
       // ─────────────────────────────────────────────
       // 3. SHELL ESTUDIANTE (5 PESTAÑAS)
       // ─────────────────────────────────────────────

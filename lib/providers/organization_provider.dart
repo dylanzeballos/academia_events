@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
-
 import '../data/models/organization_model.dart';
 import '../data/models/organization_member_model.dart';
 import '../data/models/organization_invitation_model.dart';
@@ -11,6 +10,7 @@ import '../data/repositories/organization_repository.dart';
 import '../data/services/organization_service.dart';
 import 'auth_provider.dart';
 import 'layout_mode_provider.dart';
+
 
 final organizationRepositoryProvider = Provider<IOrganizationRepository>((ref) {
   return const OrganizationRepository();
@@ -239,16 +239,90 @@ final orgInvitationsProvider =
       return repo.fetchOrgInvitations(orgId);
     });
 
-final myInvitationsProvider = FutureProvider<List<OrganizationInvitationModel>>(
-  (ref) async {
-    ref.watch(authStateProvider);
-    final repo = ref.watch(organizationRepositoryProvider);
-    return repo.fetchMyInvitations();
-  },
-);
+final myInvitationsProvider =
+    FutureProvider<List<OrganizationInvitationModel>>((ref) async {
+  ref.watch(authStateProvider);
+  final repo = ref.watch(organizationRepositoryProvider);
+  return repo.fetchMyInvitations();
+});
+
+class OrganizationViewsStats {
+  const OrganizationViewsStats({
+    required this.totalViews,
+    required this.currentMonthViews,
+    required this.uniqueMonthUsers,
+    required this.monthlyHistory,
+    required this.monthSources,
+  });
+
+  final int totalViews;
+  final int currentMonthViews;
+  final int uniqueMonthUsers;
+  final List<Map<String, dynamic>> monthlyHistory;
+  final List<Map<String, dynamic>> monthSources;
+}
 
 final organizationViewsStatsProvider =
     FutureProvider.family<OrganizationViewsStats, String>((ref, orgId) async {
-      final repo = ref.watch(organizationRepositoryProvider);
-      return repo.fetchOrganizationViewsStats(orgId);
-    });
+  final res = await sb.Supabase.instance.client.rpc(
+    'get_organization_views_stats',
+    params: {'p_org_id': orgId},
+  );
+
+  final data = Map<String, dynamic>.from(res as Map);
+
+  final history = (data['monthly_history'] as List? ?? [])
+      .map((e) => Map<String, dynamic>.from(e as Map))
+      .toList();
+
+  final sources = (data['month_sources'] as List? ?? [])
+      .map((e) => Map<String, dynamic>.from(e as Map))
+      .toList();
+
+  return OrganizationViewsStats(
+    totalViews: (data['total_views'] as num?)?.toInt() ?? 0,
+    currentMonthViews: (data['current_month_views'] as num?)?.toInt() ?? 0,
+    uniqueMonthUsers: (data['unique_month_users'] as num?)?.toInt() ?? 0,
+    monthlyHistory: history,
+    monthSources: sources,
+  );
+});
+
+class OrganizationActivityItem {
+  const OrganizationActivityItem({
+    required this.type,
+    required this.userName,
+    required this.actionText,
+    required this.occurredAt,
+  });
+
+  final String type; // 'attendance' | 'enrollment' | 'ticket_order' | 'instructor'
+  final String userName;
+  final String actionText;
+  final DateTime occurredAt;
+
+  factory OrganizationActivityItem.fromJson(Map<String, dynamic> json) {
+    return OrganizationActivityItem(
+      type: (json['activity_type'] as String?) ?? 'enrollment',
+      userName: (json['user_name'] as String?)?.trim().isNotEmpty == true
+          ? (json['user_name'] as String).trim()
+          : 'Usuario',
+      actionText: (json['action_text'] as String?) ?? '',
+      occurredAt: DateTime.parse(json['occurred_at'] as String),
+    );
+  }
+}
+
+final organizationRecentActivityProvider =
+    FutureProvider.family<List<OrganizationActivityItem>, String>((ref, orgId) async {
+  final res = await sb.Supabase.instance.client.rpc(
+    'get_organization_recent_activity',
+    params: {'p_org_id': orgId, 'p_limit': 10},
+  );
+
+  final list = (res as List? ?? []);
+  return list
+      .take(10)
+      .map((e) => OrganizationActivityItem.fromJson(Map<String, dynamic>.from(e as Map)))
+      .toList();
+});
