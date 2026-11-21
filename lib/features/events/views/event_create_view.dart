@@ -1,4 +1,3 @@
-// lib/features/events/views/event_create_view.dart
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -40,13 +39,15 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
   final _contactPhoneController = TextEditingController();
   final _capacityController = TextEditingController();
 
-  // Lista de fases de tickets configuradas por fecha
   List<Map<String, dynamic>> _configuredTicketsData = [];
-  // Soporte de Teatro / Butacas numeradas
+
+  // Modalidad Teatro / Butacas numeradas
   bool _isTheatreEvent = false;
   String? _selectedVenueId;
+  int? _selectedVenueCapacity;
 
-  // Soporte de Documento / PDF de Reglamento
+  // Reglamento PDF (máx 5 MB)
+  static const int _maxPdfBytes = 5 * 1024 * 1024;
   Uint8List? _rulesPdfBytes;
   String? _rulesPdfFileName;
 
@@ -80,6 +81,22 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
     super.dispose();
   }
 
+  DateTime get _startDateTime => DateTime(
+    _startDate.year,
+    _startDate.month,
+    _startDate.day,
+    _startTime.hour,
+    _startTime.minute,
+  );
+
+  DateTime get _endDateTime => DateTime(
+    _endDate.year,
+    _endDate.month,
+    _endDate.day,
+    _endTime.hour,
+    _endTime.minute,
+  );
+
   Future<void> _openMapPicker() async {
     final LatLng? pickedLocation = await Navigator.push<LatLng>(
       context,
@@ -95,7 +112,11 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
 
   Future<void> _pickBannerImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
 
     if (pickedFile != null) {
       final bytes = await pickedFile.readAsBytes();
@@ -160,6 +181,15 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
           }
 
           if (fileBytes != null) {
+            if (fileBytes.length > _maxPdfBytes) {
+              if (mounted) {
+                AppFeedback.error(
+                  context,
+                  'El PDF supera el límite máximo permitido de 5 MB.',
+                );
+              }
+              return;
+            }
             setState(() {
               _rulesPdfBytes = fileBytes;
               _rulesPdfFileName = fileName;
@@ -189,21 +219,25 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
   }
 
   Future<void> _pickDateTime({required bool isStart}) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final initialDate = isStart ? _startDate : _endDate;
-    final initialTime = isStart ? _startTime : _endTime;
+    final firstDate = isStart
+        ? today
+        : DateTime(_startDate.year, _startDate.month, _startDate.day);
 
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: initialDate.isBefore(firstDate) ? firstDate : initialDate,
+      firstDate: firstDate,
+      lastDate: today.add(const Duration(days: 365)),
     );
 
     if (pickedDate == null || !mounted) return;
 
     final pickedTime = await showTimePicker(
       context: context,
-      initialTime: initialTime,
+      initialTime: isStart ? _startTime : _endTime,
     );
 
     if (pickedTime == null || !mounted) return;
@@ -212,6 +246,17 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       if (isStart) {
         _startDate = pickedDate;
         _startTime = pickedTime;
+
+        // Evita que la fecha de fin quede antes del inicio
+        if (_endDateTime.isBefore(_startDateTime) ||
+            _endDateTime.isAtSameMomentAs(_startDateTime)) {
+          _endDate = pickedDate;
+          final nextHour = (pickedTime.hour + 3) % 24;
+          if (pickedTime.hour + 3 >= 24) {
+            _endDate = pickedDate.add(const Duration(days: 1));
+          }
+          _endTime = TimeOfDay(hour: nextHour, minute: pickedTime.minute);
+        }
       } else {
         _endDate = pickedDate;
         _endTime = pickedTime;
@@ -220,42 +265,39 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.error(context, 'Revisa los campos marcados en rojo.');
+      return;
+    }
 
     final orgId = ref.read(selectedOrganizationIdProvider);
     if (orgId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('No hay una organización seleccionada'),
-          backgroundColor: context.cardBg,
-        ),
+      AppFeedback.error(context, 'No hay una organización seleccionada.');
+      return;
+    }
+
+    final now = DateTime.now();
+    final startAt = _startDateTime;
+    final endAt = _endDateTime;
+
+    if (startAt.isBefore(now)) {
+      AppFeedback.error(
+        context,
+        'La fecha y hora de inicio deben ser posteriores al momento actual.',
       );
       return;
     }
 
-    final startAt = DateTime(
-      _startDate.year,
-      _startDate.month,
-      _startDate.day,
-      _startTime.hour,
-      _startTime.minute,
-    );
-
-    final endAt = DateTime(
-      _endDate.year,
-      _endDate.month,
-      _endDate.day,
-      _endTime.hour,
-      _endTime.minute,
-    );
-
-    if (endAt.isBefore(startAt)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('La fecha de fin debe ser posterior al inicio'),
-          backgroundColor: context.cardBg,
-        ),
+    if (!endAt.isAfter(startAt)) {
+      AppFeedback.error(
+        context,
+        'La fecha y hora de fin deben ser posteriores al inicio.',
       );
+      return;
+    }
+
+    if (endAt.difference(startAt).inMinutes < 30) {
+      AppFeedback.error(context, 'El evento debe durar al menos 30 minutos.');
       return;
     }
 
@@ -263,24 +305,31 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
 
     try {
       final title = _titleController.text.trim();
+      final cleanSlugBase = title
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+          .replaceAll(RegExp(r'^-|-$'), '');
       final slug =
-          '${title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '-')}-${DateTime.now().millisecondsSinceEpoch}';
+          '${cleanSlugBase.isEmpty ? 'evento' : cleanSlugBase}-${DateTime.now().millisecondsSinceEpoch}';
 
       final contact = _contactPhoneController.text.trim();
       final description = _descriptionController.text.trim();
 
-      final parsedCapacity = _capacityController.text.trim().isNotEmpty
-          ? int.tryParse(_capacityController.text.trim())
-          : null;
+      // Capacidad: si es Teatro usa la del recinto; si no, suma cupos de tickets
+      final totalTicketStock = _configuredTicketsData.fold<int>(
+        0,
+        (sum, t) => sum + ((t['quantity'] as num?)?.toInt() ?? 0),
+      );
+      final parsedCapacity = _isTheatreEvent
+          ? _selectedVenueCapacity
+          : (totalTicketStock >= 999999 ? null : totalTicketStock);
 
       final eventData = {
         'organization_id': orgId,
         'category_id': _selectedCategoryId,
         'title': title,
         'slug': slug,
-        'description': description.isNotEmpty
-            ? description
-            : 'Gran evento de baile',
+        'description': description,
         'contact_phone': contact.isNotEmpty ? contact : null,
         'start_at': startAt.toIso8601String(),
         'end_at': endAt.toIso8601String(),
@@ -303,7 +352,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'longitude': _selectedLatLng.longitude,
       };
 
-      // Fases configuradas o tarifa estándar de respaldo
       final ticketTypesData = _configuredTicketsData.isNotEmpty
           ? _configuredTicketsData
           : [
@@ -311,10 +359,10 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                 'name': _isTheatreEvent ? 'Butaca Numerada' : 'Entrada General',
                 'description': 'Acceso general al evento',
                 'price': 50.0,
-                'quantity': 100,
+                'quantity': _selectedVenueCapacity ?? 100,
                 'currency': 'BOB',
                 'is_active': true,
-                'sales_start_at': DateTime.now().toIso8601String(),
+                'sales_start_at': now.toIso8601String(),
                 'sales_end_at': endAt.toIso8601String(),
               },
             ];
@@ -373,14 +421,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         : ref.watch(organizationMembershipProvider(orgId));
     final canCreate = membership?.value == true;
 
-    final eventStartDateTime = DateTime(
-      _startDate.year,
-      _startDate.month,
-      _startDate.day,
-      _startTime.hour,
-      _startTime.minute,
-    );
-
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       appBar: AppBar(
@@ -415,12 +455,11 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                   child: LinearProgressIndicator(),
                 )
               else if (membership?.hasError == true)
-                MembershipRequiredNotice(
-                  organizationId: orgId,
-                  error: true,
-                )
+                MembershipRequiredNotice(organizationId: orgId, error: true)
               else if (membership?.value == false)
                 MembershipRequiredNotice(organizationId: orgId),
+
+              // 1. Panfleto / Afiche
               ImagePickerBox(
                 label: 'Panfleto / Afiche del Evento',
                 icon: Icons.add_photo_alternate_outlined,
@@ -429,6 +468,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               ),
               const SizedBox(height: 20),
 
+              // 2. Información Básica (con límites de caracteres)
               EventBasicInfoForm(
                 titleController: _titleController,
                 descriptionController: _descriptionController,
@@ -438,9 +478,183 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                 onCategoryChanged: (val) =>
                     setState(() => _selectedCategoryId = val),
               ),
+              const SizedBox(height: 24),
+
+              // 3. Fecha y Hora del Evento (PRIMERO antes de fases de venta)
+              EventScheduleForm(
+                startDate: _startDate,
+                startTime: _startTime,
+                endDate: _endDate,
+                endTime: _endTime,
+                onPickDateTime: _pickDateTime,
+              ),
+              const SizedBox(height: 24),
+
+              // 4. Modalidad Teatro / Butacas numeradas
+              Card(
+                color: context.cardBg,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: context.borderColor),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          '¿Evento en Teatro / Butacas numeradas?',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text(
+                          'Generará el plano físico con selección de asientos',
+                        ),
+                        value: _isTheatreEvent,
+                        onChanged: (val) {
+                          setState(() {
+                            _isTheatreEvent = val;
+                            if (!val) {
+                              _selectedVenueId = null;
+                              _selectedVenueCapacity = null;
+                              _locationNameController.clear();
+                            }
+                          });
+                        },
+                      ),
+                      if (_isTheatreEvent) ...[
+                        const SizedBox(height: 10),
+                        ref
+                            .watch(venuesListProvider)
+                            .when(
+                              loading: () => const LinearProgressIndicator(),
+                              error: (e, _) => Text(
+                                'Error al cargar teatros: $e',
+                                style: const TextStyle(color: AppColors.error),
+                              ),
+                              data: (venues) {
+                                if (venues.isEmpty) {
+                                  return const Text(
+                                    'No hay plantillas de recintos registradas.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  );
+                                }
+                                return DropdownButtonFormField<String>(
+                                  initialValue: _selectedVenueId,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        'Selecciona el Teatro o Recinto *',
+                                    prefixIcon: const Icon(
+                                      Icons.theater_comedy_outlined,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  items: venues.map((v) {
+                                    final cap = v['total_capacity'];
+                                    return DropdownMenuItem<String>(
+                                      value: v['id'] as String,
+                                      child: Text(
+                                        cap != null
+                                            ? '${v['name']} ($cap butacas)'
+                                            : '${v['name']}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    final venue = venues.firstWhere(
+                                      (v) => v['id'] == val,
+                                      orElse: () => <String, dynamic>{},
+                                    );
+                                    setState(() {
+                                      _selectedVenueId = val;
+                                      _selectedVenueCapacity =
+                                          (venue['total_capacity'] as num?)
+                                              ?.toInt();
+                                      if (venue['name'] != null) {
+                                        _locationNameController.text =
+                                            venue['name'] as String;
+                                      }
+                                      if (venue['address'] != null &&
+                                          (venue['address'] as String)
+                                              .trim()
+                                              .isNotEmpty) {
+                                        _addressController.text =
+                                            venue['address'] as String;
+                                      }
+                                    });
+                                  },
+                                  validator: (val) =>
+                                      _isTheatreEvent && val == null
+                                      ? 'Selecciona un recinto para clonar las butacas'
+                                      : null,
+                                );
+                              },
+                            ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
 
-              // Tarjeta para subir el PDF de Reglamento
+              // 5. Precios y Fases (ya conoce startAt, endAt e isTheatreEvent)
+              EventPricingPhasesEditor(
+                eventStartDate: _startDateTime,
+                eventEndDate: _endDateTime,
+                isTheatreEvent: _isTheatreEvent,
+                onTicketsDataChanged: (phases) {
+                  _configuredTicketsData = phases;
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // 6. Ubicación y División Territorial
+              EventLocationForm(
+                locationNameController: _locationNameController,
+                addressController: _addressController,
+                selectedLatLng: _selectedLatLng,
+                isTheatreEvent: _isTheatreEvent,
+                onMapTap: _openMapPicker,
+                selectedDepartmentId: _selectedDepartmentId,
+                selectedProvinceId: _selectedProvinceId,
+                selectedMunicipalityId: _selectedMunicipalityId,
+                selectedCityId: _selectedCityId,
+                onDepartmentChanged: (val) {
+                  setState(() {
+                    _selectedDepartmentId = val;
+                    _selectedProvinceId = null;
+                    _selectedMunicipalityId = null;
+                    _selectedCityId = null;
+                  });
+                },
+                onProvinceChanged: (val) {
+                  setState(() {
+                    _selectedProvinceId = val;
+                    _selectedMunicipalityId = null;
+                    _selectedCityId = null;
+                  });
+                },
+                onMunicipalityChanged: (val) {
+                  setState(() {
+                    _selectedMunicipalityId = val;
+                    _selectedCityId = null;
+                  });
+                },
+                onCityChanged: (val) => setState(() => _selectedCityId = val),
+              ),
+              const SizedBox(height: 24),
+
+              // 7. Reglamento PDF (Opcional, máx. 5 MB)
               Card(
                 color: context.cardBg,
                 elevation: 0,
@@ -462,7 +676,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Adjunta las normas o especificaciones para los asistentes (opcional).',
+                        'Opcional · Máximo 5 MB.',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       const SizedBox(height: 12),
@@ -525,138 +739,6 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Editor de Precios y Fases (Preventa, Venta General, En Puerta)
-              EventPricingPhasesEditor(
-                eventStartDate: eventStartDateTime,
-                isTheatreEvent: _isTheatreEvent,
-                onTicketsDataChanged: (phases) {
-                  _configuredTicketsData = phases;
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Sección para Teatro y Butacas Numeradas
-              Card(
-                color: context.cardBg,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: context.borderColor),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          '¿Evento en Teatro / Butacas numeradas?',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: const Text(
-                          'Generará el plano físico con selección de asientos',
-                        ),
-                        value: _isTheatreEvent,
-                        onChanged: (val) =>
-                            setState(() => _isTheatreEvent = val),
-                      ),
-                      if (_isTheatreEvent) ...[
-                        const SizedBox(height: 10),
-                        ref
-                            .watch(venuesListProvider)
-                            .when(
-                              loading: () => const LinearProgressIndicator(),
-                              error: (e, _) => Text(
-                                'Error al cargar teatros: $e',
-                                style: const TextStyle(color: AppColors.error),
-                              ),
-                              data: (venues) {
-                                if (venues.isEmpty) {
-                                  return const Text(
-                                    'No hay plantillas de recintos registradas en la base de datos.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  );
-                                }
-                                return DropdownButtonFormField<String>(
-                                  initialValue: _selectedVenueId,
-                                  decoration: InputDecoration(
-                                    labelText: 'Selecciona el Teatro o Recinto',
-                                    prefixIcon: const Icon(
-                                      Icons.theater_comedy_outlined,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  items: venues.map((v) {
-                                    return DropdownMenuItem<String>(
-                                      value: v['id'] as String,
-                                      child: Text(v['name'] as String),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) =>
-                                      setState(() => _selectedVenueId = val),
-                                  validator: (val) =>
-                                      _isTheatreEvent && val == null
-                                      ? 'Selecciona un recinto para clonar las butacas'
-                                      : null,
-                                );
-                              },
-                            ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              EventLocationForm(
-                locationNameController: _locationNameController,
-                addressController: _addressController,
-                selectedLatLng: _selectedLatLng,
-                onMapTap: _openMapPicker,
-                selectedDepartmentId: _selectedDepartmentId,
-                selectedProvinceId: _selectedProvinceId,
-                selectedMunicipalityId: _selectedMunicipalityId,
-                selectedCityId: _selectedCityId,
-                onDepartmentChanged: (val) {
-                  setState(() {
-                    _selectedDepartmentId = val;
-                    _selectedProvinceId = null;
-                    _selectedMunicipalityId = null;
-                    _selectedCityId = null;
-                  });
-                },
-                onProvinceChanged: (val) {
-                  setState(() {
-                    _selectedProvinceId = val;
-                    _selectedMunicipalityId = null;
-                    _selectedCityId = null;
-                  });
-                },
-                onMunicipalityChanged: (val) {
-                  setState(() {
-                    _selectedMunicipalityId = val;
-                    _selectedCityId = null;
-                  });
-                },
-                onCityChanged: (val) => setState(() => _selectedCityId = val),
-              ),
-              const SizedBox(height: 24),
-
-              EventScheduleForm(
-                startDate: _startDate,
-                startTime: _startTime,
-                endDate: _endDate,
-                endTime: _endTime,
-                onPickDateTime: _pickDateTime,
               ),
               const SizedBox(height: 28),
 

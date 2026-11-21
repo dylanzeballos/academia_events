@@ -1,5 +1,5 @@
-// lib/features/events/widgets/create/event_basic_info_form.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -17,6 +17,9 @@ class EventBasicInfoForm extends ConsumerWidget {
     required this.onCategoryChanged,
   });
 
+  static const int maxTitleLength = 70;
+  static const int maxDescriptionLength = 600;
+
   final TextEditingController titleController;
   final TextEditingController descriptionController;
   final TextEditingController contactPhoneController;
@@ -33,6 +36,8 @@ class EventBasicInfoForm extends ConsumerWidget {
       children: [
         TextFormField(
           controller: titleController,
+          maxLength: maxTitleLength,
+          textCapitalization: TextCapitalization.sentences,
           style: TextStyle(color: context.textOnBg),
           decoration: InputDecoration(
             labelText: 'Título del evento *',
@@ -40,10 +45,14 @@ class EventBasicInfoForm extends ConsumerWidget {
             labelStyle: TextStyle(color: context.textMuted),
             hintStyle: TextStyle(color: context.textMuted.withValues(alpha: 0.6)),
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Ingresa un título' : null,
+          validator: (v) {
+            final clean = v?.trim() ?? '';
+            if (clean.isEmpty) return 'Ingresa un título';
+            if (clean.length < 5) return 'Mínimo 5 caracteres';
+            return null;
+          },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         eventCategoriesAsync.when(
           data: (categories) => DropdownButtonFormField<String>(
             initialValue: selectedCategoryId,
@@ -56,7 +65,10 @@ class EventBasicInfoForm extends ConsumerWidget {
             items: categories
                 .map((c) => DropdownMenuItem(
                       value: c.id,
-                      child: Text(c.name, style: TextStyle(color: context.textOnBg)),
+                      child: Text(
+                        c.name,
+                        style: TextStyle(color: context.textOnBg),
+                      ),
                     ))
                 .toList(),
             onChanged: onCategoryChanged,
@@ -68,28 +80,49 @@ class EventBasicInfoForm extends ConsumerWidget {
         const SizedBox(height: 16),
         TextFormField(
           controller: descriptionController,
-          maxLines: 3,
+          maxLines: 4,
+          maxLength: maxDescriptionLength,
+          textCapitalization: TextCapitalization.sentences,
           style: TextStyle(color: context.textOnBg),
           decoration: InputDecoration(
             labelText: 'Descripción del Evento *',
-            hintText: 'Detalles del programa, código de vestimenta, etc.',
+            hintText: 'Detalles del programa, artistas invitados, etc.',
             labelStyle: TextStyle(color: context.textMuted),
             hintStyle: TextStyle(color: context.textMuted.withValues(alpha: 0.6)),
           ),
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Ingresa una descripción' : null,
+          validator: (v) {
+            final clean = v?.trim() ?? '';
+            if (clean.isEmpty) return 'Ingresa una descripción';
+            if (clean.length < 15) {
+              return 'Describe el evento con al menos 15 caracteres';
+            }
+            return null;
+          },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         TextFormField(
           controller: contactPhoneController,
           keyboardType: TextInputType.phone,
+          maxLength: 15,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]')),
+          ],
           style: TextStyle(color: context.textOnBg),
           decoration: InputDecoration(
-            labelText: 'Teléfono Contacto',
+            labelText: 'Teléfono / WhatsApp de Contacto',
             hintText: 'Ej. 77912345',
+            counterText: '',
             labelStyle: TextStyle(color: context.textMuted),
             hintStyle: TextStyle(color: context.textMuted.withValues(alpha: 0.6)),
           ),
+          validator: (v) {
+            final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+            if (digits.isEmpty) return null; // Opcional
+            if (digits.length < 7 || digits.length > 15) {
+              return 'Ingresa un número válido (7 a 15 dígitos)';
+            }
+            return null;
+          },
         ),
       ],
     );
