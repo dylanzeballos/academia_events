@@ -1,17 +1,22 @@
 // lib/core/router/app_nav_shells.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:academia_events/core/theme/app_colors.dart';
 import 'package:academia_events/core/utils/theme_extensions.dart';
 import 'package:academia_events/providers/notification_provider.dart';
 
-class StudentShell extends ConsumerWidget {
+class StudentShell extends ConsumerStatefulWidget {
   const StudentShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
+  @override
+  ConsumerState<StudentShell> createState() => _StudentShellState();
+}
+
+class _StudentShellState extends ConsumerState<StudentShell> {
   static const _activeIcons = [
     Icons.calendar_month_rounded,
     Icons.confirmation_number_rounded,
@@ -29,16 +34,22 @@ class StudentShell extends ConsumerWidget {
   static const _labels = ['Horario', 'Tickets', 'Clases', 'Avisos', 'Perfil'];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return _BackButtonExitGuard(
-      isAtRoot: navigationShell.currentIndex == 0,
-      onBackToRoot: () => navigationShell.goBranch(0),
+      isAtRoot: widget.navigationShell.currentIndex == 0,
+      onBackToRoot: () => widget.navigationShell.goBranch(0),
       child: Scaffold(
         backgroundColor: context.scaffoldBg,
-        body: navigationShell,
+        body: widget.navigationShell,
         bottomNavigationBar: InstagramNavBar(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: navigationShell.goBranch,
+          selectedIndex: widget.navigationShell.currentIndex,
+          onDestinationSelected: widget.navigationShell.goBranch,
           activeIcons: _activeIcons,
           inactiveIcons: _inactiveIcons,
           labels: _labels,
@@ -48,9 +59,16 @@ class StudentShell extends ConsumerWidget {
   }
 }
 
-class AcademyShell extends StatelessWidget {
+class AcademyShell extends StatefulWidget {
   const AcademyShell({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
+
+  @override
+  State<AcademyShell> createState() => _AcademyShellState();
+}
+
+class _AcademyShellState extends State<AcademyShell> {
+  static const int _classesTabIndex = 2;
 
   static const _activeIcons = [
     Icons.dashboard_rounded,
@@ -69,16 +87,58 @@ class AcademyShell extends StatelessWidget {
   static const _labels = ['Panel', 'Eventos', 'Clases', 'Avisos', 'Perfil'];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.navigationShell.currentIndex != _classesTabIndex) {
+      _resetToPortrait();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AcademyShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.navigationShell.currentIndex !=
+            widget.navigationShell.currentIndex &&
+        widget.navigationShell.currentIndex != _classesTabIndex) {
+      _resetToPortrait();
+    }
+  }
+
+  @override
+  void dispose() {
+    _resetToPortrait();
+    super.dispose();
+  }
+
+  Future<void> _resetToPortrait() async {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+  }
+
+  Future<void> _onSelectBranch(int index) async {
+    if (index != _classesTabIndex) {
+      await _resetToPortrait();
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    if (!mounted) return;
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _BackButtonExitGuard(
-      isAtRoot: navigationShell.currentIndex == 0,
-      onBackToRoot: () => navigationShell.goBranch(0),
+      isAtRoot: widget.navigationShell.currentIndex == 0,
+      onBackToRoot: () => _onSelectBranch(0),
       child: Scaffold(
         backgroundColor: context.scaffoldBg,
-        body: navigationShell,
+        body: widget.navigationShell,
         bottomNavigationBar: InstagramNavBar(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: navigationShell.goBranch,
+          selectedIndex: widget.navigationShell.currentIndex,
+          onDestinationSelected: _onSelectBranch,
           activeIcons: _activeIcons,
           inactiveIcons: _inactiveIcons,
           labels: _labels,
@@ -160,7 +220,6 @@ class InstagramNavBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Escucha el conteo no leído en tiempo real
     final unreadCount = ref.watch(unreadNotificationsCountProvider);
 
     return Container(
@@ -175,7 +234,7 @@ class InstagramNavBar extends ConsumerWidget {
           child: Row(
             children: List.generate(activeIcons.length, (i) {
               final isSelected = i == selectedIndex;
-              final isNotificationTab = i == 3; // 'Avisos' está en la posición 3
+              final isNotificationTab = i == 3;
 
               Widget iconWidget = Icon(
                 isSelected ? activeIcons[i] : inactiveIcons[i],
@@ -183,15 +242,26 @@ class InstagramNavBar extends ConsumerWidget {
                 color: isSelected ? AppColors.primary : context.textMuted,
               );
 
-              // Inserta el Badge rojo si hay notificaciones sin leer
               if (isNotificationTab && unreadCount > 0) {
                 iconWidget = Badge(
                   backgroundColor: AppColors.error,
                   textColor: Colors.white,
                   smallSize: 8,
                   label: unreadCount > 99
-                      ? const Text('99+', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))
-                      : Text('$unreadCount', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      ? const Text(
+                          '99+',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : Text(
+                          '$unreadCount',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                   child: iconWidget,
                 );
               }
@@ -210,8 +280,11 @@ class InstagramNavBar extends ConsumerWidget {
                         labels[i],
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                          color: isSelected ? AppColors.primary : context.textMuted,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color: isSelected
+                              ? AppColors.primary
+                              : context.textMuted,
                         ),
                       ),
                     ],
