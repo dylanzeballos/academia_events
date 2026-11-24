@@ -215,6 +215,7 @@ export async function requireOrgRole(
   admin: SupabaseClient,
   organizationId: string,
   userId: string,
+  allowedRoles: string[] = ["owner", "admin"],
 ): Promise<void> {
   const { data, error } = await admin
     .from("organization_members")
@@ -225,7 +226,7 @@ export async function requireOrgRole(
     .maybeSingle();
 
   if (error) throw new PagosyaError("MEMBERSHIP_CHECK_FAILED", 500);
-  if (!data || !["owner", "admin"].includes(String(data.role))) {
+  if (!data || !allowedRoles.includes(String(data.role))) {
     throw new PagosyaError("FORBIDDEN", 403);
   }
 }

@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config/supabase_config.dart';
+import '../models/class_publication_status.dart';
 import '../models/event_purchase_result_model.dart';
 import '../models/pagosya_checkout_model.dart';
 import 'ticket_service.dart';
@@ -12,35 +13,53 @@ import 'ticket_service.dart';
 class PagosyaService {
   const PagosyaService();
 
-  /// [kind]: `ticket` | `class_pass` | `membership`.
-  /// [referenceId]: id de la orden, inscripción o suscripción.
+  /// [kind]: `ticket` | `class_pass` | `class_monthly` | `vip_membership` |
+  /// `membership`.
+  /// [referenceId]: id de la orden, inscripción o suscripción. Para
+  /// `vip_membership` se usa el id de la organización.
   Future<PagosyaCheckout> createCheckout({
     required String kind,
     required String referenceId,
     List<String>? seatIds,
+    List<String>? sessionIds,
   }) async {
     final data = await _invoke({
       'action': 'create_checkout',
       'kind': kind,
       'reference_id': referenceId,
       if (seatIds != null && seatIds.isNotEmpty) 'seat_ids': seatIds,
+      if (sessionIds != null && sessionIds.isNotEmpty)
+        'session_ids': sessionIds,
     });
     return PagosyaCheckout.fromJson(data);
   }
 
-  /// Genera un QR de publicación de evento o clase (solo admin de plataforma).
+  /// Genera un QR de publicación de evento o clase.
+  ///
+  /// El admin de plataforma define [amount]; la organización paga el precio
+  /// configurado por la plataforma (no envía monto).
   Future<PagosyaCheckout> createPublicationCheckout({
     required String kind,
     required String referenceId,
-    required double amount,
+    double? amount,
   }) async {
     final data = await _invoke({
       'action': 'create_checkout',
       'kind': kind,
       'reference_id': referenceId,
-      'amount': amount,
+      'amount': ?amount,
     });
     return PagosyaCheckout.fromJson(data);
+  }
+
+  /// Estado de publicación de una clase (pago pendiente, precio y membresía).
+  Future<ClassPublicationStatus> classPublicationStatus(String classId) async {
+    final data = await supabase
+        .rpc('class_publication_status', params: {'p_class_id': classId})
+        .timeout(const Duration(seconds: 8));
+    return ClassPublicationStatus.fromJson(
+      Map<String, dynamic>.from(data as Map),
+    );
   }
 
   /// Consulta el estado del pago. Usa [intentId] para pases/membresías o
@@ -51,8 +70,8 @@ class PagosyaService {
   }) async {
     final data = await _invoke({
       'action': 'refresh_checkout',
-      if (intentId != null) 'intent_id': intentId,
-      if (orderId != null) 'reference_id': orderId,
+      'intent_id': ?intentId,
+      'reference_id': ?orderId,
     });
     return PagosyaCheckoutStatus.fromJson(data);
   }
@@ -68,8 +87,8 @@ class PagosyaService {
   }) async {
     return _invoke({
       'action': 'sandbox_confirm',
-      if (orderId != null) 'order_id': orderId,
-      if (intentId != null) 'intent_id': intentId,
+      'order_id': ?orderId,
+      'intent_id': ?intentId,
     });
   }
 
@@ -201,6 +220,14 @@ class PagosyaService {
         return 'El pase de clase no está disponible.';
       case 'QUOTE_FAILED':
         return 'No se pudo calcular el pase. Revisá que la clase tenga sesiones programadas.';
+      case 'SESSION_IDS_REQUIRED':
+        return 'Seleccioná al menos una sesión para comprar.';
+      case 'CLASS_MONTHLY_NOT_AVAILABLE':
+        return 'Esta clase no ofrece pase mensual.';
+      case 'VIP_NOT_AVAILABLE':
+        return 'La organización no ofrece pase VIP.';
+      case 'MEMBERSHIP_REQUIRED':
+        return 'La organización necesita una suscripción mensual activa para publicar.';
       case 'FORBIDDEN':
         return 'No tenés acceso a esta operación.';
       case 'SUBSCRIPTION_NOT_FOUND':
@@ -217,6 +244,8 @@ class PagosyaService {
         return 'No se encontró el evento o la clase.';
       case 'PUBLICATION_ALREADY_PAID':
         return 'La publicación ya fue pagada.';
+      case 'PUBLICATION_PRICE_NOT_CONFIGURED':
+        return 'La plataforma todavía no configuró el precio de publicación. Pedile el QR al administrador.';
       case 'WEBHOOK_URL_REQUIRED':
         return 'Ingresa la URL pública del webhook.';
       case 'INVALID_WEBHOOK_URL':

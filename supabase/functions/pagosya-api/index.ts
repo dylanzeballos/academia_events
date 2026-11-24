@@ -19,11 +19,19 @@ import {
 
 type Body = {
   action?: string;
-  kind?: "ticket" | "class_pass" | "membership" | "event_publication" | "class_publication";
+  kind?:
+    | "ticket"
+    | "class_pass"
+    | "class_monthly"
+    | "vip_membership"
+    | "membership"
+    | "event_publication"
+    | "class_publication";
   reference_id?: string;
   order_id?: string;
   organization_id?: string;
   seat_ids?: string[];
+  session_ids?: string[];
   intent_id?: string;
   amount?: number;
   offset?: number;
@@ -186,10 +194,16 @@ Deno.serve(async (req) => {
         });
       }
 
-      // ---------------------------------------------------------- class pass
+      // ------------------------------------- pase de clase por sesiones
       if (kind === "class_pass") {
-        const { data: quote, error } = await admin.rpc("pagosya_class_pass_quote", {
+        const sessionIds = (body.session_ids ?? []).filter(Boolean);
+        if (!sessionIds.length) {
+          throw new PagosyaError("SESSION_IDS_REQUIRED", 400);
+        }
+
+        const { data: quote, error } = await admin.rpc("quote_class_sessions", {
           p_enrollment_id: referenceId,
+          p_session_ids: sessionIds,
           p_user_id: user.id,
         });
         if (error) throw new PagosyaError("QUOTE_FAILED", 500);
@@ -211,7 +225,85 @@ Deno.serve(async (req) => {
             amount: Number(quote.total_amount),
             currency: quote.currency,
             affiliateId,
-            metadata: { session_count: quote.session_count, price: quote.price },
+            metadata: {
+              mode: "sessions",
+              session_ids: quote.session_ids,
+              session_count: quote.session_count,
+              price: quote.price,
+            },
+          }),
+        );
+      }
+
+      // ------------------------------------- pase mensual de una clase
+      if (kind === "class_monthly") {
+        const { data: quote, error } = await admin.rpc("quote_class_monthly", {
+          p_enrollment_id: referenceId,
+          p_user_id: user.id,
+        });
+        if (error) throw new PagosyaError("QUOTE_FAILED", 500);
+        if (!quote?.success) {
+          throw new PagosyaError(quote?.reason ?? "CLASS_MONTHLY_NOT_AVAILABLE", 409);
+        }
+
+        const affiliateId = sandbox
+          ? "sandbox"
+          : await affiliateFor(admin, quote.organization_id);
+
+        return json(
+          req,
+          await startIntent(admin, {
+            userId: user.id,
+            organizationId: quote.organization_id,
+            kind,
+            referenceId,
+            amount: Number(quote.total_amount),
+            currency: quote.currency,
+            affiliateId,
+            metadata: {
+              mode: "monthly",
+              period_start: quote.period_start,
+              period_end: quote.period_end,
+              session_count: quote.session_count,
+              price: quote.price,
+            },
+          }),
+        );
+      }
+
+      // ------------------------------------- pase VIP de la organización
+      if (kind === "vip_membership") {
+        const organizationId = body.organization_id ?? referenceId;
+        const { data: quote, error } = await admin.rpc("quote_vip_membership", {
+          p_organization_id: organizationId,
+          p_user_id: user.id,
+        });
+        if (error) throw new PagosyaError("QUOTE_FAILED", 500);
+        if (!quote?.success) {
+          throw new PagosyaError(quote?.reason ?? "VIP_NOT_AVAILABLE", 409);
+        }
+
+        const affiliateId = sandbox
+          ? "sandbox"
+          : await affiliateFor(admin, quote.organization_id);
+
+        return json(
+          req,
+          await startIntent(admin, {
+            userId: user.id,
+            organizationId: quote.organization_id,
+            kind,
+            referenceId: quote.organization_id,
+            amount: Number(quote.price_monthly),
+            currency: quote.currency,
+            affiliateId,
+            metadata: {
+              mode: "vip",
+              plan_id: quote.plan_id,
+              class_count: quote.class_count,
+              period_start: quote.period_start,
+              period_end: quote.period_end,
+            },
           }),
         );
       }
@@ -267,13 +359,6 @@ Deno.serve(async (req) => {
 
       // ------------------------------------ publicaciones (evento / clase)
       if (kind === "event_publication" || kind === "class_publication") {
-        await requirePlatformAdmin(admin, user.id);
-
-        const amount = Number(body.amount);
-        if (!Number.isFinite(amount) || amount <= 0) {
-          throw new PagosyaError("AMOUNT_REQUIRED", 400);
-        }
-
         const isEvent = kind === "event_publication";
         const table = isEvent ? "events" : "dance_classes";
         const { data: entity } = await admin
@@ -283,6 +368,49 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (!entity) throw new PagosyaError("PUBLICATION_TARGET_NOT_FOUND", 404);
+
+        // El admin de plataforma define el monto; la organización paga el
+        // precio configurado en `payment_platform_config`.
+        let amount: number;
+        if (await isPlatformAdmin(admin, user.id)) {
+          amount = Number(body.amount);
+          if (!Number.isFinite(amount) || amount <= 0) {
+            throw new PagosyaError("AMOUNT_REQUIRED", 400);
+          }
+        } else {
+          await requireOrgRole(admin, entity.organization_id, user.id, [
+            "owner",
+            "admin",
+            "manager",
+          ]);
+
+          const { data: config } = await admin
+            .from("payment_platform_config")
+            .select("class_publication_price, event_publication_price")
+            .eq("id", true)
+            .maybeSingle();
+
+          const configured = Number(
+            isEvent
+              ? config?.event_publication_price
+              : config?.class_publication_price,
+          );
+          if (!Number.isFinite(configured) || configured <= 0) {
+            throw new PagosyaError("PUBLICATION_PRICE_NOT_CONFIGURED", 409);
+          }
+          amount = configured;
+        }
+
+        // Regla obligatoria: sin suscripción mensual activa no se genera el QR
+        // de publicación. Además se cobra la publicación aparte.
+        const { data: hasMembership, error: membershipError } = await admin.rpc(
+          "organization_has_active_monthly_membership",
+          { p_organization_id: entity.organization_id },
+        );
+        if (membershipError) throw new PagosyaError("MEMBERSHIP_CHECK_FAILED", 500);
+        if (!hasMembership) {
+          throw new PagosyaError("MEMBERSHIP_REQUIRED", 409);
+        }
 
         const { data: alreadyPaid } = await admin
           .from(isEvent ? "event_publication_payments" : "dance_class_publication_payments")
@@ -804,7 +932,13 @@ async function startIntent(
   params: {
     userId: string;
     organizationId: string;
-    kind: "class_pass" | "membership" | "event_publication" | "class_publication";
+    kind:
+      | "class_pass"
+      | "class_monthly"
+      | "vip_membership"
+      | "membership"
+      | "event_publication"
+      | "class_publication";
     referenceId: string;
     amount: number;
     currency: string;
@@ -815,27 +949,48 @@ async function startIntent(
   const { data: existing } = await admin
     .from("payment_intents")
     .select(
-      "id, checkout_url, qr_data_url, pagosya_checkout_id, amount, currency, expires_at",
+      "id, checkout_url, qr_data_url, pagosya_checkout_id, amount, currency, expires_at, metadata",
     )
     .eq("kind", params.kind)
     .eq("reference_id", params.referenceId)
+    .eq("user_id", params.userId)
     .eq("status", "pending")
     .maybeSingle();
 
   if (existing?.pagosya_checkout_id) {
-    return {
-      kind: params.kind,
-      reference_id: params.referenceId,
-      intent_id: existing.id,
-      checkout_id: existing.pagosya_checkout_id,
-      checkout_url: existing.checkout_url,
-      qr_data_url: existing.qr_data_url,
-      total_amount: existing.amount,
-      currency: existing.currency,
-      reused: true,
-      sandbox: isSandboxCheckoutId(existing.pagosya_checkout_id),
-      expires_at: checkoutExpiry(existing.expires_at),
-    };
+    const incomingSessions = Array.isArray(params.metadata.session_ids)
+      ? (params.metadata.session_ids as string[])
+      : [];
+    const existingSessions = Array.isArray((existing as any).metadata?.session_ids)
+      ? ((existing as any).metadata.session_ids as string[])
+      : [];
+
+    const sameSessions =
+      params.kind !== "class_pass" ||
+      JSON.stringify([...existingSessions].sort()) ===
+        JSON.stringify([...incomingSessions].sort());
+
+    if (sameSessions) {
+      return {
+        kind: params.kind,
+        reference_id: params.referenceId,
+        intent_id: existing.id,
+        checkout_id: existing.pagosya_checkout_id,
+        checkout_url: existing.checkout_url,
+        qr_data_url: existing.qr_data_url,
+        total_amount: existing.amount,
+        currency: existing.currency,
+        reused: true,
+        sandbox: isSandboxCheckoutId(existing.pagosya_checkout_id),
+        expires_at: checkoutExpiry(existing.expires_at),
+      };
+    }
+
+    // El alumno cambió las sesiones seleccionadas: invalidar el cobro previo.
+    await admin
+      .from("payment_intents")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", existing.id);
   }
 
   const checkoutPayload = {
