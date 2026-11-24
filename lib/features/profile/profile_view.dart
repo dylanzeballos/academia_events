@@ -977,8 +977,13 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                 controller: _phoneCtrl,
                 style: TextStyle(color: context.textOnBg),
                 keyboardType: TextInputType.phone,
+                validator: (value) =>
+                    value?.trim() == widget.profile.phoneNumber?.trim()
+                        ? null
+                        : AppValidators.phone(value),
                 decoration: const InputDecoration(
-                  labelText: 'Teléfono',
+                  labelText: 'Teléfono con código de país',
+                  hintText: 'Ej. +591 71234567',
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
               ),

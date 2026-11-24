@@ -237,6 +237,15 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
   }
 
   Future<void> _save() async {
+    final phone = _phoneCtrl.text.trim();
+    final savedPhone = widget.organization.phoneNumber?.trim() ?? '';
+    final phoneError =
+        phone == savedPhone ? null : AppValidators.phone(phone);
+    if (phoneError != null) {
+      AppFeedback.error(context, phoneError);
+      return;
+    }
+
     final orgId = widget.organization.id;
     final repo = ref.read(organizationRepositoryProvider);
     try {
@@ -696,7 +705,8 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
               keyboardType: TextInputType.phone,
               style: TextStyle(color: context.textOnBg),
               decoration: InputDecoration(
-                labelText: 'Teléfono',
+                labelText: 'Teléfono con código de país',
+                hintText: 'Ej. +591 71234567',
                 labelStyle: TextStyle(color: context.textMuted),
               ),
             ),

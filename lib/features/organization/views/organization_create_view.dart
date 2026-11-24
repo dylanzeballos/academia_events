@@ -452,7 +452,8 @@ class _OrganizationCreateViewState
                 style: TextStyle(color: context.textOnBg),
                 validator: AppValidators.phone,
                 decoration: InputDecoration(
-                  labelText: 'Teléfono (opcional)',
+                  labelText: 'Teléfono con código de país (opcional)',
+                  hintText: 'Ej. +591 71234567',
                   labelStyle: TextStyle(color: context.textMuted),
                   prefixIcon: const Icon(Icons.phone_outlined),
                 ),

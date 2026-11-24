@@ -55,7 +55,11 @@ class AppValidators {
   static String? phone(String? value) {
     final v = (value ?? '').trim();
     if (v.isEmpty) return null; // Teléfono es opcional
-    if (!RegExp(r'^[0-9+\-()\s]{8,20}$').hasMatch(v)) {
+    if (!RegExp(r'^\+[1-9][0-9\s().-]*$').hasMatch(v)) {
+      return 'Incluí el código de país, por ejemplo +591 71234567';
+    }
+    final digits = v.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 8 || digits.length > 15) {
       return 'Teléfono inválido';
     }
     return null;

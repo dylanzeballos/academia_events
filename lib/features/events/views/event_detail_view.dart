@@ -205,12 +205,7 @@ class _EventDetailContent extends StatelessWidget {
 
   Future<void> _launchWhatsApp(BuildContext context, String phone) async {
     try {
-      var digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-
-      // Normalizar número boliviano (8 dígitos) agregando el código de país
-      if (digits.length == 8) {
-        digits = '591$digits';
-      }
+      final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
 
       // 1. Intentar con el esquema nativo de la app instalada
       final Uri nativeUri = Uri.parse('whatsapp://send?phone=$digits');
