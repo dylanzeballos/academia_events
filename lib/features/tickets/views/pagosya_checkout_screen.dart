@@ -399,7 +399,7 @@ class _PagosyaCheckoutScreenState extends ConsumerState<PagosyaCheckoutScreen> {
                   width: 240,
                   height: 240,
                   gaplessPlayback: true,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
               ),
             const SizedBox(height: 20),

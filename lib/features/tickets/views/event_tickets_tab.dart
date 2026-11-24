@@ -44,9 +44,8 @@ class EventTicketsTab extends ConsumerWidget {
           color: AppColors.primary,
           onRefresh: () async => ref.invalidate(userGroupedTicketsProvider),
           child: ListView.separated(
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: eventGroups.length,
             separatorBuilder: (_, _) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
@@ -89,7 +88,10 @@ class EventTicketsTab extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
@@ -110,12 +112,19 @@ class EventTicketsTab extends ConsumerWidget {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Icon(Icons.calendar_month_outlined, size: 16, color: context.textMuted),
+                          Icon(
+                            Icons.calendar_month_outlined,
+                            size: 16,
+                            color: context.textMuted,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'Evento: ${_formatDateTime(item.eventStartAt)}',
-                              style: TextStyle(fontSize: 13, color: context.textMuted),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: context.textMuted,
+                              ),
                             ),
                           ),
                         ],
@@ -123,15 +132,26 @@ class EventTicketsTab extends ConsumerWidget {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(Icons.receipt_long_outlined, size: 16, color: context.textMuted),
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 16,
+                            color: context.textMuted,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               '${item.orders.length} ${item.orders.length == 1 ? "compra registrada" : "compras en horarios distintos"}',
-                              style: TextStyle(fontSize: 12, color: context.textMuted),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.textMuted,
+                              ),
                             ),
                           ),
-                          Icon(Icons.chevron_right, color: context.textMuted, size: 20),
+                          Icon(
+                            Icons.chevron_right,
+                            color: context.textMuted,
+                            size: 20,
+                          ),
                         ],
                       ),
                     ],

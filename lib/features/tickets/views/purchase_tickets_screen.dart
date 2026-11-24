@@ -276,101 +276,104 @@ class _PurchaseTicketsScreenState extends ConsumerState<PurchaseTicketsScreen> {
                       ),
                     )
                   else
-                    Column(
-                      children: [
-                        for (final type in types) ...[
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _selected?.id == type.id
-                                    ? AppColors.primary
-                                    : (type.isCurrentlyAvailable
-                                          ? Colors.grey.shade400
-                                          : Colors.grey.shade300),
-                                width: _selected?.id == type.id ? 2 : 1,
+                    RadioGroup<TicketTypeModel>(
+                      groupValue: _selected,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _selected = value;
+                        });
+                      },
+                      child: Column(
+                        children: [
+                          for (final type in types) ...[
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _selected?.id == type.id
+                                      ? AppColors.primary
+                                      : (type.isCurrentlyAvailable
+                                            ? Colors.grey.shade400
+                                            : Colors.grey.shade300),
+                                  width: _selected?.id == type.id ? 2 : 1,
+                                ),
                               ),
-                            ),
-                            child: RadioListTile<TicketTypeModel>(
-                              value: type,
-                              groupValue: _selected,
-                              onChanged: type.isCurrentlyAvailable
-                                  ? (value) {
-                                      if (value == null) return;
-                                      setState(() {
-                                        _selected = value;
-                                      });
-                                    }
-                                  : null,
-                              title: Row(
-                                children: [
-                                  Text(
-                                    type.name,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: type.isCurrentlyAvailable
-                                          ? null
-                                          : Colors.grey,
+                              child: RadioListTile<TicketTypeModel>(
+                                value: type,
+                                enabled: type.isCurrentlyAvailable,
+                                title: Row(
+                                  children: [
+                                    Text(
+                                      type.name,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: type.isCurrentlyAvailable
+                                            ? null
+                                            : Colors.grey,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  if (type.isCurrentlyAvailable &&
-                                      type.name.toLowerCase().contains(
-                                        'preventa',
-                                      ))
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.success.withValues(
-                                          alpha: 0.15,
+                                    const SizedBox(width: 8),
+                                    if (type.isCurrentlyAvailable &&
+                                        type.name.toLowerCase().contains(
+                                          'preventa',
+                                        ))
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
                                         ),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text(
-                                        'Activa',
-                                        style: TextStyle(
-                                          color: AppColors.success,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.success.withValues(
+                                            alpha: 0.15,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Activa',
+                                          style: TextStyle(
+                                            color: AppColors.success,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
+                                    const Spacer(),
+                                    Text(
+                                      'Bs. ${type.price.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: type.isCurrentlyAvailable
+                                            ? AppColors.primary
+                                            : Colors.grey,
+                                        fontSize: 16,
+                                      ),
                                     ),
-                                  const Spacer(),
-                                  Text(
-                                    'Bs. ${type.price.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: type.isCurrentlyAvailable
-                                          ? AppColors.primary
-                                          : Colors.grey,
-                                      fontSize: 16,
-                                    ),
+                                  ],
+                                ),
+                                subtitle: Text(
+                                  type.isExpired
+                                      ? 'Etapa Finalizada'
+                                      : (type.isUpcoming
+                                            ? 'Próximamente disponible'
+                                            : (type.salesEndAt != null
+                                                  ? 'Válido hasta ${type.salesEndAt!.day}/${type.salesEndAt!.month} - ${type.available} disponibles'
+                                                  : '${type.available} disponibles')),
+                                  style: TextStyle(
+                                    color: type.isExpired
+                                        ? AppColors.error
+                                        : Colors.grey,
+                                    fontSize: 12,
                                   ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                type.isExpired
-                                    ? 'Etapa Finalizada'
-                                    : (type.isUpcoming
-                                          ? 'Próximamente disponible'
-                                          : (type.salesEndAt != null
-                                                ? 'Válido hasta ${type.salesEndAt!.day}/${type.salesEndAt!.month} - ${type.available} disponibles'
-                                                : '${type.available} disponibles')),
-                                style: TextStyle(
-                                  color: type.isExpired
-                                      ? AppColors.error
-                                      : Colors.grey,
-                                  fontSize: 12,
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
 
                   const SizedBox(height: 16),

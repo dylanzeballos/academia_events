@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../data/models/event_model.dart';
-import '../../../data/models/seat_model.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/seat_selection_provider.dart';
 import '../../events/widgets/armchair/seat_picker_widget.dart';

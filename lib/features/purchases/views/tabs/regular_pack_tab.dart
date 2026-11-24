@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../widget/pack_card.dart';
