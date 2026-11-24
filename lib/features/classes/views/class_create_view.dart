@@ -6,6 +6,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
+import '../../../providers/categories_provider.dart';
 import '../../../providers/membership_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../organization/widgets/membership_required_notice.dart';
@@ -22,7 +23,10 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _priceController = TextEditingController(text: '0');
+  final _monthlyPriceController = TextEditingController(text: '0');
   final _capacityController = TextEditingController();
+
+  String? _selectedCategoryId;
 
   TimeOfDay _startTime = const TimeOfDay(hour: 19, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 20, minute: 15);
@@ -64,6 +68,7 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
     _titleController.dispose();
     _descController.dispose();
     _priceController.dispose();
+    _monthlyPriceController.dispose();
     _capacityController.dispose();
     super.dispose();
   }
@@ -279,7 +284,7 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                       keyboardType: TextInputType.number,
                       style: TextStyle(color: context.textOnBg),
                       decoration: InputDecoration(
-                        labelText: 'Precio (BOB)',
+                        labelText: 'Precio por sesión (BOB)',
                         labelStyle: TextStyle(color: context.textMuted),
                         filled: true,
                         fillColor: context.cardBg,
@@ -318,6 +323,84 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                   ),
                 ],
               ),
+              const SizedBox(height: 14),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _monthlyPriceController,
+                      keyboardType: TextInputType.number,
+                      style: TextStyle(color: context.textOnBg),
+                      decoration: InputDecoration(
+                        labelText: 'Precio mensual (BOB)',
+                        helperText: '0 = no ofrecer mensual',
+                        helperStyle: TextStyle(color: context.textMuted, fontSize: 11),
+                        labelStyle: TextStyle(color: context.textMuted),
+                        filled: true,
+                        fillColor: context.cardBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                          borderSide: BorderSide(color: context.divider),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                          borderSide: BorderSide(color: context.divider),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        final categoriesAsync = ref.watch(danceCategoriesProvider);
+                        final categories = (categoriesAsync.value ?? const [])
+                            .where((c) => c.isActive)
+                            .toList();
+                        return DropdownButtonFormField<String>(
+                          initialValue: _selectedCategoryId,
+                          isExpanded: true,
+                          dropdownColor: context.cardBg,
+                          style: TextStyle(color: context.textOnBg, fontSize: 13),
+                          decoration: InputDecoration(
+                            labelText: 'Ritmo',
+                            labelStyle: TextStyle(color: context.textMuted),
+                            filled: true,
+                            fillColor: context.cardBg,
+                            border: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppSizes.radiusMedium),
+                              borderSide: BorderSide(color: context.divider),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppSizes.radiusMedium),
+                              borderSide: BorderSide(color: context.divider),
+                            ),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('Sin ritmo'),
+                            ),
+                            for (final category in categories)
+                              DropdownMenuItem<String>(
+                                value: category.id,
+                                child: Text(
+                                  category.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _selectedCategoryId = value),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 30),
 
               SizedBox(
@@ -340,6 +423,10 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                                 title: _titleController.text.trim(),
                                 description: _descController.text.trim(),
                                 price: double.tryParse(_priceController.text) ?? 0.0,
+                                priceMonthly:
+                                    double.tryParse(_monthlyPriceController.text) ??
+                                        0.0,
+                                danceCategoryId: _selectedCategoryId,
                                 capacity: int.tryParse(_capacityController.text),
                                 startTime: _formatTime(_startTime),
                                 endTime: _formatTime(_endTime),
@@ -350,7 +437,7 @@ class _ClassCreateViewState extends ConsumerState<ClassCreateView> {
                             messenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Clase creada. La publicación se habilita al registrar el pago del QR.',
+                                  'Clase creada. Para publicarla necesitás la suscripción mensual activa y el pago de publicación.',
                                 ),
                               ),
                             );

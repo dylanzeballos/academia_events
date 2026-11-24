@@ -11,6 +11,8 @@ import '../../../data/models/class_attendance_model.dart';
 import '../../../providers/attendance_provider.dart';
 import '../../../shared/widgets/attendance_bar_chart.dart';
 import '../../../shared/widgets/attendance_donut_chart.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../utils/class_attendance_exporter.dart';
 
@@ -44,20 +46,18 @@ class _ClassAttendanceViewState extends ConsumerState<ClassAttendanceView> {
         elevation: 0,
         title: Text(
           'Asistencia',
-          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: context.textOnBg,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: attendanceAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              e.toString(),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.error),
-            ),
-          ),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () =>
+              ref.invalidate(classAttendanceProvider(widget.classId)),
         ),
         data: (data) => _ClassAttendanceContent(
           classId: widget.classId,
@@ -227,10 +227,7 @@ class _ClassAttendanceContent extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            _sectionTitle(
-              context,
-              'Inscritos (${data.students.length})',
-            ),
+            _sectionTitle(context, 'Inscritos (${data.students.length})'),
             const SizedBox(height: 12),
             if (data.students.isEmpty)
               const _EmptyBox(
@@ -353,10 +350,7 @@ class _ScopeButton extends StatelessWidget {
 }
 
 class _GeneralSection extends StatelessWidget {
-  const _GeneralSection({
-    required this.data,
-    required this.sessions,
-  });
+  const _GeneralSection({required this.data, required this.sessions});
 
   final ClassAttendanceData data;
   final List<SessionStats> sessions;
@@ -479,7 +473,10 @@ class _GeneralSection extends StatelessWidget {
                   ),
               ],
               legends: const [
-                AttendanceBarLegend(label: 'Presente', color: AppColors.success),
+                AttendanceBarLegend(
+                  label: 'Presente',
+                  color: AppColors.success,
+                ),
                 AttendanceBarLegend(label: 'Tarde', color: AppColors.warning),
                 AttendanceBarLegend(label: 'Ausente', color: AppColors.error),
               ],
@@ -604,10 +601,7 @@ Widget _chartCard(BuildContext context, String title, {required Widget child}) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(color: context.textMuted, fontSize: 13),
-          ),
+          Text(title, style: TextStyle(color: context.textMuted, fontSize: 13)),
           const SizedBox(height: 12),
           child,
         ],
@@ -681,10 +675,10 @@ class _StudentTile extends StatelessWidget {
     final statusColor = student.lastAttendanceStatus == 'present'
         ? AppColors.success
         : student.lastAttendanceStatus == 'late'
-            ? AppColors.warning
-            : student.lastAttendanceStatus == 'absent'
-                ? AppColors.error
-                : context.textMuted;
+        ? AppColors.warning
+        : student.lastAttendanceStatus == 'absent'
+        ? AppColors.error
+        : context.textMuted;
 
     return Card(
       color: context.cardBg,
@@ -736,8 +730,10 @@ class _StudentTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),

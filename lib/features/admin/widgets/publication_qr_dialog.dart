@@ -1,6 +1,5 @@
 // lib/features/admin/widgets/publication_qr_dialog.dart
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -66,7 +65,7 @@ class _PublicationQrDialog extends StatelessWidget {
                   checkout.qrDataUrl!,
                   width: 220,
                   height: 220,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
               ),
             const SizedBox(height: 12),
