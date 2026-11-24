@@ -16,7 +16,7 @@ class OrganizationException implements Exception {
 
 class OrganizationService {
   const OrganizationService({StorageService? storage})
-      : _storage = storage ?? const StorageService();
+    : _storage = storage ?? const StorageService();
 
   final StorageService _storage;
 
@@ -66,10 +66,18 @@ class OrganizationService {
     String organizationId, {
     String source = 'app',
   }) async {
-    await supabase.rpc('record_organization_view', params: {
-      'p_org_id': organizationId,
-      'p_source': source,
-    });
+    await supabase.rpc(
+      'record_organization_view',
+      params: {'p_org_id': organizationId, 'p_source': source},
+    );
+  }
+
+  Future<Map<String, dynamic>> fetchOrganizationViewsStats(String orgId) async {
+    final res = await supabase.rpc(
+      'get_organization_views_stats',
+      params: {'p_org_id': orgId},
+    );
+    return Map<String, dynamic>.from(res as Map);
   }
 
   Future<Map<String, dynamic>> createOrganization({
@@ -90,19 +98,22 @@ class OrganizationService {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) {
       throw const OrganizationException(
-          'Debes iniciar sesión para crear una organización.');
+        'Debes iniciar sesión para crear una organización.',
+      );
     }
 
     try {
-      final result =
-          await supabase.rpc('create_organization_with_owner', params: {
-        'p_name': name,
-        'p_legal_name': legalName,
-        'p_description': description,
-        'p_email': email,
-        'p_phone_number': phoneNumber,
-        'p_website_url': websiteUrl,
-      });
+      final result = await supabase.rpc(
+        'create_organization_with_owner',
+        params: {
+          'p_name': name,
+          'p_legal_name': legalName,
+          'p_description': description,
+          'p_email': email,
+          'p_phone_number': phoneNumber,
+          'p_website_url': websiteUrl,
+        },
+      );
 
       final org = result as Map<String, dynamic>;
       final orgId = org['id'] as String;
@@ -132,7 +143,8 @@ class OrganizationService {
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         throw const OrganizationException(
-            'Ya existe una organización con ese nombre.');
+          'Ya existe una organización con ese nombre.',
+        );
       }
       throw OrganizationException(_friendlyPostgresError(e.message));
     }
@@ -149,13 +161,12 @@ class OrganizationService {
     final path = '$orgId/logo.$cleanExt';
     final contentType = cleanExt == 'png' ? 'image/png' : 'image/jpeg';
 
-    await supabase.storage.from('organization-logos').uploadBinary(
+    await supabase.storage
+        .from('organization-logos')
+        .uploadBinary(
           path,
           bytes,
-          fileOptions: FileOptions(
-            upsert: true,
-            contentType: contentType,
-          ),
+          fileOptions: FileOptions(upsert: true, contentType: contentType),
         );
 
     return path;
@@ -182,13 +193,12 @@ class OrganizationService {
     final path = '$orgId/cover.$cleanExt';
     final contentType = cleanExt == 'png' ? 'image/png' : 'image/jpeg';
 
-    await supabase.storage.from('organization-logos').uploadBinary(
+    await supabase.storage
+        .from('organization-logos')
+        .uploadBinary(
           path,
           bytes,
-          fileOptions: FileOptions(
-            upsert: true,
-            contentType: contentType,
-          ),
+          fileOptions: FileOptions(upsert: true, contentType: contentType),
         );
 
     return supabase.storage.from('organization-logos').getPublicUrl(path);
@@ -204,7 +214,8 @@ class OrganizationService {
   }
 
   Future<List<Map<String, dynamic>>> fetchOrganizationImages(
-      String orgId) async {
+    String orgId,
+  ) async {
     final rows = await supabase
         .from('organization_images')
         .select('id, organization_id, image_url, title, sort_order, created_at')
@@ -225,7 +236,9 @@ class OrganizationService {
     final path = '$orgId/gallery/$fileName';
     final contentType = cleanExt == 'png' ? 'image/png' : 'image/jpeg';
 
-    await supabase.storage.from('organization-logos').uploadBinary(
+    await supabase.storage
+        .from('organization-logos')
+        .uploadBinary(
           path,
           bytes,
           fileOptions: FileOptions(
@@ -275,8 +288,10 @@ class OrganizationService {
 
   // ─── Actualizaciones & Borrado ───────────────────────
 
-    Future<void> updateOrganization(
-      String orgId, Map<String, dynamic> data) async {
+  Future<void> updateOrganization(
+    String orgId,
+    Map<String, dynamic> data,
+  ) async {
     try {
       await supabase.from('organizations').update(data).eq('id', orgId);
     } on PostgrestException catch (e) {
@@ -285,9 +300,10 @@ class OrganizationService {
   }
 
   Future deleteOrganization(String orgId) async {
-    await supabase.from('organizations').update({
-      'is_active': false,
-    }).eq('id', orgId);
+    await supabase
+        .from('organizations')
+        .update({'is_active': false})
+        .eq('id', orgId);
   }
 
   // ─── Estilos de baile de la organización ─────────────
@@ -298,7 +314,9 @@ class OrganizationService {
         .select('dance_category_id')
         .eq('organization_id', orgId);
     return (rows as List)
-        .map((row) => (row as Map<String, dynamic>)['dance_category_id'] as String)
+        .map(
+          (row) => (row as Map<String, dynamic>)['dance_category_id'] as String,
+        )
         .toList();
   }
 
@@ -349,7 +367,8 @@ class OrganizationService {
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         throw const OrganizationException(
-            'Este usuario ya es miembro de la organización.');
+          'Este usuario ya es miembro de la organización.',
+        );
       }
       throw OrganizationException(_friendlyPostgresError(e.message));
     }
@@ -362,7 +381,8 @@ class OrganizationService {
     try {
       await supabase
           .from('organization_members')
-          .update({'role': newRole}).eq('id', memberId);
+          .update({'role': newRole})
+          .eq('id', memberId);
     } on PostgrestException catch (e) {
       throw OrganizationException(_friendlyPostgresError(e.message));
     }
@@ -371,7 +391,8 @@ class OrganizationService {
   Future removeMember(String memberId) async {
     await supabase
         .from('organization_members')
-        .update({'is_active': false}).eq('id', memberId);
+        .update({'is_active': false})
+        .eq('id', memberId);
   }
 
   // ─── Invitations ─────────────────────────────────
@@ -396,14 +417,14 @@ class OrganizationService {
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         throw const OrganizationException(
-            'Ya existe una invitación pendiente para ese email.');
+          'Ya existe una invitación pendiente para ese email.',
+        );
       }
       throw OrganizationException(_friendlyPostgresError(e.message));
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchOrgInvitations(
-      String orgId) async {
+  Future<List<Map<String, dynamic>>> fetchOrgInvitations(String orgId) async {
     try {
       return await supabase
           .from('organization_invitations')
@@ -451,9 +472,10 @@ class OrganizationService {
 
   Future<Map<String, dynamic>> acceptInvitation(String invitationId) async {
     try {
-      final result = await supabase.rpc('accept_invitation', params: {
-        'invitation_id': invitationId,
-      });
+      final result = await supabase.rpc(
+        'accept_invitation',
+        params: {'invitation_id': invitationId},
+      );
       return result as Map<String, dynamic>;
     } on PostgrestException catch (e) {
       throw OrganizationException(_friendlyPostgresError(e.message));
@@ -462,9 +484,10 @@ class OrganizationService {
 
   Future<Map<String, dynamic>> declineInvitation(String invitationId) async {
     try {
-      final result = await supabase.rpc('decline_invitation', params: {
-        'invitation_id': invitationId,
-      });
+      final result = await supabase.rpc(
+        'decline_invitation',
+        params: {'invitation_id': invitationId},
+      );
       return result as Map<String, dynamic>;
     } on PostgrestException catch (e) {
       throw OrganizationException(_friendlyPostgresError(e.message));

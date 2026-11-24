@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_model.dart';
+import '../../../../providers/organization_provider.dart';
 
-class DashboardStatsGrid extends StatelessWidget {
+class DashboardStatsGrid extends ConsumerWidget {
   const DashboardStatsGrid({
     super.key,
     required this.stats,
@@ -17,7 +19,15 @@ class DashboardStatsGrid extends StatelessWidget {
   final OrganizationModel organization;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final viewsStatsAsync =
+        ref.watch(organizationViewsStatsProvider(organization.id));
+
+    final monthViews = viewsStatsAsync.maybeWhen(
+      data: (s) => s.currentMonthViews,
+      orElse: () => organization.viewsCount,
+    );
+
     return Column(
       children: [
         Row(
@@ -59,14 +69,11 @@ class DashboardStatsGrid extends StatelessWidget {
             Expanded(
               child: _InteractiveStatCard(
                 icon: Icons.visibility_outlined,
-                label: 'Visitas perfil',
-                value: '${organization.viewsCount}',
+                label: 'Visitas este mes',
+                value: '$monthViews',
                 color: AppColors.secondary,
-                onTap: () {
-                  context.push(
-                    '${AppRoutes.organizationsDetail}/${organization.id}',
-                  );
-                },
+                onTap: () =>
+                    context.push('/academy/views-stats/${organization.id}'),
               ),
             ),
           ],

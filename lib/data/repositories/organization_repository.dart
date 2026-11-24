@@ -9,10 +9,8 @@ import '../services/organization_service.dart';
 abstract interface class IOrganizationRepository {
   Future<List<OrganizationWithRole>> fetchMyOrganizations();
   Future<OrganizationModel?> fetchOrganization(String orgId);
-  Future<void> recordOrganizationView(
-    String orgId, {
-    String source,
-  });
+  Future<OrganizationViewsStats> fetchOrganizationViewsStats(String orgId);
+  Future<void> recordOrganizationView(String orgId, {String source});
   Future<OrganizationModel> createOrganization({
     required String name,
     String? legalName,
@@ -33,7 +31,9 @@ abstract interface class IOrganizationRepository {
 
   Future<List<String>> fetchOrganizationDanceCategoryIds(String orgId);
   Future<void> setOrganizationDanceCategories(
-      String orgId, List<String> danceCategoryIds);
+    String orgId,
+    List<String> danceCategoryIds,
+  );
 
   Future<List<OrganizationMemberWithProfile>> fetchMembers(String orgId);
   Future<void> addMember({
@@ -52,8 +52,7 @@ abstract interface class IOrganizationRepository {
     required String email,
     required String role,
   });
-  Future<List<OrganizationInvitationModel>> fetchOrgInvitations(
-      String orgId);
+  Future<List<OrganizationInvitationModel>> fetchOrgInvitations(String orgId);
   Future<List<OrganizationInvitationModel>> fetchMyInvitations();
   Future<Map<String, dynamic>> acceptInvitation(String invitationId);
   Future<Map<String, dynamic>> declineInvitation(String invitationId);
@@ -82,8 +81,7 @@ abstract interface class IOrganizationRepository {
     required String extension,
   });
 
-  Future<List<OrganizationImageModel>> fetchOrganizationImages(
-      String orgId);
+  Future<List<OrganizationImageModel>> fetchOrganizationImages(String orgId);
   Future<OrganizationImageModel> addOrganizationImage({
     required String orgId,
     required Uint8List bytes,
@@ -94,10 +92,7 @@ abstract interface class IOrganizationRepository {
 }
 
 class OrganizationWithRole {
-  const OrganizationWithRole({
-    required this.organization,
-    required this.role,
-  });
+  const OrganizationWithRole({required this.organization, required this.role});
 
   final OrganizationModel organization;
   final MemberRole role;
@@ -122,8 +117,7 @@ class OrganizationMemberWithProfile {
   final String profileName;
   final String? profilePhone;
 
-  factory OrganizationMemberWithProfile.fromJson(
-      Map<String, dynamic> json) {
+  factory OrganizationMemberWithProfile.fromJson(Map<String, dynamic> json) {
     final profile = json['profiles'] as Map<String, dynamic>?;
     final firstName = profile?['first_name'] as String? ?? '';
     final lastName = profile?['last_name'] as String? ?? '';
@@ -137,9 +131,44 @@ class OrganizationMemberWithProfile {
   }
 }
 
+/// Métricas de visitas de una organización (`get_organization_views_stats`).
+class OrganizationViewsStats {
+  const OrganizationViewsStats({
+    required this.totalViews,
+    required this.currentMonthViews,
+    required this.uniqueMonthUsers,
+    required this.monthlyHistory,
+    required this.monthSources,
+  });
+
+  final int totalViews;
+  final int currentMonthViews;
+  final int uniqueMonthUsers;
+
+  /// Cada fila: `year_month`, `views_count` y `unique_users`.
+  final List<Map<String, dynamic>> monthlyHistory;
+
+  /// Cada fila: `source` y `count`.
+  final List<Map<String, dynamic>> monthSources;
+
+  factory OrganizationViewsStats.fromJson(Map<String, dynamic> json) {
+    List<Map<String, dynamic>> rows(Object? raw) => (raw as List? ?? const [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+
+    return OrganizationViewsStats(
+      totalViews: (json['total_views'] as num?)?.toInt() ?? 0,
+      currentMonthViews: (json['current_month_views'] as num?)?.toInt() ?? 0,
+      uniqueMonthUsers: (json['unique_month_users'] as num?)?.toInt() ?? 0,
+      monthlyHistory: rows(json['monthly_history']),
+      monthSources: rows(json['month_sources']),
+    );
+  }
+}
+
 class OrganizationRepository implements IOrganizationRepository {
   const OrganizationRepository({OrganizationService? service})
-      : _service = service ?? const OrganizationService();
+    : _service = service ?? const OrganizationService();
 
   final OrganizationService _service;
 
@@ -156,10 +185,16 @@ class OrganizationRepository implements IOrganizationRepository {
   }
 
   @override
-  Future<void> recordOrganizationView(
-    String orgId, {
-    String source = 'app',
-  }) => _service.recordOrganizationView(orgId, source: source);
+  Future<OrganizationViewsStats> fetchOrganizationViewsStats(
+    String orgId,
+  ) async {
+    final raw = await _service.fetchOrganizationViewsStats(orgId);
+    return OrganizationViewsStats.fromJson(raw);
+  }
+
+  @override
+  Future<void> recordOrganizationView(String orgId, {String source = 'app'}) =>
+      _service.recordOrganizationView(orgId, source: source);
 
   @override
   Future<OrganizationModel> createOrganization({
@@ -196,8 +231,7 @@ class OrganizationRepository implements IOrganizationRepository {
   }
 
   @override
-  Future<void> updateOrganization(
-      String orgId, Map<String, dynamic> data) =>
+  Future<void> updateOrganization(String orgId, Map<String, dynamic> data) =>
       _service.updateOrganization(orgId, data);
 
   @override
@@ -210,12 +244,12 @@ class OrganizationRepository implements IOrganizationRepository {
 
   @override
   Future<void> setOrganizationDanceCategories(
-          String orgId, List<String> danceCategoryIds) =>
-      _service.setOrganizationDanceCategories(orgId, danceCategoryIds);
+    String orgId,
+    List<String> danceCategoryIds,
+  ) => _service.setOrganizationDanceCategories(orgId, danceCategoryIds);
 
   @override
-  Future<List<OrganizationMemberWithProfile>> fetchMembers(
-      String orgId) async {
+  Future<List<OrganizationMemberWithProfile>> fetchMembers(String orgId) async {
     final rows = await _service.fetchMembers(orgId);
     return rows
         .map((row) => OrganizationMemberWithProfile.fromJson(row))
@@ -227,31 +261,28 @@ class OrganizationRepository implements IOrganizationRepository {
     required String orgId,
     required String userId,
     required String role,
-  }) =>
-      _service.addMember(orgId: orgId, userId: userId, role: role);
+  }) => _service.addMember(orgId: orgId, userId: userId, role: role);
 
   @override
   Future<void> updateMemberRole({
     required String memberId,
     required String newRole,
-  }) =>
-      _service.updateMemberRole(memberId: memberId, newRole: newRole);
+  }) => _service.updateMemberRole(memberId: memberId, newRole: newRole);
 
   @override
-  Future<void> removeMember(String memberId) =>
-      _service.removeMember(memberId);
+  Future<void> removeMember(String memberId) => _service.removeMember(memberId);
 
   @override
   Future<void> sendInvitation({
     required String orgId,
     required String email,
     required String role,
-  }) =>
-      _service.sendInvitation(orgId: orgId, email: email, role: role);
+  }) => _service.sendInvitation(orgId: orgId, email: email, role: role);
 
   @override
   Future<List<OrganizationInvitationModel>> fetchOrgInvitations(
-          String orgId) async =>
+    String orgId,
+  ) async =>
       (await _service.fetchOrgInvitations(orgId))
           .map((row) => OrganizationInvitationModel.fromJson(row))
           .toList();
@@ -279,48 +310,44 @@ class OrganizationRepository implements IOrganizationRepository {
     String orgId,
     Uint8List bytes, {
     required String extension,
-  }) =>
-      _service.uploadLogo(orgId, bytes, extension: extension);
+  }) => _service.uploadLogo(orgId, bytes, extension: extension);
 
   @override
-  Future<String?> logoSignedUrl(String? path) =>
-      _service.logoSignedUrl(path);
+  Future<String?> logoSignedUrl(String? path) => _service.logoSignedUrl(path);
 
   @override
   Future<void> uploadLogoForOrg({
     required String orgId,
     required Uint8List bytes,
     required String extension,
-  }) =>
-      _service.uploadLogoForOrg(
-        orgId: orgId,
-        bytes: bytes,
-        extension: extension,
-      );
+  }) => _service.uploadLogoForOrg(
+    orgId: orgId,
+    bytes: bytes,
+    extension: extension,
+  );
 
   @override
   Future<String> uploadCover(
     String orgId,
     Uint8List bytes, {
     required String extension,
-  }) =>
-      _service.uploadCover(orgId, bytes, extension: extension);
+  }) => _service.uploadCover(orgId, bytes, extension: extension);
 
   @override
   Future<void> uploadCoverForOrg({
     required String orgId,
     required Uint8List bytes,
     required String extension,
-  }) =>
-      _service.uploadCoverForOrg(
-        orgId: orgId,
-        bytes: bytes,
-        extension: extension,
-      );
+  }) => _service.uploadCoverForOrg(
+    orgId: orgId,
+    bytes: bytes,
+    extension: extension,
+  );
 
   @override
   Future<List<OrganizationImageModel>> fetchOrganizationImages(
-      String orgId) async {
+    String orgId,
+  ) async {
     final rows = await _service.fetchOrganizationImages(orgId);
     return rows.map(OrganizationImageModel.fromJson).toList();
   }
