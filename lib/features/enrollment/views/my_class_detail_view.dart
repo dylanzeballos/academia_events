@@ -11,6 +11,7 @@ import '../../../data/models/class_pass_model.dart';
 import '../../../data/models/dance_class_session_model.dart';
 import '../../../providers/checkin_provider.dart';
 import '../../../providers/class_enrollment_provider.dart';
+import '../../../providers/dance_class_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../tickets/widgets/class_pass_purchase_sheet.dart';
@@ -25,6 +26,9 @@ class MyClassDetailView extends ConsumerStatefulWidget {
 }
 
 class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
+  static const int _pageSize = 15;
+  int _sessionsLimit = _pageSize;
+
   @override
   void initState() {
     super.initState();
@@ -40,7 +44,6 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
   @override
   Widget build(BuildContext context) {
     final enrollmentAsync = ref.watch(selectedMyEnrollmentProvider);
-    final sessionsAsync = ref.watch(enrolledClassSessionsProvider);
     final attendanceAsync = ref.watch(enrolledClassAttendanceProvider);
 
     return Scaffold(
@@ -50,13 +53,19 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
         elevation: 0,
         title: Text(
           'Mi clase',
-          style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: context.textOnBg,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: enrollmentAsync.when(
         loading: () => const LoadingIndicator(),
         error: (e, _) => Center(
-          child: Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
+          child: Text(
+            friendlyError(e),
+            style: TextStyle(color: context.textMuted),
+          ),
         ),
         data: (enrollment) {
           if (enrollment == null) {
@@ -67,6 +76,15 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
               ),
             );
           }
+          final sessionsAsync = ref.watch(
+            classSessionsPageProvider((
+              classId: enrollment.danceClassId,
+              limit: _sessionsLimit,
+              upcomingOnly: true,
+              pastOnly: false,
+            )),
+          );
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -76,21 +94,26 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
               const SizedBox(height: 24),
               const _SectionTitle(
                 icon: Icons.event_available,
-                title: 'Sesiones',
+                title: 'Próximas sesiones',
               ),
               const SizedBox(height: 8),
               sessionsAsync.when(
                 loading: () => const LoadingIndicator(),
-                error: (e, _) => Text(friendlyError(e), style: TextStyle(color: context.textMuted)),
-                data: (sessions) {
+                error: (e, _) => Text(
+                  friendlyError(e),
+                  style: TextStyle(color: context.textMuted),
+                ),
+                data: (page) {
+                  final sessions = page.sessions;
                   if (sessions.isEmpty) {
                     return Text(
-                      'No hay sesiones programadas.',
+                      'No hay sesiones próximas programadas.',
                       style: TextStyle(color: context.textMuted, fontSize: 14),
                     );
                   }
                   final attendanceBySession = <String, AttendanceModel>{
-                    for (final a in attendanceAsync.value ?? const <AttendanceModel>[])
+                    for (final a
+                        in attendanceAsync.value ?? const <AttendanceModel>[])
                       a.sessionId: a,
                   };
                   return Column(
@@ -100,9 +123,27 @@ class _MyClassDetailViewState extends ConsumerState<MyClassDetailView> {
                           session: s,
                           attendance: attendanceBySession[s.id],
                         ),
+                      if (page.hasMore)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: OutlinedButton.icon(
+                            icon: const Icon(
+                              Icons.expand_more_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Ver más sesiones'),
+                            onPressed: () =>
+                                setState(() => _sessionsLimit += _pageSize),
+                          ),
+                        ),
                     ],
                   );
                 },
+              ),
+              const SizedBox(height: 16),
+              _PastSessionsSection(
+                enrollment: enrollment,
+                attendance: attendanceAsync.value ?? const <AttendanceModel>[],
               ),
               const SizedBox(height: 24),
               _CancelButton(enrollment: enrollment),
@@ -169,7 +210,9 @@ class _Header extends StatelessWidget {
           child: Text(
             enrollment.statusDisplayName,
             style: TextStyle(
-              color: enrollment.isCancelled ? AppColors.error : AppColors.success,
+              color: enrollment.isCancelled
+                  ? AppColors.error
+                  : AppColors.success,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -193,16 +236,48 @@ class _PassSection extends ConsumerWidget {
     return passesAsync.when(
       loading: () => const SizedBox(
         height: 80,
-        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       ),
       error: (_, _) => const SizedBox.shrink(),
       data: (passes) {
-        final activePass = passes
+        final activePasses = passes
             .where((p) => p.enrollmentId == enrollment.id && p.isActive)
-            .firstOrNull;
+            .toList();
+        final activePass = activePasses.firstOrNull;
 
         if (activePass != null) {
-          return _ActivePassCard(pass: activePass);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ActivePassCard(pass: activePass),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: context.textOnBg,
+                  side: BorderSide(color: context.divider),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  ),
+                ),
+                onPressed: () => showModalBottomSheet(
+                  context: context,
+                  backgroundColor: context.cardBg,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(AppSizes.radiusLarge),
+                    ),
+                  ),
+                  isScrollControlled: true,
+                  builder: (_) =>
+                      ClassPassPurchaseSheet(enrollment: enrollment),
+                ),
+                icon: const Icon(Icons.add_card),
+                label: const Text('Comprar más sesiones o pase mensual'),
+              ),
+            ],
+          );
         }
         return FilledButton.tonalIcon(
           style: FilledButton.styleFrom(
@@ -217,13 +292,18 @@ class _PassSection extends ConsumerWidget {
             context: context,
             backgroundColor: context.cardBg,
             shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLarge)),
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(AppSizes.radiusLarge),
+              ),
             ),
             isScrollControlled: true,
             builder: (_) => ClassPassPurchaseSheet(enrollment: enrollment),
           ),
           icon: const Icon(Icons.add_card),
-          label: const Text('Comprar pase', style: TextStyle(fontWeight: FontWeight.bold)),
+          label: const Text(
+            'Comprar pase',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         );
       },
     );
@@ -262,6 +342,21 @@ class _ActivePassCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 4),
+          Text(
+            pass.isVip
+                ? 'Pase VIP de la organización'
+                : pass.isMonthly
+                ? 'Pase mensual de la clase'
+                : pass.passType == 'session'
+                ? 'Pase de 1 sesión'
+                : 'Pase de sesiones',
+            style: TextStyle(
+              color: AppColors.success,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             'Vence el ${_formatDate(pass.endsAt)} · quedan $daysLeft días.',
@@ -283,6 +378,99 @@ class _ActivePassCard extends StatelessWidget {
     final local = d.toLocal();
     String two(int v) => v.toString().padLeft(2, '0');
     return '${two(local.day)}/${two(local.month)}/${local.year}';
+  }
+}
+
+/// Historial paginado: se carga solo si el alumno lo abre.
+class _PastSessionsSection extends ConsumerStatefulWidget {
+  const _PastSessionsSection({
+    required this.enrollment,
+    required this.attendance,
+  });
+
+  final ClassEnrollmentModel enrollment;
+  final List<AttendanceModel> attendance;
+
+  @override
+  ConsumerState<_PastSessionsSection> createState() =>
+      _PastSessionsSectionState();
+}
+
+class _PastSessionsSectionState extends ConsumerState<_PastSessionsSection> {
+  static const int _pageSize = 10;
+  int _limit = _pageSize;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_expanded) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          icon: const Icon(Icons.history_rounded, size: 18),
+          label: const Text('Ver sesiones anteriores'),
+          style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+          onPressed: () => setState(() => _expanded = true),
+        ),
+      );
+    }
+
+    final pastAsync = ref.watch(
+      classSessionsPageProvider((
+        classId: widget.enrollment.danceClassId,
+        limit: _limit,
+        upcomingOnly: false,
+        pastOnly: true,
+      )),
+    );
+
+    final attendanceBySession = <String, AttendanceModel>{
+      for (final a in widget.attendance) a.sessionId: a,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionTitle(
+          icon: Icons.history_rounded,
+          title: 'Sesiones anteriores',
+        ),
+        const SizedBox(height: 8),
+        pastAsync.when(
+          loading: () => const LoadingIndicator(),
+          error: (e, _) => Text(
+            friendlyError(e),
+            style: TextStyle(color: context.textMuted),
+          ),
+          data: (page) {
+            if (page.sessions.isEmpty) {
+              return Text(
+                'Todavía no hay sesiones anteriores.',
+                style: TextStyle(color: context.textMuted, fontSize: 14),
+              );
+            }
+            return Column(
+              children: [
+                for (final session in page.sessions)
+                  _SessionTile(
+                    session: session,
+                    attendance: attendanceBySession[session.id],
+                  ),
+                if (page.hasMore)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.expand_more_rounded, size: 18),
+                      label: const Text('Ver más sesiones anteriores'),
+                      onPressed: () => setState(() => _limit += _pageSize),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 
@@ -323,10 +511,10 @@ class _SessionTile extends StatelessWidget {
     final statusColor = att == null
         ? context.textMuted
         : att.isLate
-            ? AppColors.warning
-            : att.isPresent
-                ? AppColors.success
-                : AppColors.error;
+        ? AppColors.warning
+        : att.isPresent
+        ? AppColors.success
+        : AppColors.error;
 
     return Card(
       color: context.cardBg,
@@ -390,7 +578,9 @@ class _SessionTile extends StatelessWidget {
               Text(
                 session.isCancelled ? session.statusDisplayName : 'Pendiente',
                 style: TextStyle(
-                  color: session.isCancelled ? AppColors.error : context.textMuted,
+                  color: session.isCancelled
+                      ? AppColors.error
+                      : context.textMuted,
                   fontSize: 12,
                 ),
               ),
@@ -429,7 +619,9 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
     final canCancel = widget.enrollment.isActive;
 
     if (actionState.isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
 
     return Column(
@@ -465,7 +657,10 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: context.cardBg,
-        title: Text('Cancelar inscripción', style: TextStyle(color: context.textOnBg)),
+        title: Text(
+          'Cancelar inscripción',
+          style: TextStyle(color: context.textOnBg),
+        ),
         content: Text(
           '¿Seguro que quieres cancelar tu inscripción a esta clase?',
           style: TextStyle(color: context.textMuted),
