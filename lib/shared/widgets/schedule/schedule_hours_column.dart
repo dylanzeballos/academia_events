@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/utils/theme_extensions.dart';
+import '../../../core/utils/theme_extensions.dart';
 
 class ScheduleHoursColumn extends StatelessWidget {
   const ScheduleHoursColumn({
