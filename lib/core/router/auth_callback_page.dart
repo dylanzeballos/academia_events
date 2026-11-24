@@ -35,7 +35,6 @@ import '../../features/classes/views/class_create_view.dart';
 import '../../features/classes/views/class_detail_view.dart';
 import '../../features/enrollment/views/my_classes_view.dart';
 import '../../features/enrollment/views/my_class_detail_view.dart';
-import '../../features/enrollment/views/class_enroll_detail_view.dart';
 
 import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
@@ -58,10 +57,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) => _handleRedirect(ref, state),
     routes: [
       GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginView()),
-      GoRoute(path: AppRoutes.register, builder: (_, _) => const RegisterView()),
-      GoRoute(path: AppRoutes.forgotPassword, builder: (_, _) => const ForgotPasswordView()),
-      GoRoute(path: AppRoutes.updatePassword, builder: (_, _) => const UpdatePasswordView()),
-      GoRoute(path: AppRoutes.platformAdmin, builder: (_, _) => const AdminDashboardView()),
+      GoRoute(
+        path: AppRoutes.register,
+        builder: (_, _) => const RegisterView(),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        builder: (_, _) => const ForgotPasswordView(),
+      ),
+      GoRoute(
+        path: AppRoutes.updatePassword,
+        builder: (_, _) => const UpdatePasswordView(),
+      ),
+      GoRoute(
+        path: AppRoutes.platformAdmin,
+        builder: (_, _) => const AdminDashboardView(),
+      ),
 
       // Callback OAuth (Google Login)
       GoRoute(
@@ -80,9 +91,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.organizationsDetailPattern,
-        builder: (context, state) => OrganizationDetailView(
-          organizationId: state.pathParameters['id'],
-        ),
+        builder: (context, state) =>
+            OrganizationDetailView(organizationId: state.pathParameters['id']),
       ),
       GoRoute(
         path: AppRoutes.myInvitations,
@@ -100,9 +110,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.classDetailPattern,
-        builder: (context, state) => ClassDetailView(
-          classId: state.pathParameters['id'],
-        ),
+        builder: (context, state) =>
+            ClassDetailView(classId: state.pathParameters['id']),
       ),
 
       // Eventos
@@ -117,7 +126,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.eventDetailPattern,
         builder: (context, state) {
-          final eventId = state.pathParameters['id'] ?? state.extra as String? ?? '';
+          final eventId =
+              state.pathParameters['id'] ?? state.extra as String? ?? '';
           return EventDetailView(eventId: eventId);
         },
       ),
@@ -151,18 +161,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const CheckinScreen(),
       ),
 
-      // Detalle e inscripción clases
+      // Detalle de clases
       GoRoute(
         path: AppRoutes.myClassDetailPattern,
-        builder: (context, state) => MyClassDetailView(
-          enrollmentId: state.pathParameters['id'],
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.enrollClassDetailPattern,
-        builder: (context, state) => ClassEnrollDetailView(
-          classId: state.pathParameters['id'],
-        ),
+        builder: (context, state) =>
+            MyClassDetailView(enrollmentId: state.pathParameters['id']),
       ),
 
       // Shell Estudiante
@@ -269,7 +272,8 @@ String? _handleRedirect(Ref ref, GoRouterState state) {
   if (authState.isLoading) return null;
 
   final loc = state.matchedLocation;
-  final onAuthRoute = loc.startsWith('/login') ||
+  final onAuthRoute =
+      loc.startsWith('/login') ||
       loc.startsWith('/register') ||
       loc.startsWith('/forgot-password') ||
       loc.startsWith('/auth/callback');
@@ -302,7 +306,8 @@ String? _handleRedirect(Ref ref, GoRouterState state) {
   final role = roleAsync.asData?.value;
 
   if (role != null) {
-    if (loc.startsWith(AppRoutes.platformAdmin) && role != UserRole.platformAdmin) {
+    if (loc.startsWith(AppRoutes.platformAdmin) &&
+        role != UserRole.platformAdmin) {
       return AppRoutes.studentHome;
     }
     if (role == UserRole.platformAdmin &&

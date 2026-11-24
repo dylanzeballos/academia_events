@@ -1,7 +1,6 @@
 // lib/features/public/views/organization_detail_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -9,6 +8,9 @@ import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/organization_image_model.dart';
 import '../../../../data/models/organization_model.dart';
 import '../../../../providers/organization_provider.dart';
+import '../../../../providers/class_enrollment_provider.dart'
+    show selectedExploreOrgIdProvider;
+import '../../enrollment/views/explore_classes_view.dart';
 import '../../organization/widgets/organization_share_section.dart';
 import './details/org_gallery_section.dart';
 import './details/org_hero_header.dart';
@@ -274,8 +276,13 @@ class _PublicOrganizationDetailViewState
                     child: InkWell(
                       borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
                       onTap: () {
-                        context.push(
-                          '${AppRoutes.enrollClassDetail}/${widget.organizationId}',
+                        ref
+                            .read(selectedExploreOrgIdProvider.notifier)
+                            .select(widget.organizationId);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ExploreClassesView(),
+                          ),
                         );
                       },
                       child: Padding(

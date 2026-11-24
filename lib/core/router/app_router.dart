@@ -38,7 +38,6 @@ import '../../features/enrollment/views/my_classes_view.dart';
 import '../../features/enrollment/views/my_class_detail_view.dart';
 
 // ── IMPORT CORREGIDO AL NUEVO FEATURE PURCHASES ──
-import '../../features/purchases/views/class_enroll_detail_view.dart';
 
 import '../../features/events/views/events_list_view.dart';
 import '../../features/events/views/event_create_view.dart';
@@ -112,30 +111,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,
         path: AppRoutes.academyClassesView,
-        builder: (context, state) => Scaffold(
-          backgroundColor: context.scaffoldBg,
-          appBar: AppBar(
-            backgroundColor: context.cardBg,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: context.textOnBg,
-                size: 20,
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            title: Text(
-              'Clases y Actividades',
-              style: TextStyle(
-                color: context.textOnBg,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          body: const AcademyClassesView(),
-        ),
+        builder: (_, _) => const AcademyClassesView(),
       ),
 
       // Organizaciones
@@ -244,12 +220,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.myClassDetailPattern,
         builder: (context, state) =>
             MyClassDetailView(enrollmentId: state.pathParameters['id']),
-      ),
-      GoRoute(
-        parentNavigatorKey: rootNavigatorKey,
-        path: AppRoutes.enrollClassDetailPattern,
-        builder: (context, state) =>
-            ClassEnrollDetailView(classId: state.pathParameters['id']),
       ),
 
       // ─────────────────────────────────────────────

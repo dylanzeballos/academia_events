@@ -24,8 +24,6 @@ class AppRoutes {
   static const String studentCalendar = '/student/calendar';
   static const String myClassDetail = '/mi-clase';
   static const String myClassDetailPattern = '/mi-clase/:id';
-  static const String enrollClassDetail = '/inscribir';
-  static const String enrollClassDetailPattern = '/inscribir/:id';
 
   // ── Shell Academia (Pestañas fijas) ──
 
