@@ -5,7 +5,7 @@ import '../data/models/class_pass_model.dart';
 import '../data/models/class_ticket_model.dart';
 import '../data/models/dance_class_session_model.dart';
 import '../data/repositories/checkin_repository.dart';
-import 'class_enrollment_provider.dart';
+import 'dance_class_provider.dart';
 
 final checkInRepositoryProvider = Provider<ICheckInRepository>((ref) {
   return const CheckInRepository();
@@ -34,15 +34,16 @@ final classPassQuoteProvider = FutureProvider.autoDispose
     });
 
 /// Próxima sesión programada de una clase (para que el staff la seleccione en
-/// el check-in). Solo se muestra la siguiente: ni pasadas ni muy futuras.
+/// el check-in). Pide una sola fila a la base: no trae el historial completo.
 final checkinClassSessionsProvider = FutureProvider.autoDispose
     .family<List<DanceClassSessionModel>, String>((ref, classId) async {
-      final repo = ref.watch(classEnrollmentRepositoryProvider);
-      final sessions = await repo.fetchSessionsForClass(classId);
-      final now = DateTime.now();
-      final upcoming = sessions.where((s) => s.endAt.isAfter(now)).toList()
-        ..sort((a, b) => a.startAt.compareTo(b.startAt));
-      return upcoming.isEmpty ? const [] : [upcoming.first];
+      final repo = ref.watch(danceClassRepositoryProvider);
+      final page = await repo.fetchClassSessionsPage(
+        classId,
+        limit: 1,
+        upcomingOnly: true,
+      );
+      return page.sessions;
     });
 
 /// Ejecuta el check-in de un ticket de evento.

@@ -1,90 +1,34 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/attendance_model.dart';
+import '../data/models/class_access.dart';
 import '../data/models/class_enrollment_model.dart';
+import '../data/models/class_pass_model.dart';
+import '../data/models/vip_plan_model.dart';
 import '../data/models/class_model.dart';
-import '../data/models/dance_class_session_model.dart';
 import '../data/models/organization_with_classes.dart';
 import '../data/repositories/class_enrollment_repository.dart';
 import 'auth_provider.dart';
+import 'checkin_provider.dart';
+import 'class_purchase_provider.dart';
 import 'dance_class_provider.dart';
 
-final classEnrollmentRepositoryProvider =
-    Provider<IClassEnrollmentRepository>((ref) {
+final classEnrollmentRepositoryProvider = Provider<IClassEnrollmentRepository>((
+  ref,
+) {
   return const ClassEnrollmentRepository();
 });
 
 // ─── Mis inscripciones (estudiante) ───────────────
 
-final myEnrollmentsProvider =
-    FutureProvider<List<ClassEnrollmentModel>>((ref) async {
+final myEnrollmentsProvider = FutureProvider<List<ClassEnrollmentModel>>((
+  ref,
+) async {
   ref.watch(authStateProvider);
   final userId = ref.read(authRepositoryProvider).currentUser?.id;
   if (userId == null) return [];
   final repo = ref.watch(classEnrollmentRepositoryProvider);
   return repo.fetchMyEnrollments();
-});
-
-// ─── Mis clases, agrupadas por clase y por próxima sesión ───
-
-/// Una clase de "Mis Clases": la inscripción (con datos de clase/org) junto a
-/// sus sesiones futuras, ordenadas de la más próxima a la más lejana.
-class MyClassGroup {
-  const MyClassGroup({
-    required this.enrollment,
-    required this.upcomingSessions,
-  });
-
-  final ClassEnrollmentModel enrollment;
-
-  /// Sesiones futuras (ya excluidas las pasadas), más próxima primero.
-  final List<DanceClassSessionModel> upcomingSessions;
-
-  DanceClassSessionModel get nextSession => upcomingSessions.first;
-}
-
-/// "Mis Clases" para la pestaña del estudiante:
-/// - Agrupa por clase (dedupe por si hay inscripciones duplicadas).
-/// - Solo muestra clases con sesiones FUTURAS (las pasadas no saturan).
-/// - Ordena por la sesión más próxima en primer lugar.
-final myClassesWithSessionsProvider = FutureProvider<List<MyClassGroup>>((ref) async {
-  ref.watch(authStateProvider);
-  final enrollments = await ref.watch(myEnrollmentsProvider.future);
-  final now = DateTime.now();
-
-  // Solo inscripciones que importan (omitir rechazadas).
-  final relevant =
-      enrollments.where((e) => e.status != 'rejected').toList();
-
-  // Agrupar por clase: si hay varias inscripciones, quedarse con la activa.
-  final byClass = <String, ClassEnrollmentModel>{};
-  for (final enrollment in relevant) {
-    final existing = byClass[enrollment.danceClassId];
-    if (existing == null || (enrollment.isActive && !existing.isActive)) {
-      byClass[enrollment.danceClassId] = enrollment;
-    }
-  }
-
-  final repo = ref.watch(classEnrollmentRepositoryProvider);
-  final groups = <MyClassGroup>[];
-  for (final enrollment in byClass.values) {
-    final sessions =
-        await repo.fetchAllSessionsForClass(enrollment.danceClassId);
-    final upcoming = sessions
-        .where((s) => s.startAt.isAfter(now))
-        .toList()
-      ..sort((a, b) => a.startAt.compareTo(b.startAt));
-    // Los pasados no se muestran: si no queda ninguna sesión futura, la
-    // clase no aparece en la lista.
-    if (upcoming.isEmpty) continue;
-    groups.add(MyClassGroup(enrollment: enrollment, upcomingSessions: upcoming));
-  }
-
-  groups.sort(
-    (a, b) => a.nextSession.startAt.compareTo(b.nextSession.startAt),
-  );
-
-  return groups;
 });
 
 // ─── Mi asistencia (estudiante) ───────────────────
@@ -101,9 +45,9 @@ final myAttendanceProvider = FutureProvider<List<AttendanceModel>>((ref) async {
 
 final organizationsWithPublishedClassesProvider =
     FutureProvider<List<OrganizationWithClasses>>((ref) async {
-  final repo = ref.watch(classEnrollmentRepositoryProvider);
-  return repo.fetchOrganizationsWithPublishedClasses();
-});
+      final repo = ref.watch(classEnrollmentRepositoryProvider);
+      return repo.fetchOrganizationsWithPublishedClasses();
+    });
 
 // Organización seleccionada para explorar sus clases.
 class SelectedExploreOrgIdNotifier extends Notifier<String?> {
@@ -119,48 +63,118 @@ class SelectedExploreOrgIdNotifier extends Notifier<String?> {
 
 final selectedExploreOrgIdProvider =
     NotifierProvider<SelectedExploreOrgIdNotifier, String?>(
-  () => SelectedExploreOrgIdNotifier(),
-);
+      () => SelectedExploreOrgIdNotifier(),
+    );
 
-// Clase seleccionada para el detalle de inscripción.
-class SelectedEnrollClassIdNotifier extends Notifier<String?> {
-  @override
-  String? build() {
-    ref.watch(authStateProvider);
-    return null;
-  }
+// ── Mis clases: horario semanal + tipo de acceso ──────
 
-  void select(String? id) => state = id;
-  void clear() => state = null;
+/// Todo lo que necesita "Mis clases": las franjas del horario de las clases a
+/// las que el alumno está inscripto, su tipo de acceso y el id de inscripción.
+class MyClassesOverview {
+  const MyClassesOverview({
+    required this.entries,
+    required this.accessByClass,
+    required this.enrollmentByClass,
+  });
+
+  final List<OrgScheduleEntry> entries;
+  final Map<String, ClassAccess> accessByClass;
+  final Map<String, String> enrollmentByClass;
+
+  bool get isEmpty => entries.isEmpty;
 }
 
-final selectedEnrollClassIdProvider =
-    NotifierProvider<SelectedEnrollClassIdNotifier, String?>(
-  () => SelectedEnrollClassIdNotifier(),
-);
+final myClassesOverviewProvider = FutureProvider<MyClassesOverview>((
+  ref,
+) async {
+  final enrollments = await ref.watch(myEnrollmentsProvider.future);
 
-// La clase publicada seleccionada para el detalle de inscripción.
-final selectedEnrollClassProvider = FutureProvider<ClassModel?>((ref) {
-  final classId = ref.watch(selectedEnrollClassIdProvider);
-  if (classId == null) return Future.value(null);
-  final repo = ref.watch(danceClassRepositoryProvider);
-  return repo.fetchClass(classId);
-});
+  // Solo inscripciones vigentes; una por clase (si hay duplicadas, la activa).
+  final byClass = <String, ClassEnrollmentModel>{};
+  for (final enrollment in enrollments) {
+    if (!enrollment.isActive) continue;
+    final existing = byClass[enrollment.danceClassId];
+    if (existing == null) byClass[enrollment.danceClassId] = enrollment;
+  }
 
-// Clases publicadas de la organización seleccionada para explorar.
-final exploreOrgPublishedClassesProvider =
-    FutureProvider<List<ClassModel>>((ref) {
-  final orgId = ref.watch(selectedExploreOrgIdProvider);
-  if (orgId == null) return Future.value(const []);
-  final repo = ref.watch(classEnrollmentRepositoryProvider);
-  return repo.fetchPublishedClassesForOrg(orgId);
+  if (byClass.isEmpty) {
+    return const MyClassesOverview(
+      entries: [],
+      accessByClass: {},
+      enrollmentByClass: {},
+    );
+  }
+
+  final passes = <ClassPassModel>[];
+  try {
+    passes.addAll(await ref.watch(myClassPassesProvider.future));
+  } catch (_) {
+    // Sin pases: las clases se muestran como "Sin pase".
+  }
+
+  final vipMemberships = <VipMembershipModel>[];
+  try {
+    vipMemberships.addAll(await ref.watch(myVipMembershipsProvider.future));
+  } catch (_) {
+    // Sin membresías VIP: no se marca ninguna clase como VIP.
+  }
+
+  final vipOrganizations = vipMemberships
+      .where((v) => v.isActive)
+      .map((v) => v.organizationId)
+      .toSet();
+
+  final scheduleRepo = ref.watch(danceClassRepositoryProvider);
+  final entries = <OrgScheduleEntry>[];
+  final accessByClass = <String, ClassAccess>{};
+  final enrollmentByClass = <String, String>{};
+
+  for (final enrollment in byClass.values) {
+    final classId = enrollment.danceClassId;
+
+    enrollmentByClass[classId] = enrollment.id;
+    accessByClass[classId] = ClassAccess.resolve(
+      classId: classId,
+      organizationId: enrollment.organizationId,
+      passes: passes,
+      vipOrganizationIds: vipOrganizations,
+    );
+
+    final schedules = await scheduleRepo.fetchClassSchedules(classId);
+    if (schedules.isEmpty) continue;
+
+    final danceClass = ClassModel(
+      id: classId,
+      title: enrollment.classTitle ?? 'Clase',
+      organizationId: enrollment.organizationId ?? '',
+      organizationName: enrollment.organizationName ?? '',
+      instructorName: enrollment.instructorName,
+      coverImageUrl: enrollment.classCoverImageUrl,
+      organizationLogoUrl: enrollment.organizationLogoUrl,
+      status: 'published',
+    );
+
+    for (final schedule in schedules.where((s) => s.isActive)) {
+      entries.add(OrgScheduleEntry(schedule: schedule, danceClass: danceClass));
+    }
+  }
+
+  return MyClassesOverview(
+    entries: entries,
+    accessByClass: accessByClass,
+    enrollmentByClass: enrollmentByClass,
+  );
 });
 
 /// ¿El usuario ya está inscrito (activo) en una clase concreta?
-bool alreadyEnrolled(
-    List<ClassEnrollmentModel> enrollments, String classId) {
-  return enrollments.any((e) =>
-      e.danceClassId == classId && (e.status == 'active' || e.status == 'approved' || e.status == 'pending'));
+bool alreadyEnrolled(List<ClassEnrollmentModel> enrollments, String classId) {
+  return enrollments.any(
+    (e) =>
+        e.danceClassId == classId &&
+        (e.status == 'active' ||
+            e.status == 'approved' ||
+            e.status == 'pending'),
+  );
 }
 
 // Inscripción del usuario seleccionada para el detalle (Mis Clases).
@@ -177,12 +191,13 @@ class SelectedEnrolledClassIdNotifier extends Notifier<String?> {
 
 final selectedEnrolledClassIdProvider =
     NotifierProvider<SelectedEnrolledClassIdNotifier, String?>(
-  () => SelectedEnrolledClassIdNotifier(),
-);
+      () => SelectedEnrolledClassIdNotifier(),
+    );
 
 /// La inscripción seleccionada (con datos de clase/organización anidados).
-final selectedMyEnrollmentProvider =
-    FutureProvider<ClassEnrollmentModel?>((ref) async {
+final selectedMyEnrollmentProvider = FutureProvider<ClassEnrollmentModel?>((
+  ref,
+) async {
   final enrollmentId = ref.watch(selectedEnrolledClassIdProvider);
   if (enrollmentId == null) return null;
   final list = await ref.watch(myEnrollmentsProvider.future);
@@ -190,22 +205,15 @@ final selectedMyEnrollmentProvider =
 });
 
 /// Sesiones de la clase de la inscripción seleccionada (via inheritance id).
-final enrolledClassSessionsProvider = FutureProvider.autoDispose<List<DanceClassSessionModel>>((ref) async {
-  final enrollment = await ref.watch(selectedMyEnrollmentProvider.future);
-  if (enrollment == null) return [];
-  final repo = ref.watch(classEnrollmentRepositoryProvider);
-  return repo.fetchAllSessionsForClass(enrollment.danceClassId);
-});
 
 /// Mi asistencia para la clase de la inscripción seleccionada.
-final enrolledClassAttendanceProvider = FutureProvider.autoDispose<List<AttendanceModel>>((ref) async {
-  final enrollment = await ref.watch(selectedMyEnrollmentProvider.future);
-  if (enrollment == null) return [];
-  final all = await ref.watch(myAttendanceProvider.future);
-  return all
-      .where((a) => a.enrollmentId == enrollment.id)
-      .toList();
-});
+final enrolledClassAttendanceProvider =
+    FutureProvider.autoDispose<List<AttendanceModel>>((ref) async {
+      final enrollment = await ref.watch(selectedMyEnrollmentProvider.future);
+      if (enrollment == null) return [];
+      final all = await ref.watch(myAttendanceProvider.future);
+      return all.where((a) => a.enrollmentId == enrollment.id).toList();
+    });
 
 // ─── Acciones (inscribir / cancelar) ──────────────
 
@@ -260,5 +268,5 @@ class EnrollmentActionNotifier extends Notifier<EnrollmentActionState> {
 
 final enrollmentActionProvider =
     NotifierProvider<EnrollmentActionNotifier, EnrollmentActionState>(() {
-  return EnrollmentActionNotifier();
-});
+      return EnrollmentActionNotifier();
+    });
