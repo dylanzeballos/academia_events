@@ -5,117 +5,270 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../providers/dance_class_provider.dart';
 
+/// Vista previa del panel: **una sola** próxima sesión, la más cercana de una
+/// clase **publicada**.
+///
+/// Si todavía no hay sesiones generadas cae al próximo horario semanal
+/// publicado, para no dejar la tarjeta vacía.
 class UpcomingSessionsList extends ConsumerWidget {
   const UpcomingSessionsList({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheduleEntriesAsync = ref.watch(orgWeeklyScheduleEntriesProvider);
+    final nextAsync = ref.watch(nextOrgSessionProvider);
 
-    return scheduleEntriesAsync.when(
-      loading: () => const Center(
+    return nextAsync.when(
+      loading: () => const _SessionsCard(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: CircularProgressIndicator(color: AppColors.primary),
+          padding: EdgeInsets.all(20),
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
         ),
       ),
-      error: (e, _) => Text(
-        'Error al cargar sesiones: $e',
-        style: TextStyle(color: context.textMuted),
+      error: (e, _) => const _SessionsCard(
+        child: _NoSessionMessage(
+          message: 'No se pudo cargar la próxima sesión.',
+        ),
       ),
-      data: (entries) {
-        if (entries.isEmpty) {
-          return Card(
-            color: context.cardBg,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-              side: BorderSide(color: context.divider),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Text(
-                  'No hay clases con días programados aún',
-                  style: TextStyle(color: context.textMuted),
-                ),
-              ),
+      data: (next) {
+        if (next != null) {
+          return _SessionsCard(
+            child: _NextSessionTile(
+              title: next.classTitle,
+              start: next.startAt,
+              end: next.endAt,
+              label: 'Próxima sesión',
+              onTap: () => _openClass(context, ref, next.classId),
             ),
           );
         }
 
-        final previewEntries = entries.take(5).toList();
+        // Sin sesiones generadas: próximo horario, solo de clases publicadas.
+        final entries = ref
+            .watch(orgWeeklyScheduleEntriesProvider)
+            .value
+            ?.where((e) => e.danceClass.isPublished)
+            .toList();
+        final upcoming = _nearestOccurrence(entries ?? const []);
+        if (upcoming == null) {
+          return const _SessionsCard(
+            child: _NoSessionMessage(
+              message: 'No hay sesiones programadas todavía.',
+            ),
+          );
+        }
 
-        return Card(
-          color: context.cardBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-            side: BorderSide(color: context.divider),
-          ),
-          child: Column(
-            children: previewEntries.map((entry) {
-              final danceClass = entry.danceClass;
-              final schedule = entry.schedule;
-              final dayName = schedule.dayName;
-              final timeRange =
-                  '${schedule.startTime.substring(0, 5)} - ${schedule.endTime.substring(0, 5)}';
-
-              return ListTile(
-                onTap: () async {
-                  await context.push('${AppRoutes.classDetail}/${danceClass.id}');
-                  ref.invalidate(orgWeeklyScheduleEntriesProvider);
-                  ref.invalidate(orgClassesProvider);
-                },
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                  child: Text(
-                    danceClass.title.isNotEmpty ? danceClass.title[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  danceClass.title,
-                  style: TextStyle(
-                    color: context.textOnBg,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Row(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(top: 2),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        dayName,
-                        style: const TextStyle(
-                          color: AppColors.warning,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      timeRange,
-                      style: TextStyle(color: context.textMuted, fontSize: 11),
-                    ),
-                  ],
-                ),
-                trailing: Icon(Icons.chevron_right, color: context.textMuted, size: 18),
-              );
-            }).toList(),
+        return _SessionsCard(
+          child: _NextSessionTile(
+            title: upcoming.entry.danceClass.title,
+            start: upcoming.start,
+            end: upcoming.end,
+            label: 'Horario programado',
+            onTap: () => _openClass(context, ref, upcoming.entry.danceClass.id),
           ),
         );
       },
+    );
+  }
+
+  Future<void> _openClass(
+    BuildContext context,
+    WidgetRef ref,
+    String classId,
+  ) async {
+    await context.push('${AppRoutes.classDetail}/$classId');
+    ref.invalidate(nextOrgSessionProvider);
+    ref.invalidate(orgWeeklyScheduleEntriesProvider);
+    ref.invalidate(orgClassesProvider);
+  }
+
+  /// Próxima ocurrencia (fecha real) entre los horarios semanales.
+  ({OrgScheduleEntry entry, DateTime start, DateTime end})? _nearestOccurrence(
+    List<OrgScheduleEntry> entries,
+  ) {
+    if (entries.isEmpty) return null;
+    final now = DateTime.now();
+
+    ({OrgScheduleEntry entry, DateTime start, DateTime end})? best;
+    for (final entry in entries) {
+      final startTime = _parseTime(entry.schedule.startTime);
+      final endTime = _parseTime(entry.schedule.endTime);
+      final targetDay = entry.schedule.dayOfWeek == 0
+          ? 7
+          : entry.schedule.dayOfWeek;
+
+      var daysAhead = (targetDay - now.weekday) % 7;
+      if (daysAhead < 0) daysAhead += 7;
+
+      var start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        startTime.$1,
+        startTime.$2,
+      ).add(Duration(days: daysAhead));
+      if (start.isBefore(now)) start = start.add(const Duration(days: 7));
+      final end = DateTime(
+        start.year,
+        start.month,
+        start.day,
+        endTime.$1,
+        endTime.$2,
+      );
+
+      if (best == null || start.isBefore(best.start)) {
+        best = (entry: entry, start: start, end: end);
+      }
+    }
+    return best;
+  }
+
+  (int, int) _parseTime(String value) {
+    final parts = value.split(':');
+    final hour = int.tryParse(parts.first) ?? 0;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    return (hour, minute);
+  }
+}
+
+class _SessionsCard extends StatelessWidget {
+  const _SessionsCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        border: Border.all(color: context.divider),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _NextSessionTile extends StatelessWidget {
+  const _NextSessionTile({
+    required this.title,
+    required this.start,
+    required this.end,
+    required this.label,
+    required this.onTap,
+  });
+
+  final String title;
+  final DateTime start;
+  final DateTime end;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final local = start.toLocal();
+    final localEnd = end.toLocal();
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.event_available_rounded,
+                size: 20,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label.toUpperCase(),
+                    style: TextStyle(
+                      color: context.textMuted,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.textOnBg,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${DateFormatter.capitalize(DateFormatter.shortDay(local))} '
+                    '${DateFormatter.dayMonth(local)} · '
+                    '${DateFormatter.timeRange(local, localEnd)}',
+                    style: TextStyle(color: context.textMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.textMuted,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoSessionMessage extends StatelessWidget {
+  const _NoSessionMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Icon(Icons.event_busy_outlined, size: 20, color: context.textMuted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: context.textMuted, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

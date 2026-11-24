@@ -69,27 +69,23 @@ class DashboardOrgSelector extends ConsumerWidget {
                 onTap: logoUrl == null
                     ? null
                     : () => FullscreenImageViewer.show(
-                          context,
-                          logoUrl,
-                          tag: 'dashboard-org-logo-${org.id}',
-                        ),
+                        context,
+                        logoUrl,
+                        tag: 'dashboard-org-logo-${org.id}',
+                      ),
                 child: Hero(
                   tag: 'dashboard-org-logo-${org.id}',
                   child: CircleAvatar(
                     radius: 24,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                    backgroundImage:
-                        logoUrl != null ? NetworkImage(logoUrl) : null,
+                    backgroundImage: logoUrl != null
+                        ? NetworkImage(logoUrl)
+                        : null,
                     child: logoUrl == null
-                        ? Text(
-                            org.name.isNotEmpty
-                                ? org.name[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        ? const Icon(
+                            Icons.storefront_rounded,
+                            color: AppColors.primary,
+                            size: 22,
                           )
                         : null,
                   ),
@@ -164,7 +160,7 @@ class DashboardOrgSelector extends ConsumerWidget {
                         ],
                         Flexible(
                           child: Text(
-                            'Miembros • Info • Membresías',
+                            'Miembros · Membresía · Cobros · VIP',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -181,29 +177,21 @@ class DashboardOrgSelector extends ConsumerWidget {
 
               const SizedBox(width: 8),
 
-              // ── 3. ÍCONO DE GESTIÓN Y FLECHA INDICADORA ──
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: context.divider.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(20),
+              // ── 3. ACCIÓN EXPLÍCITA DE GESTIÓN ──
+              FilledButton.tonalIcon(
+                onPressed: openOrgDetails,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  foregroundColor: AppColors.primary,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  textStyle: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.storefront_outlined,
-                      size: 15,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 11,
-                      color: context.textMuted,
-                    ),
-                  ],
-                ),
+                icon: const Icon(Icons.tune_rounded, size: 16),
+                label: const Text('Gestionar'),
               ),
             ],
           ),
