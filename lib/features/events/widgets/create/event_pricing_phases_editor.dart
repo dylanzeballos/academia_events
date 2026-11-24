@@ -234,7 +234,7 @@ class _EventPricingPhasesEditorState extends State<EventPricingPhasesEditor> {
               ),
               Switch.adaptive(
                 value: _usePhases,
-                activeColor: AppColors.primary,
+                activeThumbColor: AppColors.primary,
                 onChanged: (val) {
                   setState(() => _usePhases = val);
                   _emitChanges();

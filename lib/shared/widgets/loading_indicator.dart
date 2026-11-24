@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/constants/app_constants.dart';
 
 /// Indicador de carga centrado con el color primario de la app.
 class LoadingIndicator extends StatelessWidget {

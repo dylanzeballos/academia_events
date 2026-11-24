@@ -51,10 +51,12 @@ class EventTicketsEditor extends StatelessWidget {
             ),
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Ingresa el precio';
-              if (double.tryParse(v.trim()) == null)
+              if (double.tryParse(v.trim()) == null) {
                 return 'Ingresa un número válido';
-              if (double.parse(v.trim()) < 0)
+              }
+              if (double.parse(v.trim()) < 0) {
                 return 'El precio no puede ser negativo';
+              }
               return null;
             },
           ),
@@ -88,11 +90,13 @@ class EventTicketsEditor extends StatelessWidget {
               ),
               validator: (v) {
                 if (isUnlimitedStock) return null;
-                if (v == null || v.trim().isEmpty)
+                if (v == null || v.trim().isEmpty) {
                   return 'Ingresa la cantidad de tickets';
+                }
                 final qty = int.tryParse(v.trim());
-                if (qty == null || qty <= 0)
+                if (qty == null || qty <= 0) {
                   return 'Debe ser un número mayor a 0';
+                }
                 return null;
               },
             ),
