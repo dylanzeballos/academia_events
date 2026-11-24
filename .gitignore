@@ -47,5 +47,8 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
+# Impeccable (skill de diseño): consentimiento local de la máquina
+.impeccable/config.local.json
+
 .env
 supabase/functions/.env
