@@ -1,18 +1,24 @@
+// lib/features/events/views/event_detail_view.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
-import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/layout_mode_provider.dart';
-import '../../../shared/widgets/fullscreen_image_viewer.dart';
 import '../../../shared/widgets/loading_indicator.dart';
-import '../widgets/map_view_screen.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
+import '../widgets/detail/event_detail_header.dart';
+import '../widgets/detail/event_location_section.dart';
+import '../widgets/detail/event_publish_action_bar.dart';
+import '../widgets/detail/event_schedule_card.dart';
+import '../widgets/detail/event_ticket_action_bar.dart';
+import '../widgets/detail/event_tickets_section.dart';
+import 'event_attendance_view.dart';
+import 'event_access_points_view.dart';
 
 class EventDetailView extends ConsumerWidget {
   const EventDetailView({super.key, required this.eventId});
@@ -27,30 +33,49 @@ class EventDetailView extends ConsumerWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar evento'),
-        content: Text('¿Estás seguro de eliminar "${event.title}"?'),
+        backgroundColor: context.cardBg,
+        title: Text(
+          'Eliminar evento',
+          style: TextStyle(color: context.textOnBg),
+        ),
+        content: Text(
+          '¿Estás seguro de eliminar "${event.title}"? Esta acción borrará todas sus entradas, ubicaciones y datos asociados.',
+          style: TextStyle(color: context.textMuted),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text('Eliminar'),
           ),
         ],
       ),
     );
 
-    if (confirm == true) {
+    if (confirm != true) return;
+
+    try {
       await ref.read(eventsRepositoryProvider).deleteEvent(event.id);
       ref.invalidate(orgEventsProvider);
       ref.invalidate(allEventsProvider);
+      ref.invalidate(weekEventsProvider);
+
       if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Evento eliminado')));
+        Navigator.of(context).pop(true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Evento eliminado correctamente'),
+            backgroundColor: context.cardBg,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.error(context, friendlyError(e));
       }
     }
   }
@@ -62,17 +87,64 @@ class EventDetailView extends ConsumerWidget {
         ref.watch(effectiveLayoutModeProvider) == AppLayoutMode.academy;
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
         title: eventAsync.when(
-          data: (event) => Text(event.title),
-          loading: () => const Text('Cargando...'),
-          error: (_, _) => const Text('Evento'),
+          data: (event) => Text(
+            event.title,
+            style: TextStyle(
+              color: context.textOnBg,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          loading: () =>
+              Text('Cargando...', style: TextStyle(color: context.textMuted)),
+          error: (_, _) =>
+              Text('Evento', style: TextStyle(color: context.textOnBg)),
         ),
         actions: [
           if (isAcademyMode)
             eventAsync.maybeWhen(
               data: (event) => IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                tooltip: 'Puntos de acceso',
+                icon: Icon(
+                  Icons.meeting_room_outlined,
+                  color: context.textOnBg,
+                ),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => EventAccessPointsView(
+                      eventId: event.id,
+                      organizationId: event.organizationId,
+                      eventTitle: event.title,
+                    ),
+                  ),
+                ),
+              ),
+              orElse: () => const SizedBox.shrink(),
+            ),
+          if (isAcademyMode)
+            eventAsync.maybeWhen(
+              data: (event) => IconButton(
+                tooltip: 'Ver asistencia',
+                icon: Icon(Icons.assessment_outlined, color: context.textOnBg),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => EventAttendanceView(
+                      eventId: event.id,
+                      eventTitle: event.title,
+                    ),
+                  ),
+                ),
+              ),
+              orElse: () => const SizedBox.shrink(),
+            ),
+          if (isAcademyMode)
+            eventAsync.maybeWhen(
+              data: (event) => IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppColors.error),
                 onPressed: () => _deleteEvent(context, ref, event),
               ),
               orElse: () => const SizedBox.shrink(),
@@ -81,142 +153,293 @@ class EventDetailView extends ConsumerWidget {
       ),
       body: eventAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (event) => _EventDetailBody(event: event),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(eventDetailProvider(eventId)),
+        ),
+        data: (event) =>
+            _EventDetailContent(event: event, isAcademyMode: isAcademyMode),
+      ),
+      bottomNavigationBar: eventAsync.maybeWhen(
+        data: (event) {
+          if (isAcademyMode) {
+            if (event.status == 'draft') {
+              return EventPublishActionBar(event: event);
+            }
+            return null;
+          }
+
+          if (event.status == 'published') {
+            return EventTicketActionBar(event: event);
+          }
+
+          return null;
+        },
+        orElse: () => null,
       ),
     );
   }
 }
-class _EventDetailBody extends ConsumerWidget {
-  const _EventDetailBody({required this.event});
+
+class _EventDetailContent extends StatelessWidget {
+  const _EventDetailContent({required this.event, required this.isAcademyMode});
 
   final EventModel event;
+  final bool isAcademyMode;
 
-  Future<void> _openGoogleMaps(BuildContext context, LatLng point) async {
-    final uri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query='
-      '${point.latitude},${point.longitude}',
-    );
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir Google Maps')),
-      );
+  Future<void> _launchPhone(BuildContext context, String phone) async {
+    try {
+      final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+      final Uri url = Uri.parse('tel:$cleanPhone');
+      if (!await launchUrl(url)) {
+        if (context.mounted) {
+          AppFeedback.warning(context, 'No se pudo abrir la app de llamadas');
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.error(context, 'Error al intentar llamar: $e');
+      }
+    }
+  }
+
+  Future<void> _launchWhatsApp(BuildContext context, String phone) async {
+    try {
+      var digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+
+      // Normalizar número boliviano (8 dígitos) agregando el código de país
+      if (digits.length == 8) {
+        digits = '591$digits';
+      }
+
+      // 1. Intentar con el esquema nativo de la app instalada
+      final Uri nativeUri = Uri.parse('whatsapp://send?phone=$digits');
+      if (await canLaunchUrl(nativeUri)) {
+        await launchUrl(nativeUri);
+        return;
+      }
+
+      // 2. Respaldo universal por navegador
+      final Uri webUri = Uri.parse('https://wa.me/$digits');
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.error(context, 'No se pudo abrir WhatsApp');
+      }
+    }
+  }
+
+  Future<void> _launchPdf(BuildContext context, String rawUrl) async {
+    try {
+      final cleanUrl = rawUrl.trim();
+      if (cleanUrl.isEmpty) {
+        if (context.mounted) {
+          AppFeedback.warning(context, 'No hay enlace de documento disponible');
+        }
+        return;
+      }
+
+      final Uri directUri = Uri.parse(cleanUrl);
+
+      // 1. Intentar abrir directamente con el visor nativo / navegador
+      bool launched = false;
+      try {
+        launched = await launchUrl(
+          directUri,
+          mode: LaunchMode.externalApplication,
+        );
+      } catch (_) {
+        launched = false;
+      }
+
+      // 2. Respaldo para Android mediante el visor web de documentos
+      if (!launched) {
+        final Uri viewerUri = Uri.parse(
+          'https://docs.google.com/viewer?url=${Uri.encodeComponent(cleanUrl)}',
+        );
+        launched = await launchUrl(
+          viewerUri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
+      if (!launched && context.mounted) {
+        AppFeedback.error(
+          context,
+          'No se pudo abrir el archivo PDF. Verifica tu conexión.',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppFeedback.error(context, 'Error al abrir el documento: $e');
+      }
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = AppColors.calendarEventColors;
-    final accent = colors[event.colorIndex % colors.length];
-    final location = event.location;
-    final hasLocation = location?.latitude != null && location?.longitude != null;
+  Widget build(BuildContext context) {
+    final accent = AppColors.colorForOrganization(event.organizationId);
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Banner / foto del evento ────────────────────────────
-          GestureDetector(
-            onTap: event.coverImageUrl == null
-                ? null
-                : () => FullscreenImageViewer.show(
-                      context,
-                      event.coverImageUrl!,
-                      tag: 'detail-cover-${event.id}',
-                    ),
-            child: Hero(
-              tag: 'detail-cover-${event.id}',
-              child: event.coverImageUrl != null
-                  ? Image.network(
-                      event.coverImageUrl!,
-                      height: 220,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (_, child, progress) => progress == null
-                          ? child
-                          : Container(
-                              height: 220,
-                              color: context.cardBg,
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                      errorBuilder: (_, _, _) =>
-                          _BannerPlaceholder(color: accent),
-                    )
-                  : _BannerPlaceholder(color: accent),
-            ),
-          ),
+          if (isAcademyMode) _OrganizerStatusBanner(status: event.status),
+
+          EventDetailHeader(event: event, accentColor: accent),
 
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Categoría ─────────────────────────────────────
-                if (event.categoryName != null) ...[
-                  Chip(
-                    label: Text(event.categoryName!),
-                    backgroundColor: accent.withValues(alpha: 0.12),
-                    labelStyle: TextStyle(color: accent, fontSize: 12),
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
+                // 1. Horario del Evento
+                EventScheduleCard(event: event, accentColor: accent),
+
+                // 2. Capacidad y Asistencia
+                if (event.capacity != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: context.cardBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: context.divider),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.groups_outlined, size: 20, color: accent),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Capacidad permitida:',
+                          style: TextStyle(color: context.textMuted, fontSize: 13),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${event.capacity} personas',
+                          style: TextStyle(
+                            color: context.textOnBg,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
                 ],
 
-                // ── Título y organización ─────────────────────────
-                Text(
-                  event.title,
-                  style: TextStyle(
-                    color: context.textOnBg,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    height: 1.2,
+                // 3. Teléfono de Contacto Directo
+                if (event.contactPhone != null &&
+                    event.contactPhone!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: context.cardBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.divider),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.phone_in_talk_rounded,
+                            color: AppColors.success,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Contacto / Informes',
+                                style: TextStyle(
+                                  color: context.textMuted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                event.contactPhone!,
+                                style: TextStyle(
+                                  color: context.textOnBg,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Llamar',
+                          icon: const Icon(Icons.call, color: AppColors.primary, size: 20),
+                          onPressed: () => _launchPhone(context, event.contactPhone!),
+                        ),
+                        IconButton(
+                          tooltip: 'WhatsApp',
+                          icon: const Icon(Icons.chat_outlined, color: AppColors.success, size: 20),
+                          onPressed: () => _launchWhatsApp(context, event.contactPhone!),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                if (event.organizationName.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.storefront_outlined,
-                          size: 15, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      Text(
-                        event.organizationName,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 13),
+                ],
+
+                // 4. Documento PDF / Reglamento
+                if (event.rulesPdfUrl != null &&
+                    event.rulesPdfUrl!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () => _launchPdf(context, event.rulesPdfUrl!),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                       ),
-                    ],
+                      child: Row(
+                        children: [
+                          const Icon(Icons.picture_as_pdf, color: AppColors.primary, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Reglamento y Código de Vestimenta',
+                                  style: TextStyle(
+                                    color: context.textOnBg,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  'Toca para ver el documento oficial del evento',
+                                  style: TextStyle(color: context.textMuted, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.open_in_new_rounded, size: 18, color: accent),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
-                const SizedBox(height: 16),
 
-                // ── Fecha y hora ──────────────────────────────────
-                _InfoCard(
-                  icon: Icons.calendar_today_outlined,
-                  accent: accent,
-                  children: [
-                    _InfoRow(
-                      icon: Icons.play_arrow_rounded,
-                      label: 'Inicio',
-                      value:
-                          '${DateFormatter.fullDate(event.startTime)} · ${DateFormatter.hourMin(event.startTime)}',
-                    ),
-                    const SizedBox(height: 8),
-                    _InfoRow(
-                      icon: Icons.stop_rounded,
-                      label: 'Fin',
-                      value:
-                          '${DateFormatter.fullDate(event.endTime)} · ${DateFormatter.hourMin(event.endTime)}',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // ── Descripción ───────────────────────────────────
+                // 5. Descripción del Evento
                 if (event.description != null &&
                     event.description!.isNotEmpty) ...[
+                  const SizedBox(height: 20),
                   Text(
                     'Descripción',
                     style: TextStyle(
@@ -229,230 +452,21 @@ class _EventDetailBody extends ConsumerWidget {
                   Text(
                     event.description!,
                     style: TextStyle(
-                      color: context.textOnBg.withValues(alpha: 0.8),
+                      color: context.textMuted,
                       fontSize: 14,
                       height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 20),
                 ],
 
-                // ── Ubicación con mapa ────────────────────────────
-                if (location?.locationName != null ||
-                    location?.addressLine1 != null ||
-                    hasLocation) ...[
-                  Text(
-                    'Ubicación',
-                    style: TextStyle(
-                      color: context.textOnBg,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (hasLocation)
-                    GestureDetector(
-                      onTap: () => _openFullMap(context),
-                      child: ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(AppSizes.radiusMedium),
-                        child: SizedBox(
-                          height: 150,
-                          width: double.infinity,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              FlutterMap(
-                                options: MapOptions(
-                                  initialCenter: LatLng(
-                                    location!.latitude!,
-                                    location.longitude!,
-                                  ),
-                                  initialZoom: 15,
-                                  interactionOptions:
-                                      const InteractionOptions(flags: 0),
-                                ),
-                                children: [
-                                  TileLayer(
-                                    urlTemplate:
-                                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                    userAgentPackageName:
-                                        'com.example.academia_events',
-                                  ),
-                                  MarkerLayer(
-                                    markers: [
-                                      Marker(
-                                        point: LatLng(
-                                          location.latitude!,
-                                          location.longitude!,
-                                        ),
-                                        width: 40,
-                                        height: 40,
-                                        child: const Icon(
-                                          Icons.location_on,
-                                          color: Colors.red,
-                                          size: 38,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              // Botón de ampliar sobre el mapa
-                              Positioned(
-                                right: 8,
-                                bottom: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: context.cardBg.withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.fullscreen,
-                                          size: 16, color: accent),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Ampliar',
-                                        style: TextStyle(
-                                          color: context.textOnBg,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (location?.locationName != null ||
-                      location?.addressLine1 != null) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.place_outlined, color: accent, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            [
-                              ?location?.locationName,
-                              ?location?.addressLine1,
-                            ].join('\n'),
-                            style: TextStyle(
-                              color: context.textOnBg.withValues(alpha: 0.8),
-                              fontSize: 14,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (hasLocation) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _openFullMap(context),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: accent,
-                              side: BorderSide(color: accent),
-                            ),
-                            icon: const Icon(Icons.fullscreen, size: 18),
-                            label: const Text('Ampliar mapa'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () => _openGoogleMaps(
-                              context,
-                              LatLng(
-                                location!.latitude!,
-                                location.longitude!,
-                              ),
-                            ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: accent,
-                              foregroundColor: Colors.white,
-                            ),
-                            icon: const Icon(Icons.open_in_new, size: 18),
-                            label: const Text('Google Maps'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                ],
+                // 6. Fases de Precios / Entradas
+                const SizedBox(height: 20),
+                EventTicketsSection(event: event, accentColor: accent),
 
-                // ── QR de pago / ingreso ──────────────────────────
-                if (event.qrImageUrl != null) ...[
-                  Text(
-                    'Código QR',
-                    style: TextStyle(
-                      color: context.textOnBg,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: GestureDetector(
-                      onTap: () => FullscreenImageViewer.show(
-                        context,
-                        event.qrImageUrl!,
-                        tag: 'detail-qr-${event.id}',
-                      ),
-                      child: Hero(
-                        tag: 'detail-qr-${event.id}',
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius:
-                                BorderRadius.circular(AppSizes.radiusMedium),
-                          ),
-                          child: Image.network(
-                            event.qrImageUrl!,
-                            width: 200,
-                            height: 200,
-                            fit: BoxFit.contain,
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null
-                                    ? child
-                                    : const SizedBox(
-                                        width: 200,
-                                        height: 200,
-                                        child: Center(
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      ),
-                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Center(
-                    child: Text(
-                      'Toca para agrandar · Escanea para pagar o ingresar',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ),
-                ],
+                // 7. Ubicación y Mapa
+                const SizedBox(height: 20),
+                EventLocationSection(event: event, accentColor: accent),
+
                 const SizedBox(height: 32),
               ],
             ),
@@ -461,104 +475,44 @@ class _EventDetailBody extends ConsumerWidget {
       ),
     );
   }
-
-  void _openFullMap(BuildContext context) {
-    final location = event.location!;
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        builder: (_) => MapViewScreen(
-          center: LatLng(location.latitude!, location.longitude!),
-          title: event.title,
-          subtitle: [?location.locationName, ?location.addressLine1]
-              .join(' · '),
-        ),
-      ),
-    );
-  }
 }
 
-// ─────────────────────────────────────────────
-// Widgets auxiliares
-// ─────────────────────────────────────────────
-class _BannerPlaceholder extends StatelessWidget {
-  const _BannerPlaceholder({required this.color});
-  final Color color;
+class _OrganizerStatusBanner extends StatelessWidget {
+  const _OrganizerStatusBanner({required this.status});
+
+  final String status;
 
   @override
   Widget build(BuildContext context) {
+    final isDraft = status == 'draft';
+    final bgColor = isDraft ? AppColors.warning : AppColors.success;
+
     return Container(
-      height: 160,
-      color: color.withValues(alpha: 0.25),
-      child: Center(
-        child: Icon(Icons.image_outlined, color: color, size: 48),
-      ),
-    );
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({
-    required this.icon,
-    required this.accent,
-    required this.children,
-  });
-
-  final IconData icon;
-  final Color accent;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.cardBg,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        border: Border.all(color: context.divider),
-      ),
+      width: double.infinity,
+      color: bgColor,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: accent, size: 22),
-          const SizedBox(width: 12),
-          Expanded(child: Column(children: children)),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Colors.grey),
-        const SizedBox(width: 6),
-        SizedBox(
-          width: 42,
-          child: Text(
-            label,
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
+          Icon(
+            isDraft ? Icons.edit_note : Icons.check_circle_outline,
+            color: AppColors.onPrimary,
+            size: 20,
           ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              color: context.textOnBg,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              isDraft
+                  ? 'Borrador: Este evento aún no es visible para el público.'
+                  : 'Publicado: Visible y habilitado para compra de entradas.',
+              style: const TextStyle(
+                color: AppColors.onPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

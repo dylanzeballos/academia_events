@@ -1,36 +1,26 @@
 import '../models/attendance_model.dart';
 import '../models/class_enrollment_model.dart';
 import '../models/class_model.dart';
-import '../models/dance_class_session_model.dart';
 import '../models/organization_with_classes.dart';
 import '../services/class_enrollment_service.dart';
 
 abstract interface class IClassEnrollmentRepository {
   Future<String> enrollInClass(String classId);
   Future<void> cancelEnrollment(String enrollmentId);
-  Future<void> recordAttendance({
-    required String enrollmentId,
-    required String sessionId,
-    required String status,
-    String? notes,
-  });
 
   Future<List<ClassEnrollmentModel>> fetchMyEnrollments();
   Future<List<ClassEnrollmentModel>> fetchEnrollmentsForClass(String classId);
 
   Future<List<AttendanceModel>> fetchMyAttendance();
-  Future<List<AttendanceModel>> fetchAttendanceForSession(String sessionId);
 
-  Future<List<DanceClassSessionModel>> fetchSessionsForClass(String classId);
-  Future<List<DanceClassSessionModel>> fetchAllSessionsForClass(String classId);
-
-  Future<List<OrganizationWithClasses>> fetchOrganizationsWithPublishedClasses();
+  Future<List<OrganizationWithClasses>>
+  fetchOrganizationsWithPublishedClasses();
   Future<List<ClassModel>> fetchPublishedClassesForOrg(String orgId);
 }
 
 class ClassEnrollmentRepository implements IClassEnrollmentRepository {
   const ClassEnrollmentRepository({ClassEnrollmentService? service})
-      : _service = service ?? const ClassEnrollmentService();
+    : _service = service ?? const ClassEnrollmentService();
 
   final ClassEnrollmentService _service;
 
@@ -49,30 +39,15 @@ class ClassEnrollmentRepository implements IClassEnrollmentRepository {
       _service.cancelEnrollment(enrollmentId);
 
   @override
-  Future<void> recordAttendance({
-    required String enrollmentId,
-    required String sessionId,
-    required String status,
-    String? notes,
-  }) =>
-      _service.recordAttendance(
-        enrollmentId: enrollmentId,
-        sessionId: sessionId,
-        status: status,
-        notes: notes,
-      );
-
-  @override
   Future<List<ClassEnrollmentModel>> fetchMyEnrollments() async {
     final rows = await _service.fetchMyEnrollments();
-    return rows
-        .map((r) => ClassEnrollmentModel.fromJson(r))
-        .toList();
+    return rows.map((r) => ClassEnrollmentModel.fromJson(r)).toList();
   }
 
   @override
   Future<List<ClassEnrollmentModel>> fetchEnrollmentsForClass(
-      String classId) async {
+    String classId,
+  ) async {
     final rows = await _service.fetchEnrollmentsForClass(classId);
     return rows.map((r) => ClassEnrollmentModel.fromJson(r)).toList();
   }
@@ -84,29 +59,8 @@ class ClassEnrollmentRepository implements IClassEnrollmentRepository {
   }
 
   @override
-  Future<List<AttendanceModel>> fetchAttendanceForSession(
-      String sessionId) async {
-    final rows = await _service.fetchAttendanceForSession(sessionId);
-    return rows.map((r) => AttendanceModel.fromJson(r)).toList();
-  }
-
-  @override
-  Future<List<DanceClassSessionModel>> fetchSessionsForClass(
-      String classId) async {
-    final rows = await _service.fetchSessionsForClass(classId);
-    return rows.map((r) => DanceClassSessionModel.fromJson(r)).toList();
-  }
-
-  @override
-  Future<List<DanceClassSessionModel>> fetchAllSessionsForClass(
-      String classId) async {
-    final rows = await _service.fetchAllSessionsForClass(classId);
-    return rows.map((r) => DanceClassSessionModel.fromJson(r)).toList();
-  }
-
-  @override
   Future<List<OrganizationWithClasses>>
-      fetchOrganizationsWithPublishedClasses() async {
+  fetchOrganizationsWithPublishedClasses() async {
     final rows = await _service.fetchOrganizationsWithPublishedClasses();
     return rows.map((r) => OrganizationWithClasses.fromJson(r)).toList();
   }

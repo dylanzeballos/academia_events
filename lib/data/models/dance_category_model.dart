@@ -13,7 +13,7 @@ class DanceCategoryModel {
     return DanceCategoryModel(
       id: json['id'] as String,
       name: json['name'] as String,
-      isActive: json['isActive'] as bool
+      isActive: (json['is_active'] as bool?) ?? true
     );
   }
 }

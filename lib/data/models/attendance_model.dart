@@ -5,6 +5,8 @@ import 'dance_class_session_model.dart';
 /// Espeja la tabla `attendances`:
 /// (id, enrollment_id, session_id, status, notes, recorded_by, recorded_at,
 ///  created_at, updated_at). status: present / absent / late.
+import '../../core/utils/display_labels.dart';
+
 class AttendanceModel {
   const AttendanceModel({
     required this.id,
@@ -39,7 +41,7 @@ class AttendanceModel {
         'present' => 'Presente',
         'absent' => 'Ausente',
         'late' => 'Tarde',
-        _ => status,
+        _ => DisplayLabels.status(status),
       };
 
   factory AttendanceModel.fromJson(Map<String, dynamic> json) {

@@ -1,16 +1,41 @@
+// lib/features/events/views/events_list_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../data/models/event_model.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
 
 class EventsListView extends ConsumerWidget {
   const EventsListView({super.key});
+
+  Future<void> _navigateToCreate(BuildContext context, WidgetRef ref) async {
+    final result = await context.push<bool>(AppRoutes.eventCreate);
+    if (result == true || context.mounted) {
+      ref.invalidate(orgEventsProvider);
+    }
+  }
+
+  Future<void> _navigateToDetail(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId,
+  ) async {
+    final result = await context.push<bool>(
+      '${AppRoutes.eventDetail}/$eventId',
+    );
+    if (result == true || context.mounted) {
+      ref.invalidate(orgEventsProvider);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,39 +44,39 @@ class EventsListView extends ConsumerWidget {
     final canManage = myRole?.canManageClasses ?? false;
 
     return Scaffold(
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Eventos'),
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text('Eventos', style: TextStyle(color: context.textOnBg, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: context.textMuted),
+            onPressed: () => ref.refresh(orgEventsProvider),
+          ),
+        ],
       ),
       body: eventsAsync.when(
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => AppErrorState(
+          message: friendlyError(e),
+          onRetry: () => ref.invalidate(orgEventsProvider),
+        ),
         data: (events) {
           if (events.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.event_outlined, size: 64, color: Colors.grey[600]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sin eventos',
-                    style: TextStyle(
-                      color: context.textOnBg,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Organiza y publica tu primer evento.',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ],
-              ),
+            return AppEmptyState(
+              icon: Icons.event_outlined,
+              title: 'Sin eventos',
+              message: canManage
+                  ? 'Organiza y publica tu primer evento.'
+                  : 'Todavía no hay eventos para mostrar.',
+              actionLabel: canManage ? 'Crear evento' : null,
+              onAction: canManage ? () => _navigateToCreate(context, ref) : null,
             );
           }
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async => ref.invalidate(orgEventsProvider),
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -62,10 +87,7 @@ class EventsListView extends ConsumerWidget {
                 return _EventTile(
                   event: event,
                   canManage: canManage,
-                  onTap: () {
-                    // Navega usando GoRouter y envía el ID del evento en extra
-                    context.push(AppRoutes.eventDetail, extra: event.id);
-                  },
+                  onTap: () => _navigateToDetail(context, ref, event.id),
                 );
               },
             ),
@@ -74,9 +96,9 @@ class EventsListView extends ConsumerWidget {
       ),
       floatingActionButton: canManage
           ? FloatingActionButton(
-              onPressed: () => context.push(AppRoutes.eventCreate),
+              onPressed: () => _navigateToCreate(context, ref),
               backgroundColor: AppColors.primary,
-              child: const Icon(Icons.add, color: Colors.white),
+              child: const Icon(Icons.add, color: AppColors.onPrimary),
             )
           : null,
     );
@@ -138,20 +160,22 @@ class _EventTile extends StatelessWidget {
                     Row(
                       children: [
                         if (event.categoryName != null) ...[
-                          Icon(Icons.category_outlined, size: 12, color: Colors.grey[500]),
+                          Icon(Icons.category_outlined,
+                              size: 12, color: context.textMuted),
                           const SizedBox(width: 4),
                           Text(
                             event.categoryName!,
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            style: TextStyle(color: context.textMuted, fontSize: 12),
                           ),
                           const SizedBox(width: 8),
                         ],
                         if (event.capacity != null) ...[
-                          Icon(Icons.people_outline, size: 12, color: Colors.grey[500]),
+                          Icon(Icons.people_outline,
+                              size: 12, color: context.textMuted),
                           const SizedBox(width: 4),
                           Text(
                             '${event.capacity} pers.',
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            style: TextStyle(color: context.textMuted, fontSize: 12),
                           ),
                         ],
                       ],
@@ -164,13 +188,13 @@ class _EventTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: event.isPublished
                       ? AppColors.success.withValues(alpha: 0.15)
-                      : Colors.grey.withValues(alpha: 0.15),
+                      : context.textMuted.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   event.isPublished ? 'Publicado' : 'Borrador',
                   style: TextStyle(
-                    color: event.isPublished ? AppColors.success : Colors.grey,
+                    color: event.isPublished ? AppColors.success : context.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),

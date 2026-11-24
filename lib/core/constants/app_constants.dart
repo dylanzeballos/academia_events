@@ -1,84 +1,75 @@
-import 'package:flutter/material.dart';
-
-// ─────────────────────────────────────────────
-// Colores globales
-// ─────────────────────────────────────────────
-class AppColors {
-  AppColors._();
-
-  static const Color primary = Color(0xFF00BFA6); // Teal / aqua
-  static const Color secondary = Color(0xFF7C4DFF); // Violeta acento
-  static const Color background = Color(0xFF0F0F1A);
-  static const Color surface = Color(0xFF1B1B2F);
-  static const Color border = Color(0xFF2E2E4E);
-  static const Color error = Color(0xFFFF4D4D);
-  static const Color success = Color(0xFF22C55E);
-  static const Color warning = Color(0xFFFACC15);
-  static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Colors.grey;
-
-  static const Color levelBeginner = Color(0xFF22C55E);
-  static const Color levelIntermediate = Color(0xFFFACC15);
-  static const Color levelAdvanced = Color(0xFFEF4444);
-
-  static const List<Color> calendarEventColors = [
-    Color(0xFF00BFA6),
-    Color(0xFF7C4DFF),
-    Color(0xFF2563EB),
-    Color(0xFF0891B2),
-    Color(0xFF059669),
-    Color(0xFFD97706),
-  ];
-}
-
 // ─────────────────────────────────────────────
 // Rutas nombradas (GoRouter)
 // ─────────────────────────────────────────────
 class AppRoutes {
   AppRoutes._();
 
+  // ── Auth ──
   static const String login = '/login';
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
   static const String updatePassword = '/update-password';
+  static const String authCallback = '/auth/callback'; // no habia antes
+  static const String platformAdmin = '/admin';
+
+  // ── Shell Estudiante (Pestañas fijas) ──
 
   static const String studentHome = '/student';
-  static const String studentCalendar = '/student/calendar';
+  static const String studentTickets = '/student/tickets'; // no habia antes
   static const String studentClasses = '/student/classes';
-  static const String academyAttendance = '/academy/attendance';
+  static const String studentNotifications = '/student/notifications'; //nuevo
   static const String studentProfile = '/student/profile';
+
+  // ── Secundarias Estudiante ──
+  static const String studentCalendar = '/student/calendar';
+  static const String myClassDetail = '/mi-clase';
+  static const String myClassDetailPattern = '/mi-clase/:id';
+
+  // ── Shell Academia (Pestañas fijas) ──
 
   static const String academyDashboard = '/academy';
   static const String academyEvents = '/academy/events';
   static const String academyClasses = '/academy/classes';
-  static const String academyTeachers = '/academy/teachers';
-  static const String academyTickets = '/academy/tickets';
+  static const String academyNotifications = '/academy/notifications';
   static const String academyProfile = '/academy/profile';
 
+  // ── Secundarias Academia (Pantallas completas accesibles desde el panel) ──
+  static const String academyTeachers = '/academy/teachers';
+  static const String academyCheckin = '/academy/checkin';
+  static const String academyTickets = '/academy/tickets';
+  // En AppRoutes:
+  static const String academyClassesView = '/classes-view';
+
+  // ── Organizaciones ──
   static const String organizations = '/organizations';
   static const String organizationsCreate = '/organizations/create';
   static const String organizationsDetail = '/organizations/detail';
+  static const String organizationsDetailPattern = '/organizations/detail/:id';
   static const String myInvitations = '/invitations';
 
+  // ── Clases y Eventos Generales ──
   static const String classList = '/classes';
+  static const String archivedEvents = '/events/archived';
   static const String classCreate = '/classes/create';
   static const String classDetail = '/classes/detail';
+  static const String classDetailPattern = '/classes/detail/:id';
 
   static const String eventsList = '/events';
   static const String eventCreate = '/events/create';
   static const String eventDetail = '/events/detail';
+  static const String eventDetailPattern = '/events/detail/:id';
 
-  // Public event discovery routes
+  // ── Público ──
   static const String publicEvents = '/eventos';
-  // Patrón de ruta (usado por el router; `:id` es el parámetro).
   static const String publicEventDetail = '/eventos/detalle/:id';
-  // Base para navegar (push) a la ruta de detalle.
   static const String publicEventDetailBase = '/eventos/detalle';
   static const String publicCalendar = '/calendario';
+  static const String organizationPublicDetail = '/organizaciones/:id';
+  static const String organizationPublicDetailBase = '/organizaciones';
 }
 
 // ─────────────────────────────────────────────
-// Dimensiones y durations comunes
+// Dimensiones y duraciones comunes
 // ─────────────────────────────────────────────
 class AppSizes {
   AppSizes._();

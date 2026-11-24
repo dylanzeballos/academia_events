@@ -1,16 +1,28 @@
+// lib/features/events/views/event_create_view.dart
+import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/theme_extensions.dart';
-import '../../../providers/categories_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/theme_extensions.dart';
 import '../../../providers/events_provider.dart';
+import '../../../providers/membership_provider.dart';
 import '../../../providers/organization_provider.dart';
+import '../../../shared/widgets/app_feedback.dart';
+import '../../organization/widgets/membership_required_notice.dart';
+import '../widgets/create/event_basic_info_form.dart';
+import '../widgets/create/event_location_form.dart';
+import '../widgets/create/event_pricing_phases_editor.dart';
+import '../widgets/create/event_schedule_form.dart';
+import '../widgets/create/image_picker_box.dart';
 import '../widgets/map.dart';
 
 class EventCreateView extends ConsumerStatefulWidget {
@@ -23,38 +35,39 @@ class EventCreateView extends ConsumerStatefulWidget {
 class _EventCreateViewState extends ConsumerState<EventCreateView> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers básicos
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _contactPhoneController = TextEditingController();
   final _capacityController = TextEditingController();
 
-  // Controllers de Ubicación
+  // Lista de fases de tickets configuradas por fecha
+  List<Map<String, dynamic>> _configuredTicketsData = [];
+  // Soporte de Teatro / Butacas numeradas
+  bool _isTheatreEvent = false;
+  String? _selectedVenueId;
+
+  // Soporte de Documento / PDF de Reglamento
+  Uint8List? _rulesPdfBytes;
+  String? _rulesPdfFileName;
+
   final _locationNameController = TextEditingController();
   final _addressController = TextEditingController();
 
-  // Selección de Ubicación Administrativa
   String? _selectedCategoryId;
   String? _selectedDepartmentId;
   String? _selectedProvinceId;
   String? _selectedMunicipalityId;
   String? _selectedCityId;
 
-  // Coordenadas seleccionadas (Por defecto: Cochabamba / Quillacollo)
   LatLng _selectedLatLng = const LatLng(-17.3935, -66.2825);
 
-  // Fechas y Horas
   DateTime _startDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _startTime = const TimeOfDay(hour: 19, minute: 0);
   DateTime _endDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _endTime = const TimeOfDay(hour: 23, minute: 0);
 
-  // Imágenes en bytes
   Uint8List? _bannerBytes;
-  Uint8List? _qrBytes;
-
   bool _isLoading = false;
-  bool _requiresApproval = true;
 
   @override
   void dispose() {
@@ -67,14 +80,11 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
     super.dispose();
   }
 
-  // Abrir mapa en pantalla completa y capturar coordenadas
   Future<void> _openMapPicker() async {
     final LatLng? pickedLocation = await Navigator.push<LatLng>(
       context,
       MaterialPageRoute(
-        builder: (context) => LocationPickerMap(
-          initialLatLng: _selectedLatLng,
-        ),
+        builder: (context) => LocationPickerMap(initialLatLng: _selectedLatLng),
       ),
     );
 
@@ -83,21 +93,99 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
     }
   }
 
-  Future<void> _pickImage(bool isQr) async {
+  Future<void> _pickBannerImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       final bytes = await pickedFile.readAsBytes();
       if (!mounted) return;
-      setState(() {
-        if (isQr) {
-          _qrBytes = bytes;
-        } else {
-          _bannerBytes = bytes;
-        }
-      });
+      setState(() => _bannerBytes = bytes);
     }
+  }
+
+  Future<void> _pickRulesPdf() async {
+    try {
+      final dynamic picked = await FilePickerPlatform.instance.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (picked != null) {
+        final dynamic firstItem = (picked is List)
+            ? (picked.isNotEmpty ? picked.first : null)
+            : (picked.files?.isNotEmpty == true ? picked.files.first : null);
+
+        if (firstItem != null) {
+          Uint8List? fileBytes;
+          String fileName = 'reglamento.pdf';
+
+          try {
+            fileName = (firstItem.name as String?) ?? fileName;
+          } catch (_) {}
+
+          try {
+            fileBytes = firstItem.bytes as Uint8List?;
+          } catch (_) {}
+
+          if (fileBytes == null) {
+            try {
+              fileBytes = await firstItem.readAsBytes();
+            } catch (_) {}
+          }
+
+          if (fileBytes == null) {
+            try {
+              final stream = firstItem.readStream;
+              if (stream != null) {
+                final List<int> byteList = [];
+                await for (final chunk in stream) {
+                  byteList.addAll(chunk);
+                }
+                fileBytes = Uint8List.fromList(byteList);
+              }
+            } catch (_) {}
+          }
+
+          if (fileBytes == null) {
+            try {
+              final String? filePath = firstItem.path as String?;
+              if (filePath != null) {
+                final ioFile = File(filePath);
+                if (await ioFile.exists()) {
+                  fileBytes = await ioFile.readAsBytes();
+                }
+              }
+            } catch (_) {}
+          }
+
+          if (fileBytes != null) {
+            setState(() {
+              _rulesPdfBytes = fileBytes;
+              _rulesPdfFileName = fileName;
+            });
+          } else {
+            if (mounted) {
+              AppFeedback.error(
+                context,
+                'No se pudieron extraer los bytes del archivo',
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.error(context, 'No se pudo cargar el archivo PDF: $e');
+      }
+    }
+  }
+
+  void _removeRulesPdf() {
+    setState(() {
+      _rulesPdfBytes = null;
+      _rulesPdfFileName = null;
+    });
   }
 
   Future<void> _pickDateTime({required bool isStart}) async {
@@ -137,7 +225,10 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
     final orgId = ref.read(selectedOrganizationIdProvider);
     if (orgId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay una organización seleccionada')),
+        SnackBar(
+          content: const Text('No hay una organización seleccionada'),
+          backgroundColor: context.cardBg,
+        ),
       );
       return;
     }
@@ -160,7 +251,10 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
 
     if (endAt.isBefore(startAt)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('La fecha de fin debe ser posterior al inicio')),
+        SnackBar(
+          content: const Text('La fecha de fin debe ser posterior al inicio'),
+          backgroundColor: context.cardBg,
+        ),
       );
       return;
     }
@@ -175,24 +269,27 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       final contact = _contactPhoneController.text.trim();
       final description = _descriptionController.text.trim();
 
-      final fullDescription = contact.isNotEmpty
-          ? '$description\n\nContactos: $contact'
-          : description;
+      final parsedCapacity = _capacityController.text.trim().isNotEmpty
+          ? int.tryParse(_capacityController.text.trim())
+          : null;
 
       final eventData = {
         'organization_id': orgId,
         'category_id': _selectedCategoryId,
         'title': title,
         'slug': slug,
-        'description': fullDescription,
+        'description': description.isNotEmpty
+            ? description
+            : 'Gran evento de baile',
+        'contact_phone': contact.isNotEmpty ? contact : null,
         'start_at': startAt.toIso8601String(),
         'end_at': endAt.toIso8601String(),
         'timezone': 'America/La_Paz',
-        'status': 'published',
+        'status': 'draft',
+        'moderation_status': 'pending_approval',
         'visibility': 'public',
-        'requires_approval': _requiresApproval,
-        if (_capacityController.text.isNotEmpty)
-          'capacity': int.parse(_capacityController.text.trim()),
+        'requires_approval': true,
+        'capacity': parsedCapacity,
       };
 
       final locationData = {
@@ -206,26 +303,62 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'longitude': _selectedLatLng.longitude,
       };
 
-      await ref.read(eventsRepositoryProvider).createFullEvent(
-        eventData: eventData,
-        locationData: locationData,
-        bannerBytes: _bannerBytes,
-        qrBytes: _qrBytes,
-      );
+      // Fases configuradas o tarifa estándar de respaldo
+      final ticketTypesData = _configuredTicketsData.isNotEmpty
+          ? _configuredTicketsData
+          : [
+              {
+                'name': _isTheatreEvent ? 'Butaca Numerada' : 'Entrada General',
+                'description': 'Acceso general al evento',
+                'price': 50.0,
+                'quantity': 100,
+                'currency': 'BOB',
+                'is_active': true,
+                'sales_start_at': DateTime.now().toIso8601String(),
+                'sales_end_at': endAt.toIso8601String(),
+              },
+            ];
+
+      await ref
+          .read(eventsRepositoryProvider)
+          .createFullEvent(
+            eventData: eventData,
+            locationData: locationData,
+            ticketTypesData: ticketTypesData,
+            bannerBytes: _bannerBytes,
+            qrBytes: null,
+            rulesPdfBytes: _rulesPdfBytes,
+            venueId: _isTheatreEvent ? _selectedVenueId : null,
+          );
 
       ref.invalidate(orgEventsProvider);
+      ref.invalidate(weekEventsProvider);
+      ref.invalidate(allEventsProvider);
 
       if (mounted) {
-        context.pop();
+        context.pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Evento publicado correctamente')),
+          SnackBar(
+            content: const Text(
+              'Evento creado. Para publicarlo necesitás la suscripción mensual activa y el pago de publicación.',
+            ),
+            backgroundColor: context.cardBg,
+          ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al crear evento: $e')),
+    } catch (e, st) {
+      debugPrint('CREATE EVENT ERROR: $e');
+      if (e is PostgrestException) {
+        debugPrint(
+          'PG code=${e.code} msg=${e.message} details=${e.details} hint=${e.hint}',
         );
+      }
+      if (e is StorageException) {
+        debugPrint('STORAGE status=${e.statusCode} msg=${e.message}');
+      }
+      debugPrintStack(stackTrace: st);
+      if (mounted) {
+        AppFeedback.error(context, friendlyError(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -234,11 +367,33 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
 
   @override
   Widget build(BuildContext context) {
-    final eventCategoriesAsync = ref.watch(eventCategoriesProvider);
-    final departmentsAsync = ref.watch(departmentsProvider);
+    final orgId = ref.watch(selectedOrganizationIdProvider);
+    final membership = orgId == null
+        ? null
+        : ref.watch(organizationMembershipProvider(orgId));
+    final canCreate = membership?.value == true;
+
+    final eventStartDateTime = DateTime(
+      _startDate.year,
+      _startDate.month,
+      _startDate.day,
+      _startTime.hour,
+      _startTime.minute,
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear Evento')),
+      backgroundColor: context.scaffoldBg,
+      appBar: AppBar(
+        backgroundColor: context.cardBg,
+        elevation: 0,
+        title: Text(
+          'Crear Evento',
+          style: TextStyle(
+            color: context.textOnBg,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -246,411 +401,295 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ─── 1. PANFLETO / PORTADA ───
-              _ImagePickerBox(
+              if (orgId == null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'No hay una academia seleccionada.',
+                    style: TextStyle(color: context.textMuted),
+                  ),
+                )
+              else if (membership?.isLoading == true)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: LinearProgressIndicator(),
+                )
+              else if (membership?.hasError == true)
+                MembershipRequiredNotice(
+                  organizationId: orgId,
+                  error: true,
+                )
+              else if (membership?.value == false)
+                MembershipRequiredNotice(organizationId: orgId),
+              ImagePickerBox(
                 label: 'Panfleto / Afiche del Evento',
                 icon: Icons.add_photo_alternate_outlined,
                 imageBytes: _bannerBytes,
-                onTap: () => _pickImage(false),
+                onTap: _pickBannerImage,
               ),
               const SizedBox(height: 20),
 
-              // ─── 2. INFORMACIÓN BÁSICA ───
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Título del evento *',
-                  hintText: 'Ej. Social Salsa & Bachata Night',
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Ingresa un título' : null,
+              EventBasicInfoForm(
+                titleController: _titleController,
+                descriptionController: _descriptionController,
+                contactPhoneController: _contactPhoneController,
+                capacityController: _capacityController,
+                selectedCategoryId: _selectedCategoryId,
+                onCategoryChanged: (val) =>
+                    setState(() => _selectedCategoryId = val),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Tipo / Categoría de Evento
-              eventCategoriesAsync.when(
-                data: (categories) => DropdownButtonFormField<String>(
-                  initialValue: _selectedCategoryId,
-                  dropdownColor: context.cardBg,
-                  style: TextStyle(color: context.textOnBg),
-                  decoration: const InputDecoration(labelText: 'Tipo de Evento *'),
-                  items: categories
-                      .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
-                      .toList(),
-                  onChanged: (val) => setState(() => _selectedCategoryId = val),
-                  validator: (v) => v == null ? 'Selecciona una categoría' : null,
+              // Tarjeta para subir el PDF de Reglamento
+              Card(
+                color: context.cardBg,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: context.borderColor),
                 ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const SizedBox(),
-              ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción del Evento *',
-                  hintText: 'Detalles del programa, código de vestimenta, etc.',
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Ingresa una descripción' : null,
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _contactPhoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Teléfono Contacto',
-                        hintText: 'Ej. 77912345',
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Reglamento o Código de Vestimenta (PDF)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _capacityController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Aforo / Capacidad',
-                        hintText: 'Ej. 150',
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Adjunta las normas o especificaciones para los asistentes (opcional).',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // ─── 3. UBICACIÓN Y DIVISIÓN TERRITORIAL ───
-              const Text(
-                'Ubicación y División Territorial',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-
-              // Desplegable Departamento
-              departmentsAsync.when(
-                data: (deps) => DropdownButtonFormField<String>(
-                  initialValue: _selectedDepartmentId,
-                  dropdownColor: context.cardBg,
-                  style: TextStyle(color: context.textOnBg),
-                  decoration: const InputDecoration(labelText: 'Departamento'),
-                  items: deps
-                      .map((d) => DropdownMenuItem(value: d['id'] as String, child: Text(d['name'] as String)))
-                      .toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      _selectedDepartmentId = val;
-                      _selectedProvinceId = null;
-                      _selectedMunicipalityId = null;
-                      _selectedCityId = null;
-                    });
-                  },
-                ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const SizedBox(),
-              ),
-              const SizedBox(height: 12),
-
-              // Desplegable Provincia
-              if (_selectedDepartmentId != null)
-                ref.watch(provincesProvider(_selectedDepartmentId!)).when(
-                      data: (provinces) => DropdownButtonFormField<String>(
-                        key: ValueKey(_selectedDepartmentId),
-                        initialValue: _selectedProvinceId,
-                        dropdownColor: context.cardBg,
-                        style: TextStyle(color: context.textOnBg),
-                        decoration: const InputDecoration(labelText: 'Provincia'),
-                        items: provinces
-                            .map((p) => DropdownMenuItem(value: p['id'] as String, child: Text(p['name'] as String)))
-                            .toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedProvinceId = val;
-                            _selectedMunicipalityId = null;
-                            _selectedCityId = null;
-                          });
-                        },
-                      ),
-                      loading: () => const LinearProgressIndicator(),
-                      error: (_, _) => const SizedBox(),
-                    ),
-              if (_selectedDepartmentId != null) const SizedBox(height: 12),
-
-              // Desplegable Municipio
-              if (_selectedProvinceId != null)
-                ref.watch(municipalitiesProvider(_selectedProvinceId!)).when(
-                      data: (munis) => DropdownButtonFormField<String>(
-                        key: ValueKey(_selectedProvinceId),
-                        initialValue: _selectedMunicipalityId,
-                        dropdownColor: context.cardBg,
-                        style: TextStyle(color: context.textOnBg),
-                        decoration: const InputDecoration(labelText: 'Municipio'),
-                        items: munis
-                            .map((m) => DropdownMenuItem(value: m['id'] as String, child: Text(m['name'] as String)))
-                            .toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedMunicipalityId = val;
-                            _selectedCityId = null;
-                          });
-                        },
-                      ),
-                      loading: () => const LinearProgressIndicator(),
-                      error: (_, _) => const SizedBox(),
-                    ),
-              if (_selectedProvinceId != null) const SizedBox(height: 12),
-
-              // Desplegable Ciudad
-              if (_selectedMunicipalityId != null)
-                ref.watch(citiesProvider(_selectedMunicipalityId!)).when(
-                      data: (cities) => DropdownButtonFormField<String>(
-                        key: ValueKey(_selectedMunicipalityId),
-                        initialValue: _selectedCityId,
-                        dropdownColor: context.cardBg,
-                        style: TextStyle(color: context.textOnBg),
-                        decoration: const InputDecoration(labelText: 'Ciudad'),
-                        items: cities
-                            .map((c) => DropdownMenuItem(value: c['id'] as String, child: Text(c['name'] as String)))
-                            .toList(),
-                        onChanged: (val) => setState(() => _selectedCityId = val),
-                      ),
-                      loading: () => const LinearProgressIndicator(),
-                      error: (_, _) => const SizedBox(),
-                    ),
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _locationNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Lugar / Nombre del Salón',
-                  hintText: 'Ej. Salón de Eventos Los Arcos',
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: _addressController,
-                decoration: const InputDecoration(
-                  labelText: 'Dirección Exacta',
-                  hintText: 'Ej. Av. Heroínas #456 entre 16 de Julio',
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ─── PREVISUALIZACIÓN DEL MAPA SELECCIONADO ───
-              const Text(
-                'Ubicación Exacta en el Mapa',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-
-              InkWell(
-                onTap: _openMapPicker,
-                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                child: Container(
-                  height: 160,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                    border: Border.all(color: context.divider),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                    child: Stack(
-                      children: [
-                        IgnorePointer(
-                          child: FlutterMap(
-                            key: ValueKey('${_selectedLatLng.latitude}_${_selectedLatLng.longitude}'),
-                            options: MapOptions(
-                              initialCenter: _selectedLatLng,
-                              initialZoom: 15.0,
+                      const SizedBox(height: 12),
+                      if (_rulesPdfFileName != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.3),
                             ),
+                          ),
+                          child: Row(
                             children: [
-                              TileLayer(
-                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                userAgentPackageName: 'com.example.academia_events',
+                              const Icon(
+                                Icons.picture_as_pdf,
+                                color: AppColors.primary,
                               ),
-                              MarkerLayer(
-                                markers: [
-                                  Marker(
-                                    point: _selectedLatLng,
-                                    width: 40,
-                                    height: 40,
-                                    child: const Icon(
-                                      Icons.location_on,
-                                      color: Colors.red,
-                                      size: 38,
-                                    ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _rulesPdfFileName!,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
                                   ),
-                                ],
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  size: 20,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: _removeRulesPdf,
+                                tooltip: 'Quitar archivo',
                               ),
                             ],
                           ),
                         ),
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            color: Colors.black54,
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.touch_app, color: Colors.white, size: 16),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Lat: ${_selectedLatLng.latitude.toStringAsFixed(4)}, Lng: ${_selectedLatLng.longitude.toStringAsFixed(4)}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-                                  ),
-                                ),
-                                const Text(
-                                  'Cambiar',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              ],
+                      ] else ...[
+                        OutlinedButton.icon(
+                          onPressed: _pickRulesPdf,
+                          icon: const Icon(Icons.upload_file),
+                          label: const Text('Seleccionar documento PDF'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                         ),
                       ],
-                    ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Editor de Precios y Fases (Preventa, Venta General, En Puerta)
+              EventPricingPhasesEditor(
+                eventStartDate: eventStartDateTime,
+                isTheatreEvent: _isTheatreEvent,
+                onTicketsDataChanged: (phases) {
+                  _configuredTicketsData = phases;
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Sección para Teatro y Butacas Numeradas
+              Card(
+                color: context.cardBg,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: context.borderColor),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          '¿Evento en Teatro / Butacas numeradas?',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text(
+                          'Generará el plano físico con selección de asientos',
+                        ),
+                        value: _isTheatreEvent,
+                        onChanged: (val) =>
+                            setState(() => _isTheatreEvent = val),
+                      ),
+                      if (_isTheatreEvent) ...[
+                        const SizedBox(height: 10),
+                        ref
+                            .watch(venuesListProvider)
+                            .when(
+                              loading: () => const LinearProgressIndicator(),
+                              error: (e, _) => Text(
+                                'Error al cargar teatros: $e',
+                                style: const TextStyle(color: AppColors.error),
+                              ),
+                              data: (venues) {
+                                if (venues.isEmpty) {
+                                  return const Text(
+                                    'No hay plantillas de recintos registradas en la base de datos.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  );
+                                }
+                                return DropdownButtonFormField<String>(
+                                  initialValue: _selectedVenueId,
+                                  decoration: InputDecoration(
+                                    labelText: 'Selecciona el Teatro o Recinto',
+                                    prefixIcon: const Icon(
+                                      Icons.theater_comedy_outlined,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  items: venues.map((v) {
+                                    return DropdownMenuItem<String>(
+                                      value: v['id'] as String,
+                                      child: Text(v['name'] as String),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) =>
+                                      setState(() => _selectedVenueId = val),
+                                  validator: (val) =>
+                                      _isTheatreEvent && val == null
+                                      ? 'Selecciona un recinto para clonar las butacas'
+                                      : null,
+                                );
+                              },
+                            ),
+                      ],
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // ─── 4. FECHA Y HORA ───
-              const Text(
-                'Fecha y Hora',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today, color: AppColors.primary),
-                title: const Text('Inicio del evento'),
-                subtitle: Text(
-                  '${_startDate.day}/${_startDate.month}/${_startDate.year} - ${_startTime.format(context)}',
-                ),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _pickDateTime(isStart: true),
-              ),
-              const Divider(),
-
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event_busy, color: AppColors.primary),
-                title: const Text('Fin del evento'),
-                subtitle: Text(
-                  '${_endDate.day}/${_endDate.month}/${_endDate.year} - ${_endTime.format(context)}',
-                ),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () => _pickDateTime(isStart: false),
-              ),
-              const Divider(),
-              const SizedBox(height: 20),
-
-              // ─── 5. IMAGEN QR (PAGOS / CONTACTO) ───
-              const Text(
-                'Código QR de Pago / Información (Opcional)',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              _ImagePickerBox(
-                label: 'Subir QR',
-                icon: Icons.qr_code_2_outlined,
-                imageBytes: _qrBytes,
-                height: 120,
-                onTap: () => _pickImage(true),
+              EventLocationForm(
+                locationNameController: _locationNameController,
+                addressController: _addressController,
+                selectedLatLng: _selectedLatLng,
+                onMapTap: _openMapPicker,
+                selectedDepartmentId: _selectedDepartmentId,
+                selectedProvinceId: _selectedProvinceId,
+                selectedMunicipalityId: _selectedMunicipalityId,
+                selectedCityId: _selectedCityId,
+                onDepartmentChanged: (val) {
+                  setState(() {
+                    _selectedDepartmentId = val;
+                    _selectedProvinceId = null;
+                    _selectedMunicipalityId = null;
+                    _selectedCityId = null;
+                  });
+                },
+                onProvinceChanged: (val) {
+                  setState(() {
+                    _selectedProvinceId = val;
+                    _selectedMunicipalityId = null;
+                    _selectedCityId = null;
+                  });
+                },
+                onMunicipalityChanged: (val) {
+                  setState(() {
+                    _selectedMunicipalityId = val;
+                    _selectedCityId = null;
+                  });
+                },
+                onCityChanged: (val) => setState(() => _selectedCityId = val),
               ),
               const SizedBox(height: 24),
 
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Requiere aprobación'),
-                subtitle: const Text('Validación previa para asistir'),
-                value: _requiresApproval,
-                onChanged: (val) => setState(() => _requiresApproval = val),
+              EventScheduleForm(
+                startDate: _startDate,
+                startTime: _startTime,
+                endDate: _endDate,
+                endTime: _endTime,
+                onPickDateTime: _pickDateTime,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               ElevatedButton(
-                onPressed: _isLoading ? null : _submit,
+                onPressed: (_isLoading || !canCreate) ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                  ),
                 ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: AppColors.onPrimary,
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Text(
-                        'Publicar Evento',
-                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        'Guardar Evento',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ImagePickerBox extends StatelessWidget {
-  const _ImagePickerBox({
-    required this.label,
-    required this.icon,
-    required this.imageBytes,
-    required this.onTap,
-    this.height = 180,
-  });
-
-  final String label;
-  final IconData icon;
-  final Uint8List? imageBytes;
-  final VoidCallback onTap;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: context.cardBg,
-          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-          border: Border.all(color: context.divider),
-        ),
-        child: imageBytes != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-                child: Image.memory(imageBytes!, fit: BoxFit.cover, width: double.infinity),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 40, color: AppColors.primary),
-                  const SizedBox(height: 8),
-                  Text(
-                    label,
-                    style: TextStyle(color: context.textOnBg, fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
       ),
     );
   }

@@ -1,37 +1,60 @@
+// lib/features/organization/views/organization_detail_view.dart
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/models/organization_image_model.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../providers/geographic_provider.dart';
+import '../../../providers/categories_provider.dart';
+import '../../../providers/public_events_provider.dart'
+    show organizationsWithEventsProvider;
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/app_section_card.dart';
 import '../../../shared/widgets/geographic_location_picker.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../events/widgets/map.dart';
+import '../widgets/organization_share_section.dart';
 import 'organization_members_view.dart';
+import 'organization_membership_view.dart';
+import 'organization_payments_view.dart';
+import 'organization_vip_plan_view.dart';
 
 class OrganizationDetailView extends ConsumerStatefulWidget {
-  const OrganizationDetailView({super.key});
+  const OrganizationDetailView({super.key, this.organizationId});
+
+  final String? organizationId;
 
   @override
   ConsumerState<OrganizationDetailView> createState() =>
       _OrganizationDetailViewState();
 }
 
-class _OrganizationDetailViewState
-    extends ConsumerState<OrganizationDetailView>
+class _OrganizationDetailViewState extends ConsumerState<OrganizationDetailView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabCtrl;
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
+    final id = widget.organizationId;
+    if (id != null && id.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(selectedOrganizationIdProvider.notifier).select(id);
+      });
+    }
   }
 
   @override
@@ -44,7 +67,15 @@ class _OrganizationDetailViewState
   Widget build(BuildContext context) {
     final orgId = ref.watch(selectedOrganizationIdProvider);
     if (orgId == null) {
-      return const Scaffold(body: Center(child: Text('Sin organización')));
+      return Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: Center(
+          child: Text(
+            'Sin organización',
+            style: TextStyle(color: context.textMuted),
+          ),
+        ),
+      );
     }
 
     final orgAsync = ref.watch(selectedOrganizationProvider);
@@ -52,22 +83,62 @@ class _OrganizationDetailViewState
 
     return orgAsync.when(
       loading: () => const Scaffold(body: LoadingIndicator()),
-      error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+      error: (e, _) => Scaffold(body: AppErrorState(message: friendlyError(e))),
       data: (org) {
         if (org == null) {
-          return const Scaffold(
-              body: Center(child: Text('Organización no encontrada')));
+          return Scaffold(
+            backgroundColor: context.scaffoldBg,
+            body: Center(
+              child: Text(
+                'Organización no encontrada',
+                style: TextStyle(color: context.textMuted),
+              ),
+            ),
+          );
         }
 
         return Scaffold(
+          backgroundColor: context.scaffoldBg,
           appBar: AppBar(
-            title: Text(org.name),
+            backgroundColor: context.cardBg,
+            elevation: 0,
+            title: Text(
+              org.name,
+              style: TextStyle(
+                color: context.textOnBg,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             bottom: TabBar(
               controller: _tabCtrl,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               indicatorColor: AppColors.primary,
+              indicatorSize: TabBarIndicatorSize.label,
+              dividerColor: Colors.transparent,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: context.textMuted,
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 14),
               tabs: const [
-                Tab(text: 'INFO'),
-                Tab(text: 'MIEMBROS'),
+                Tab(icon: Icon(Icons.info_outline, size: 18), text: 'Info'),
+                Tab(
+                  icon: Icon(Icons.group_outlined, size: 18),
+                  text: 'Miembros',
+                ),
+                Tab(
+                  icon: Icon(Icons.card_membership_outlined, size: 18),
+                  text: 'Membresía',
+                ),
+                Tab(icon: Icon(Icons.qr_code_2, size: 18), text: 'Cobros'),
+                Tab(icon: Icon(Icons.stars_rounded, size: 18), text: 'VIP'),
               ],
             ),
           ),
@@ -76,6 +147,9 @@ class _OrganizationDetailViewState
             children: [
               _InfoTab(organization: org, isAdmin: isAdmin),
               const OrganizationMembersView(),
+              OrganizationMembershipView(organizationId: org.id),
+              OrganizationPaymentsView(organizationId: org.id),
+              OrganizationVipPlanView(organizationId: org.id),
             ],
           ),
         );
@@ -101,21 +175,52 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
   late final TextEditingController _emailCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _websiteCtrl;
+  late final TextEditingController _locationNameCtrl;
+  late final TextEditingController _addressCtrl;
   bool _editing = false;
   Uint8List? _logoBytes;
   String? _logoExtension;
+  Uint8List? _coverBytes;
+  String? _coverExtension;
+  LatLng? _selectedLatLng;
+  final List<XFile> _pendingGalleryImages = [];
+  final Set<String> _selectedDanceIds = {};
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.organization.name);
-    _legalNameCtrl =
-        TextEditingController(text: widget.organization.legalName);
+    _legalNameCtrl = TextEditingController(text: widget.organization.legalName);
     _descCtrl = TextEditingController(text: widget.organization.description);
     _emailCtrl = TextEditingController(text: widget.organization.email);
     _phoneCtrl = TextEditingController(text: widget.organization.phoneNumber);
-    _websiteCtrl =
-        TextEditingController(text: widget.organization.websiteUrl);
+    _websiteCtrl = TextEditingController(text: widget.organization.websiteUrl);
+    _locationNameCtrl = TextEditingController(
+      text: widget.organization.locationName,
+    );
+    _addressCtrl = TextEditingController(text: widget.organization.address);
+    if (widget.organization.latitude != null &&
+        widget.organization.longitude != null) {
+      _selectedLatLng = LatLng(
+        widget.organization.latitude!,
+        widget.organization.longitude!,
+      );
+    }
+    _loadDanceCategories();
+  }
+
+  Future<void> _loadDanceCategories() async {
+    try {
+      final ids = await ref
+          .read(organizationRepositoryProvider)
+          .fetchOrganizationDanceCategoryIds(widget.organization.id);
+      if (!mounted) return;
+      setState(
+        () => _selectedDanceIds
+          ..clear()
+          ..addAll(ids),
+      );
+    } catch (_) {}
   }
 
   @override
@@ -126,6 +231,8 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _websiteCtrl.dispose();
+    _locationNameCtrl.dispose();
+    _addressCtrl.dispose();
     super.dispose();
   }
 
@@ -138,19 +245,29 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
         'legal_name': _legalNameCtrl.text.trim().isEmpty
             ? null
             : _legalNameCtrl.text.trim(),
-        'description':
-            _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-        'email':
-            _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-        'phone_number':
-            _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        'description': _descCtrl.text.trim().isEmpty
+            ? null
+            : _descCtrl.text.trim(),
+        'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        'phone_number': _phoneCtrl.text.trim().isEmpty
+            ? null
+            : _phoneCtrl.text.trim(),
         'website_url': _websiteCtrl.text.trim().isEmpty
             ? null
             : _websiteCtrl.text.trim(),
-        'city_id': ref.read(selectedCityIdProvider),
+        'department_id': ref.read(selectedDepartmentIdProvider),
+        'province_id': ref.read(selectedProvinceIdProvider),
+        'municipality_id': ref.read(selectedMunicipalityIdProvider),
+        'location_name': _locationNameCtrl.text.trim().isEmpty
+            ? null
+            : _locationNameCtrl.text.trim(),
+        'address': _addressCtrl.text.trim().isEmpty
+            ? null
+            : _addressCtrl.text.trim(),
+        'latitude': _selectedLatLng?.latitude,
+        'longitude': _selectedLatLng?.longitude,
       });
 
-      // Upload logo if changed
       if (_logoBytes != null && _logoExtension != null) {
         await repo.uploadLogoForOrg(
           orgId: orgId,
@@ -159,21 +276,46 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
         );
       }
 
+      if (_coverBytes != null && _coverExtension != null) {
+        await repo.uploadCoverForOrg(
+          orgId: orgId,
+          bytes: _coverBytes!,
+          extension: _coverExtension!,
+        );
+      }
+
+      for (final image in _pendingGalleryImages) {
+        await repo.addOrganizationImage(
+          orgId: orgId,
+          bytes: await File(image.path).readAsBytes(),
+          extension: image.path.split('.').last,
+        );
+      }
+
+      await repo.setOrganizationDanceCategories(
+        orgId,
+        _selectedDanceIds.toList(),
+      );
+
       ref.invalidate(selectedOrganizationProvider);
       ref.invalidate(myOrganizationsProvider);
+      ref.invalidate(organizationImagesProvider(orgId));
+      ref.invalidate(organizationDanceCategoryIdsProvider(orgId));
+      ref.invalidate(organizationsWithEventsProvider);
       setState(() {
         _editing = false;
         _logoBytes = null;
         _logoExtension = null;
+        _coverBytes = null;
+        _coverExtension = null;
+        _pendingGalleryImages.clear();
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Actualizado')));
+        AppFeedback.success(context, 'Cambios guardados.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppFeedback.error(context, friendlyError(e));
       }
     }
   }
@@ -197,18 +339,169 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
     });
   }
 
+  Future<void> _pickCover() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      maxHeight: 1200,
+      imageQuality: 80,
+    );
+    if (image == null) return;
+
+    setState(() {
+      _coverBytes = null;
+      _coverExtension = image.path.split('.').last;
+    });
+    _coverBytes = await File(image.path).readAsBytes();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _pickLocation() async {
+    final picked = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerMap(
+          initialLatLng: _selectedLatLng ?? const LatLng(-17.3935, -66.2825),
+        ),
+      ),
+    );
+    if (picked != null && mounted) setState(() => _selectedLatLng = picked);
+  }
+
+  Future<void> _addGalleryImages() async {
+    final images = await ImagePicker().pickMultiImage(
+      maxWidth: 1600,
+      maxHeight: 1200,
+      imageQuality: 80,
+    );
+    if (images.isEmpty) return;
+
+    setState(() => _pendingGalleryImages.addAll(images));
+  }
+
+  Future<void> _deleteGalleryImage(OrganizationImageModel image) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: context.cardBg,
+        title: Text(
+          'Eliminar imagen',
+          style: TextStyle(color: context.textOnBg),
+        ),
+        content: Text(
+          'Esta imagen se eliminará de la galería.',
+          style: TextStyle(color: context.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text('Cancelar', style: TextStyle(color: context.textMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true) return;
+
+    try {
+      await ref
+          .read(organizationRepositoryProvider)
+          .deleteOrganizationImage(image);
+      ref.invalidate(organizationImagesProvider(widget.organization.id));
+    } catch (_) {
+      if (mounted) {
+        AppFeedback.error(
+          context,
+          'No se pudo eliminar la imagen. Inténtalo de nuevo.',
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final org = widget.organization;
     final resolvedLogoAsync = ref.watch(orgLogoUrlProvider(org.logoUrl));
     final resolvedLogo = resolvedLogoAsync.whenOrNull(data: (url) => url);
+    final resolvedCoverAsync = ref.watch(orgLogoUrlProvider(org.coverImageUrl));
+    final resolvedCover = resolvedCoverAsync.whenOrNull(data: (url) => url);
+    final galleryAsync = ref.watch(organizationImagesProvider(org.id));
+    final danceCategoriesAsync = ref.watch(danceCategoriesProvider);
+    final danceCategories = danceCategoriesAsync.value;
+    final selectedStyleNames = danceCategories == null
+        ? ''
+        : danceCategories
+              .where((c) => _selectedDanceIds.contains(c.id))
+              .map((c) => c.name)
+              .join(', ');
+    final hasStyles = selectedStyleNames.isNotEmpty;
+    final hasLocation =
+        (org.locationName?.isNotEmpty ?? false) ||
+        (org.address?.isNotEmpty ?? false) ||
+        (org.latitude != null && org.longitude != null);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Logo
+          GestureDetector(
+            onTap: _editing ? _pickCover : null,
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                border: Border.all(color: context.divider),
+                image: _coverBytes != null
+                    ? DecorationImage(
+                        image: MemoryImage(_coverBytes!),
+                        fit: BoxFit.cover,
+                      )
+                    : resolvedCover != null
+                    ? DecorationImage(
+                        image: NetworkImage(resolvedCover),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: (_coverBytes == null && resolvedCover == null)
+                  ? const Center(
+                      child: Icon(
+                        Icons.panorama_outlined,
+                        size: 44,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : _editing
+                  ? const Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: EdgeInsets.all(10),
+                        child: CircleAvatar(
+                          radius: 17,
+                          backgroundColor: AppColors.primary,
+                          child: Icon(
+                            Icons.edit,
+                            size: 17,
+                            color: AppColors.onPrimary,
+                          ),
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 20),
           Center(
             child: GestureDetector(
               onTap: _editing ? _pickLogo : null,
@@ -221,16 +514,13 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                     backgroundImage: _logoBytes != null
                         ? MemoryImage(_logoBytes!)
                         : resolvedLogo != null
-                            ? NetworkImage(resolvedLogo)
-                            : null,
+                        ? NetworkImage(resolvedLogo)
+                        : null,
                     child: (_logoBytes == null && resolvedLogo == null)
-                        ? Text(
-                            org.name.isNotEmpty ? org.name[0].toUpperCase() : '?',
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        ? const Icon(
+                            Icons.storefront_rounded,
+                            size: 34,
+                            color: AppColors.primary,
                           )
                         : null,
                   ),
@@ -241,10 +531,10 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.camera_alt,
                         size: 16,
-                        color: context.textOnBg,
+                        color: AppColors.onPrimary,
                       ),
                     ),
                 ],
@@ -253,51 +543,272 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
           ),
           const SizedBox(height: 24),
 
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Galería de la organización',
+                  style: TextStyle(
+                    color: context.textOnBg,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (widget.isAdmin && _editing)
+                IconButton(
+                  tooltip: 'Agregar imágenes',
+                  onPressed: _addGalleryImages,
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  color: AppColors.primary,
+                ),
+            ],
+          ),
+          galleryAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            ),
+            error: (error, _) => Text(
+              'No se pudo cargar la galería: $error',
+              style: TextStyle(color: context.textMuted),
+            ),
+            data: (images) => images.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Todavía no hay imágenes adicionales.',
+                      style: TextStyle(color: context.textMuted),
+                    ),
+                  )
+                : GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1,
+                        ),
+                    itemCount: images.length,
+                    itemBuilder: (context, index) => _GalleryImageTile(
+                      image: images[index],
+                      canDelete: widget.isAdmin,
+                      onDelete: () => _deleteGalleryImage(images[index]),
+                    ),
+                  ),
+          ),
+          if (_pendingGalleryImages.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              '${_pendingGalleryImages.length} imagen(es) pendiente(s) de guardar',
+              style: TextStyle(color: context.textMuted, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 1,
+              ),
+              itemCount: _pendingGalleryImages.length,
+              itemBuilder: (context, index) {
+                final image = _pendingGalleryImages[index];
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.file(File(image.path), fit: BoxFit.cover),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: IconButton(
+                        onPressed: () => setState(
+                          () => _pendingGalleryImages.removeAt(index),
+                        ),
+                        icon: const Icon(Icons.close),
+                        color: Colors.white,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black54,
+                          padding: const EdgeInsets.all(4),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+          const SizedBox(height: 24),
+
+          OrganizationShareSection(organization: org),
+          const SizedBox(height: 24),
+
           if (_editing) ...[
-            // Modo edición
+            const _SectionLabel('Datos generales'),
+            const SizedBox(height: 8),
             TextFormField(
               controller: _nameCtrl,
+              style: TextStyle(color: context.textOnBg),
               validator: AppValidators.eventTitle,
-              decoration: const InputDecoration(labelText: 'Nombre *'),
+              decoration: InputDecoration(
+                labelText: 'Nombre *',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _legalNameCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre legal'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Nombre legal',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _descCtrl,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Descripción'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Descripción',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Email',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Teléfono'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Teléfono',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _websiteCtrl,
               keyboardType: TextInputType.url,
-              decoration: const InputDecoration(labelText: 'Website'),
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Website',
+                labelStyle: TextStyle(color: context.textMuted),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const _SectionLabel('Ubicación'),
+            const SizedBox(height: 8),
+            const GeographicLocationPicker(),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _locationNameCtrl,
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Lugar o sede',
+                labelStyle: TextStyle(color: context.textMuted),
+                prefixIcon: const Icon(Icons.place_outlined),
+              ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Ubicación',
-              style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
+            TextFormField(
+              controller: _addressCtrl,
+              style: TextStyle(color: context.textOnBg),
+              decoration: InputDecoration(
+                labelText: 'Dirección',
+                labelStyle: TextStyle(color: context.textMuted),
+                prefixIcon: const Icon(Icons.home_outlined),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Estilos de baile',
+              style: TextStyle(
+                color: context.textOnBg,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 4),
-            GeographicLocationPicker(
-              initialCityId: org.cityId,
-              onCityChanged: (_) {},
+            Text(
+              'Elige los estilos que ofrece la academia. Sirven para el filtro '
+              'de estilos aunque no tenga eventos.',
+              style: TextStyle(color: context.textMuted, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            danceCategoriesAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              error: (_, _) => Text(
+                'No se pudieron cargar los estilos.',
+                style: TextStyle(color: context.textMuted, fontSize: 12),
+              ),
+              data: (categories) => Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final category in categories)
+                    FilterChip(
+                      selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                      checkmarkColor: AppColors.primary,
+                      label: Text(
+                        category.name,
+                        style: TextStyle(
+                          color: _selectedDanceIds.contains(category.id)
+                              ? AppColors.primary
+                              : context.textOnBg,
+                        ),
+                      ),
+                      selected: _selectedDanceIds.contains(category.id),
+                      onSelected: (selected) => setState(() {
+                        if (selected) {
+                          _selectedDanceIds.add(category.id);
+                        } else {
+                          _selectedDanceIds.remove(category.id);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _pickLocation,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.textOnBg,
+                side: BorderSide(color: context.divider),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                ),
+              ),
+              icon: const Icon(Icons.map_outlined),
+              label: Text(
+                _selectedLatLng == null
+                    ? 'Seleccionar ubicación en el mapa'
+                    : 'Cambiar ubicación (${_selectedLatLng!.latitude.toStringAsFixed(5)}, '
+                          '${_selectedLatLng!.longitude.toStringAsFixed(5)})',
+              ),
             ),
             const SizedBox(height: 24),
             Row(
@@ -313,41 +824,75 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                 Expanded(
                   child: AppButton(
                     label: 'Cancelar',
-                    onPressed: () => setState(() => _editing = false),
+                    onPressed: () => setState(() {
+                      _editing = false;
+                      _pendingGalleryImages.clear();
+                    }),
                     isOutlined: true,
                   ),
                 ),
               ],
             ),
           ] else ...[
-            // Modo lectura
-            _InfoRow(label: 'Nombre', value: org.name),
-            if (org.legalName != null && org.legalName!.isNotEmpty)
-              _InfoRow(label: 'Nombre legal', value: org.legalName!),
-            if (org.description != null && org.description!.isNotEmpty)
-              _InfoRow(label: 'Descripción', value: org.description!),
-            if (org.cityName != null && org.cityName!.isNotEmpty)
-              _InfoRow(label: 'Ubicación', value: org.cityName!),
-            if (org.email != null && org.email!.isNotEmpty)
-              _InfoRow(label: 'Email', value: org.email!),
-            if (org.phoneNumber != null && org.phoneNumber!.isNotEmpty)
-              _InfoRow(label: 'Teléfono', value: org.phoneNumber!),
-            if (org.websiteUrl != null && org.websiteUrl!.isNotEmpty)
-              _InfoRow(label: 'Website', value: org.websiteUrl!),
-            _InfoRow(
-              label: 'Verificada',
-              value: org.isVerified ? 'Sí' : 'No',
+            AppSectionCard(
+              title: 'Datos de la academia',
+              icon: Icons.badge_outlined,
+              trailing: _StatusChip(
+                label: org.isActive ? 'Activa' : 'Inactiva',
+                color: org.isActive ? AppColors.success : AppColors.error,
+              ),
+              children: [
+                _InfoRow(label: 'Nombre', value: org.name),
+                if (org.legalName != null && org.legalName!.isNotEmpty)
+                  _InfoRow(label: 'Nombre legal', value: org.legalName!),
+                if (org.description != null && org.description!.isNotEmpty)
+                  _InfoRow(label: 'Descripción', value: org.description!),
+                if (org.email != null && org.email!.isNotEmpty)
+                  _InfoRow(label: 'Email', value: org.email!),
+                if (org.phoneNumber != null && org.phoneNumber!.isNotEmpty)
+                  _InfoRow(label: 'Teléfono', value: org.phoneNumber!),
+                if (org.websiteUrl != null && org.websiteUrl!.isNotEmpty)
+                  _InfoRow(label: 'Website', value: org.websiteUrl!),
+              ],
             ),
-            _InfoRow(
-              label: 'Estado',
-              value: org.isActive ? 'Activa' : 'Inactiva',
-            ),
+            if (hasLocation) ...[
+              const SizedBox(height: 12),
+              AppSectionCard(
+                title: 'Ubicación',
+                icon: Icons.place_outlined,
+                children: [
+                  if (org.locationName != null && org.locationName!.isNotEmpty)
+                    _InfoRow(label: 'Lugar', value: org.locationName!),
+                  if (org.address != null && org.address!.isNotEmpty)
+                    _InfoRow(label: 'Dirección', value: org.address!),
+                  if (org.latitude != null && org.longitude != null)
+                    _InfoRow(
+                      label: 'Coordenadas',
+                      value:
+                          '${org.latitude!.toStringAsFixed(5)}, ${org.longitude!.toStringAsFixed(5)}',
+                    ),
+                ],
+              ),
+            ],
+            if (hasStyles) ...[
+              const SizedBox(height: 12),
+              AppSectionCard(
+                title: 'Estilos que enseña',
+                icon: Icons.music_note_rounded,
+                children: [
+                  Text(
+                    selectedStyleNames,
+                    style: TextStyle(color: context.textOnBg, fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
             if (widget.isAdmin)
               AppButton(
-                label: 'Editar',
+                label: 'Editar información',
                 onPressed: () => setState(() => _editing = true),
-                icon: Icons.edit,
+                icon: Icons.edit_outlined,
                 isOutlined: true,
               ),
           ],
@@ -371,17 +916,133 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.grey,
+            style: TextStyle(
+              color: context.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(color: context.textOnBg, fontSize: 15),
-          ),
+          Text(value, style: TextStyle(color: context.textOnBg, fontSize: 15)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Etiqueta de bloque en el formulario de edición.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: context.textOnBg,
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+      ),
+    );
+  }
+}
+
+/// Chip de estado (activa/inactiva) para el encabezado de la tarjeta.
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _GalleryImageTile extends ConsumerWidget {
+  const _GalleryImageTile({
+    required this.image,
+    required this.canDelete,
+    required this.onDelete,
+  });
+
+  final OrganizationImageModel image;
+  final bool canDelete;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final imageUrlAsync = ref.watch(orgLogoUrlProvider(image.imageUrl));
+    final imageUrl = imageUrlAsync.whenOrNull(data: (url) => url);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (imageUrl != null)
+            Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                color: context.divider.withValues(alpha: 0.3),
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: context.textMuted,
+                ),
+              ),
+            )
+          else
+            Container(
+              color: context.divider.withValues(alpha: 0.3),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          if (canDelete)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Material(
+                color: Colors.black54,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
+                  padding: EdgeInsets.zero,
+                  tooltip: 'Eliminar imagen',
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

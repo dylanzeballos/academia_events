@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/theme_extensions.dart';
 import '../../data/models/geographic_model.dart';
 import '../../providers/geographic_provider.dart';
+import 'app_feedback.dart';
 
 /// Widget de selects dependientes para seleccionar ubicacion geografica.
 /// Jerarquia: Department -> Province -> Municipality -> City
@@ -37,9 +39,13 @@ class _GeographicLocationPickerState
     final repo = ref.read(geographicRepositoryProvider);
     final chain = await repo.resolveCityChain(widget.initialCityId!);
     if (chain != null && mounted) {
-      ref.read(selectedDepartmentIdProvider.notifier).select(chain['departmentId']);
+      ref
+          .read(selectedDepartmentIdProvider.notifier)
+          .select(chain['departmentId']);
       ref.read(selectedProvinceIdProvider.notifier).select(chain['provinceId']);
-      ref.read(selectedMunicipalityIdProvider.notifier).select(chain['municipalityId']);
+      ref
+          .read(selectedMunicipalityIdProvider.notifier)
+          .select(chain['municipalityId']);
       ref.read(selectedCityIdProvider.notifier).select(widget.initialCityId);
     }
   }
@@ -62,8 +68,10 @@ class _GeographicLocationPickerState
         // Department
         departments.when(
           loading: () => const _DropdownSkeleton(label: 'Departamento'),
-          error: (e, _) => Text('Error: $e',
-              style: const TextStyle(color: AppColors.error, fontSize: 12)),
+          error: (e, _) => Text(
+            friendlyError(e),
+            style: const TextStyle(color: AppColors.error, fontSize: 12),
+          ),
           data: (items) => _GeoDropdown<DepartmentModel>(
             label: 'Departamento',
             icon: Icons.location_city_outlined,
@@ -83,8 +91,10 @@ class _GeographicLocationPickerState
         if (selectedDept != null)
           provinces.when(
             loading: () => const _DropdownSkeleton(label: 'Provincia'),
-            error: (e, _) => Text('Error: $e',
-                style: const TextStyle(color: AppColors.error, fontSize: 12)),
+            error: (e, _) => Text(
+              friendlyError(e),
+              style: const TextStyle(color: AppColors.error, fontSize: 12),
+            ),
             data: (items) => _GeoDropdown<ProvinceModel>(
               label: 'Provincia',
               icon: Icons.map_outlined,
@@ -104,8 +114,10 @@ class _GeographicLocationPickerState
         if (selectedProv != null)
           municipalities.when(
             loading: () => const _DropdownSkeleton(label: 'Municipio'),
-            error: (e, _) => Text('Error: $e',
-                style: const TextStyle(color: AppColors.error, fontSize: 12)),
+            error: (e, _) => Text(
+              friendlyError(e),
+              style: const TextStyle(color: AppColors.error, fontSize: 12),
+            ),
             data: (items) => _GeoDropdown<MunicipalityModel>(
               label: 'Municipio',
               icon: Icons.location_on_outlined,
@@ -125,8 +137,10 @@ class _GeographicLocationPickerState
         if (selectedMuni != null)
           cities.when(
             loading: () => const _DropdownSkeleton(label: 'Ciudad'),
-            error: (e, _) => Text('Error: $e',
-                style: const TextStyle(color: AppColors.error, fontSize: 12)),
+            error: (e, _) => Text(
+              friendlyError(e),
+              style: const TextStyle(color: AppColors.error, fontSize: 12),
+            ),
             data: (items) => _GeoDropdown<CityModel>(
               label: 'Ciudad',
               icon: Icons.home_outlined,

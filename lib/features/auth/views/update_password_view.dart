@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../providers/auth_provider.dart';
@@ -80,9 +81,11 @@ class _UpdatePasswordViewState extends ConsumerState<UpdatePasswordView> {
                             labelText: 'Nueva contraseña',
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),
@@ -93,7 +96,9 @@ class _UpdatePasswordViewState extends ConsumerState<UpdatePasswordView> {
                           controller: _confirmCtrl,
                           obscureText: _obscure,
                           validator: (v) => AppValidators.confirmPassword(
-                              _passwordCtrl.text, v),
+                            _passwordCtrl.text,
+                            v,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Confirmar contraseña',
                             prefixIcon: Icon(Icons.lock_outline),

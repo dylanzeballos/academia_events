@@ -14,15 +14,14 @@ class PublicEventsService {
   static String? _publicLogoUrl(String? path) {
     if (path == null || path.trim().isEmpty) return null;
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    return supabase.storage
-        .from('organization-logos')
-        .getPublicUrl(path);
+    return supabase.storage.from('organization-logos').getPublicUrl(path);
   }
 
   Future<PaginatedResult<PublicEventData>> searchEvents({
     String? searchQuery,
     List<String>? categoryIds,
     List<String>? danceCategoryIds,
+    String? organizationId,
     String? departmentId,
     String? provinceId,
     String? municipalityId,
@@ -52,9 +51,24 @@ class PublicEventsService {
           ticket_types(id, name, description, price, currency, quantity, sold_quantity, sales_start_at, sales_end_at, is_active)
         ''')
         .eq('status', 'published')
+        .eq('moderation_status', 'approved')
         .eq('visibility', 'public');
 
-    query = _applyFilters(query, searchQuery, categoryIds, danceCategoryIds, departmentId, provinceId, municipalityId, cityId, dateFrom, dateTo, priceMin, priceMax);
+    query = _applyFilters(
+      query,
+      searchQuery,
+      categoryIds,
+      danceCategoryIds,
+      organizationId,
+      departmentId,
+      provinceId,
+      municipalityId,
+      cityId,
+      dateFrom,
+      dateTo,
+      priceMin,
+      priceMax,
+    );
 
     _applySorting(query, sortBy, searchQuery);
 
@@ -66,9 +80,18 @@ class PublicEventsService {
     int totalItems = 0;
     try {
       totalItems = await _getTotalCount(
-        searchQuery, categoryIds, danceCategoryIds,
-        departmentId, provinceId, municipalityId, cityId,
-        dateFrom, dateTo, priceMin, priceMax,
+        searchQuery,
+        categoryIds,
+        danceCategoryIds,
+        organizationId,
+        departmentId,
+        provinceId,
+        municipalityId,
+        cityId,
+        dateFrom,
+        dateTo,
+        priceMin,
+        priceMax,
       );
     } catch (_) {
       totalItems = 0;
@@ -91,6 +114,7 @@ class PublicEventsService {
     String? searchQuery,
     List<String>? categoryIds,
     List<String>? danceCategoryIds,
+    String? organizationId,
     String? departmentId,
     String? provinceId,
     String? municipalityId,
@@ -101,7 +125,13 @@ class PublicEventsService {
     double? priceMax,
   ) {
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-      query = query.or('title.ilike.%${searchQuery.trim()}%,description.ilike.%${searchQuery.trim()}%');
+      query = query.or(
+        'title.ilike.%${searchQuery.trim()}%,description.ilike.%${searchQuery.trim()}%',
+      );
+    }
+
+    if (organizationId != null && organizationId.trim().isNotEmpty) {
+      query = query.eq('organization_id', organizationId);
     }
 
     if (categoryIds != null && categoryIds.isNotEmpty) {
@@ -109,13 +139,21 @@ class PublicEventsService {
     }
 
     if (danceCategoryIds != null && danceCategoryIds.isNotEmpty) {
-      query = query.filter('event_dance_categories.dance_category_id', 'in', danceCategoryIds);
+      query = query.filter(
+        'event_dance_categories.dance_category_id',
+        'in',
+        danceCategoryIds,
+      );
     }
 
     if (cityId != null) {
       query = query.filter('event_locations.city_id', 'eq', cityId);
     } else if (municipalityId != null) {
-      query = query.filter('event_locations.municipality_id', 'eq', municipalityId);
+      query = query.filter(
+        'event_locations.municipality_id',
+        'eq',
+        municipalityId,
+      );
     } else if (provinceId != null) {
       query = query.filter('event_locations.province_id', 'eq', provinceId);
     } else if (departmentId != null) {
@@ -156,7 +194,11 @@ class PublicEventsService {
         break;
       case EventSortBy.relevance:
         if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-          query = query.textSearch('title', searchQuery.trim(), config: 'spanish');
+          query = query.textSearch(
+            'title',
+            searchQuery.trim(),
+            config: 'spanish',
+          );
         } else {
           query = query.order('start_at', ascending: true);
         }
@@ -168,6 +210,7 @@ class PublicEventsService {
     String? searchQuery,
     List<String>? categoryIds,
     List<String>? danceCategoryIds,
+    String? organizationId,
     String? departmentId,
     String? provinceId,
     String? municipalityId,
@@ -182,9 +225,24 @@ class PublicEventsService {
           .from('events')
           .select('id')
           .eq('status', 'published')
+          .eq('moderation_status', 'approved')
           .eq('visibility', 'public');
 
-      query = _applyFilters(query, searchQuery, categoryIds, danceCategoryIds, departmentId, provinceId, municipalityId, cityId, dateFrom, dateTo, priceMin, priceMax);
+      query = _applyFilters(
+        query,
+        searchQuery,
+        categoryIds,
+        danceCategoryIds,
+        organizationId,
+        departmentId,
+        provinceId,
+        municipalityId,
+        cityId,
+        dateFrom,
+        dateTo,
+        priceMin,
+        priceMax,
+      );
 
       final result = await query;
       return (result as List).length;
@@ -211,6 +269,7 @@ class PublicEventsService {
         ''')
         .eq('id', eventId)
         .eq('status', 'published')
+        .eq('moderation_status', 'approved')
         .eq('visibility', 'public')
         .maybeSingle();
 
@@ -218,34 +277,117 @@ class PublicEventsService {
     return PublicEventData.fromJson(response);
   }
 
-  Future<List<OrganizationWithEventCount>> getOrganizationsWithEvents({int limit = 10}) async {
+  Future<List<OrganizationWithEventCount>> getOrganizationsWithEvents({
+    int limit = 200,
+  }) async {
     final response = await supabase
         .from('organizations')
         .select('''
-          id, name, logo_url, description, city_id,
-          events!inner(id, status, visibility)
+          id, name, logo_url, description,
+          department_id, province_id, municipality_id,
+          organization_dance_categories(dance_categories(id, name)),
+          events(
+            id, status, visibility, cover_image_url,
+            event_dance_categories(dance_categories(name))
+          ),
+          dance_classes(id, title, status)
         ''')
         .eq('is_active', true)
-        .eq('events.status', 'published')
-        .eq('events.visibility', 'public')
         .limit(limit);
 
     final data = (response as List).cast<Map<String, dynamic>>();
 
+    // El carrusel es un beneficio de membresía: solo se muestran organizaciones
+    // con una suscripción activa vigente. Si la consulta falla, no se oculta
+    // ninguna para no romper el calendario.
+    Set<String> membershipOrgIds = <String>{};
+    try {
+      final membership = await supabase.rpc(
+        'organizations_with_active_membership',
+      );
+      membershipOrgIds = (membership as List)
+          .map((id) => id.toString())
+          .toSet();
+    } catch (_) {
+      membershipOrgIds = data.map((row) => row['id'] as String).toSet();
+    }
+
     final orgMap = <String, OrganizationWithEventCount>{};
     for (final row in data) {
       final orgId = row['id'] as String;
+      final events = (row['events'] as List?) ?? const [];
+      final classes = (row['dance_classes'] as List?) ?? const [];
+      final publishedEventCount = events.where((event) {
+        final eventData = event as Map<String, dynamic>;
+        return eventData['status'] == 'published' &&
+            eventData['visibility'] == 'public';
+      }).length;
+
       if (!orgMap.containsKey(orgId)) {
+        final publishedEvents = events.where((event) {
+          final eventData = event as Map<String, dynamic>;
+          return eventData['status'] == 'published' &&
+              eventData['visibility'] == 'public';
+        }).toList();
+        final firstEvent = publishedEvents.isNotEmpty
+            ? publishedEvents.first as Map<String, dynamic>
+            : null;
+
+        // Estilos declarados explícitamente por la academia (BD).
+        final declaredRelations =
+            (row['organization_dance_categories'] as List?) ?? const [];
+        final declaredCategoryIds = <String>[];
+        final declaredGenreNames = <String>{};
+        for (final relation in declaredRelations) {
+          final danceCategory =
+              (relation as Map<String, dynamic>)['dance_categories']
+                  as Map<String, dynamic>?;
+          final id = danceCategory?['id'] as String?;
+          final name = danceCategory?['name'] as String?;
+          if (id != null && id.isNotEmpty) declaredCategoryIds.add(id);
+          if (name != null && name.isNotEmpty) declaredGenreNames.add(name);
+        }
+
+        // Respaldo: estilos derivados de eventos/clases publicados.
+        final derivedGenres = <String>{};
+        for (final event in publishedEvents) {
+          final relations =
+              (event as Map<String, dynamic>)['event_dance_categories']
+                  as List?;
+          for (final relation in relations ?? const []) {
+            final danceCategory =
+                (relation as Map<String, dynamic>)['dance_categories']
+                    as Map<String, dynamic>?;
+            final name = danceCategory?['name'] as String?;
+            if (name != null && name.isNotEmpty) derivedGenres.add(name);
+          }
+        }
+        for (final danceClass in classes) {
+          final classData = danceClass as Map<String, dynamic>;
+          if (classData['status'] != 'published') continue;
+          final title = classData['title'] as String?;
+          if (title != null && title.isNotEmpty) derivedGenres.add(title);
+        }
+
+        final genreNames = declaredGenreNames.isNotEmpty
+            ? declaredGenreNames.toList()
+            : derivedGenres.toList();
+
         orgMap[orgId] = OrganizationWithEventCount(
           id: orgId,
           name: row['name'] as String,
           logoUrl: _publicLogoUrl(row['logo_url'] as String?),
+          bannerUrl: firstEvent?['cover_image_url'] as String?,
           description: row['description'] as String?,
-          cityId: row['city_id'] as String?,
-          eventCount: 0,
+          danceGenres: genreNames,
+          danceCategoryIds: declaredCategoryIds,
+          departmentId: row['department_id'] as String?,
+          provinceId: row['province_id'] as String?,
+          municipalityId: row['municipality_id'] as String?,
+          eventCount: publishedEventCount,
+          hasMembership: membershipOrgIds.contains(orgId),
         );
       }
-      orgMap[orgId] = orgMap[orgId]!.copyWith(eventCount: orgMap[orgId]!.eventCount + 1);
     }
 
     return orgMap.values.toList()
@@ -258,7 +400,9 @@ class PublicEventsService {
         .select('id, name, is_active')
         .eq('is_active', true)
         .order('name');
-    return (response as List).map((e) => EventCategoryModel.fromJson(e as Map<String, dynamic>)).toList();
+    return (response as List)
+        .map((e) => EventCategoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<DanceCategoryModel>> getDanceCategories() async {
@@ -267,7 +411,9 @@ class PublicEventsService {
         .select('id, name, is_active')
         .eq('is_active', true)
         .order('name');
-    return (response as List).map((e) => DanceCategoryModel.fromJson(e as Map<String, dynamic>)).toList();
+    return (response as List)
+        .map((e) => DanceCategoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<DepartmentModel>> getDepartments() async {
@@ -275,7 +421,9 @@ class PublicEventsService {
         .from('departments')
         .select('id, name, code')
         .order('name');
-    return (response as List).map((e) => DepartmentModel.fromJson(e as Map<String, dynamic>)).toList();
+    return (response as List)
+        .map((e) => DepartmentModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<ProvinceModel>> getProvinces(String departmentId) async {
@@ -284,7 +432,9 @@ class PublicEventsService {
         .select('id, department_id, name')
         .eq('department_id', departmentId)
         .order('name');
-    return (response as List).map((e) => ProvinceModel.fromJson(e as Map<String, dynamic>)).toList();
+    return (response as List)
+        .map((e) => ProvinceModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<MunicipalityModel>> getMunicipalities(String provinceId) async {
@@ -293,7 +443,9 @@ class PublicEventsService {
         .select('id, province_id, name')
         .eq('province_id', provinceId)
         .order('name');
-    return (response as List).map((e) => MunicipalityModel.fromJson(e as Map<String, dynamic>)).toList();
+    return (response as List)
+        .map((e) => MunicipalityModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<CityModel>> getCities(String municipalityId) async {
@@ -302,6 +454,8 @@ class PublicEventsService {
         .select('id, municipality_id, name')
         .eq('municipality_id', municipalityId)
         .order('name');
-    return (response as List).map((e) => CityModel.fromJson(e as Map<String, dynamic>)).toList();
+    return (response as List)
+        .map((e) => CityModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

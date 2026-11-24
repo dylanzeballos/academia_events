@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../data/models/organization_model.dart';
 import '../data/models/organization_member_model.dart';
 import '../data/models/organization_invitation_model.dart';
+import '../data/models/organization_image_model.dart';
 import '../data/repositories/organization_repository.dart';
 import '../data/services/organization_service.dart';
 import 'auth_provider.dart';
@@ -16,8 +18,9 @@ final organizationRepositoryProvider = Provider<IOrganizationRepository>((ref) {
 
 // ─── Mis organizaciones ─────────────────────────────
 
-final myOrganizationsProvider =
-    FutureProvider<List<OrganizationWithRole>>((ref) async {
+final myOrganizationsProvider = FutureProvider<List<OrganizationWithRole>>((
+  ref,
+) async {
   // Re-ejecutar en cada cambio de sesión (login/logout): sin esto, el
   // resultado cacheado de una sesión anterior (o de estar deslogueado)
   // persistía y la UI mostraba el panel sin datos.
@@ -31,8 +34,15 @@ final myOrganizationsProvider =
 class SelectedOrgIdNotifier extends Notifier<String?> {
   @override
   String? build() {
-    // Resetear la selección al cambiar de sesión.
-    ref.watch(authStateProvider);
+    // Se limpia al cerrar sesión para no arrastrar la academia de otro usuario.
+    // No se usa `ref.watch(authStateProvider)` porque cada evento de auth
+    // (token refrescado, app retomada) reiniciaría la selección y las vistas
+    // se quedarían sin datos.
+    ref.listen(authStateProvider, (_, next) {
+      if (next.value?.event == sb.AuthChangeEvent.signedOut) {
+        state = null;
+      }
+    });
     return null;
   }
 
@@ -42,8 +52,8 @@ class SelectedOrgIdNotifier extends Notifier<String?> {
 
 final selectedOrganizationIdProvider =
     NotifierProvider<SelectedOrgIdNotifier, String?>(
-  () => SelectedOrgIdNotifier(),
-);
+      () => SelectedOrgIdNotifier(),
+    );
 
 final selectedOrganizationProvider = FutureProvider<OrganizationModel?>((ref) {
   final orgId = ref.watch(selectedOrganizationIdProvider);
@@ -52,15 +62,35 @@ final selectedOrganizationProvider = FutureProvider<OrganizationModel?>((ref) {
   return repo.fetchOrganization(orgId);
 });
 
+final publicOrganizationProvider =
+    FutureProvider.family<OrganizationModel?, String>((ref, orgId) {
+      final repo = ref.watch(organizationRepositoryProvider);
+      return repo.fetchOrganization(orgId);
+    });
+
+final organizationImagesProvider =
+    FutureProvider.family<List<OrganizationImageModel>, String>((ref, orgId) {
+      final repo = ref.watch(organizationRepositoryProvider);
+      return repo.fetchOrganizationImages(orgId);
+    });
+
+// ─── Estilos de baile declarados de la organización ─
+
+final organizationDanceCategoryIdsProvider =
+    FutureProvider.family<List<String>, String>((ref, orgId) {
+      final repo = ref.watch(organizationRepositoryProvider);
+      return repo.fetchOrganizationDanceCategoryIds(orgId);
+    });
+
 // ─── Miembros de la organización seleccionada ───────
 
 final organizationMembersProvider =
     FutureProvider<List<OrganizationMemberWithProfile>>((ref) {
-  final orgId = ref.watch(selectedOrganizationIdProvider);
-  if (orgId == null) return Future.value([]);
-  final repo = ref.watch(organizationRepositoryProvider);
-  return repo.fetchMembers(orgId);
-});
+      final orgId = ref.watch(selectedOrganizationIdProvider);
+      if (orgId == null) return Future.value([]);
+      final repo = ref.watch(organizationRepositoryProvider);
+      return repo.fetchMembers(orgId);
+    });
 
 // ─── Mi rol en la organización seleccionada ─────────
 
@@ -90,10 +120,7 @@ class CreateOrgState {
   final String? error;
 
   CreateOrgState copyWith({bool? isLoading, String? error}) {
-    return CreateOrgState(
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-    );
+    return CreateOrgState(isLoading: isLoading ?? this.isLoading, error: error);
   }
 }
 
@@ -108,9 +135,17 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
     String? email,
     String? phoneNumber,
     String? websiteUrl,
-    String? cityId,
+    String? departmentId,
+    String? provinceId,
+    String? municipalityId,
+    String? locationName,
+    String? address,
+    double? latitude,
+    double? longitude,
     Uint8List? logoBytes,
     String? logoExtension,
+    Uint8List? coverBytes,
+    String? coverExtension,
   }) async {
     state = state.copyWith(isLoading: true);
     try {
@@ -122,7 +157,13 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
         email: email,
         phoneNumber: phoneNumber,
         websiteUrl: websiteUrl,
-        cityId: cityId,
+        departmentId: departmentId,
+        provinceId: provinceId,
+        municipalityId: municipalityId,
+        locationName: locationName,
+        address: address,
+        latitude: latitude,
+        longitude: longitude,
       );
 
       // Upload logo if provided
@@ -131,6 +172,14 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
           orgId: org.id,
           bytes: logoBytes,
           extension: logoExtension,
+        );
+      }
+
+      if (coverBytes != null && coverExtension != null) {
+        await repo.uploadCoverForOrg(
+          orgId: org.id,
+          bytes: coverBytes,
+          extension: coverExtension,
         );
       }
 
@@ -143,7 +192,9 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
       state = CreateOrgState(error: e.message);
       return false;
     } catch (e) {
-      state = const CreateOrgState(error: 'Ocurrió un error inesperado. Intenta de nuevo.');
+      state = const CreateOrgState(
+        error: 'Ocurrió un error inesperado. Intenta de nuevo.',
+      );
       return false;
     }
   }
@@ -151,15 +202,18 @@ class CreateOrgNotifier extends Notifier<CreateOrgState> {
   void clearError() => state = state.copyWith();
 }
 
-final createOrgProvider =
-    NotifierProvider<CreateOrgNotifier, CreateOrgState>(() {
-  return CreateOrgNotifier();
-});
+final createOrgProvider = NotifierProvider<CreateOrgNotifier, CreateOrgState>(
+  () {
+    return CreateOrgNotifier();
+  },
+);
 
 // ─── Logo signed URL helper ─────────────────────────
 
-final orgLogoUrlProvider =
-    FutureProvider.family<String?, String?>((ref, String? logoPath) async {
+final orgLogoUrlProvider = FutureProvider.family<String?, String?>((
+  ref,
+  String? logoPath,
+) async {
   if (logoPath == null || logoPath.trim().isEmpty) return null;
   if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
     return logoPath;
@@ -172,15 +226,16 @@ final orgLogoUrlProvider =
 
 final orgInvitationsProvider =
     FutureProvider<List<OrganizationInvitationModel>>((ref) async {
-  final orgId = ref.watch(selectedOrganizationIdProvider);
-  if (orgId == null) return [];
-  final repo = ref.watch(organizationRepositoryProvider);
-  return repo.fetchOrgInvitations(orgId);
-});
+      final orgId = ref.watch(selectedOrganizationIdProvider);
+      if (orgId == null) return [];
+      final repo = ref.watch(organizationRepositoryProvider);
+      return repo.fetchOrgInvitations(orgId);
+    });
 
-final myInvitationsProvider =
-    FutureProvider<List<OrganizationInvitationModel>>((ref) async {
-  ref.watch(authStateProvider);
-  final repo = ref.watch(organizationRepositoryProvider);
-  return repo.fetchMyInvitations();
-});
+final myInvitationsProvider = FutureProvider<List<OrganizationInvitationModel>>(
+  (ref) async {
+    ref.watch(authStateProvider);
+    final repo = ref.watch(organizationRepositoryProvider);
+    return repo.fetchMyInvitations();
+  },
+);

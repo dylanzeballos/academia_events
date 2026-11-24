@@ -1,13 +1,13 @@
+// lib/features/public/widgets/public_week_timeline.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/public_event_model.dart';
 
-/// Resultado del layout: a qué columna pertenece cada evento y
-/// cuántas columnas tiene su grupo.
 class _EventLayout {
   const _EventLayout(this.event, this.column, this.totalColumns);
 
@@ -16,11 +16,6 @@ class _EventLayout {
   final int totalColumns;
 }
 
-/// Timeline vertical de un día (estilo Google Calendar) para la vista pública.
-///
-/// - Solo renderiza el rango de horas comprendido entre el primer evento y el
-///   último (con un margen de 1 hora), ocultando las franjas vacías.
-/// - Usa [LayoutBuilder] para ajustarse al alto disponible y NO desplazarse.
 class PublicWeekTimeline extends StatelessWidget {
   const PublicWeekTimeline({
     super.key,
@@ -33,15 +28,20 @@ class PublicWeekTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (events.isEmpty) return _EmptyDay(date: date);
+    final ranges = <(int, int)>[];
+    for (final e in events) {
+      final r = DateFormatter.clampRangeToDayMinutes(
+        e.startTime,
+        e.endTime,
+        date,
+      );
+      if (r != null) ranges.add(r);
+    }
+    if (ranges.isEmpty) return _EmptyDay(date: date);
 
-    // Rango de horas: solo las horas con eventos (margen de 1h por lado).
-    // Las horas vacías NO se muestran ni marcan; los eventos quedan grandes.
     int startMin = 23 * 60 + 59;
     int endMin = 0;
-    for (final e in events) {
-      final s = DateFormatter.minutesFromMidnight(e.startTime);
-      final e2 = DateFormatter.minutesFromMidnight(e.endTime);
+    for (final (s, e2) in ranges) {
       if (s < startMin) startMin = s;
       if (e2 > endMin) endMin = e2;
     }
@@ -56,7 +56,6 @@ class PublicWeekTimeline extends StatelessWidget {
         final totalMinutes = (endMin - startMin);
         if (totalMinutes <= 0) return const SizedBox.shrink();
 
-        // Alto por minuto para que todo el rango quepa sin scroll.
         final pixelPerMinute = availableHeight / totalMinutes;
 
         return Container(
@@ -64,7 +63,6 @@ class PublicWeekTimeline extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Columna de etiquetas de hora ──────────────────────
               SizedBox(
                 width: 48,
                 child: Stack(
@@ -86,8 +84,8 @@ class PublicWeekTimeline extends StatelessWidget {
                             child: Text(
                               _hourLabel(minute),
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                color: Colors.grey,
+                              style: TextStyle(
+                                color: context.textMuted,
                                 fontSize: 10,
                               ),
                             ),
@@ -98,13 +96,9 @@ class PublicWeekTimeline extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // ── Área de eventos + líneas de hora ─────────────────
               Expanded(
                 child: Stack(
                   children: [
-                    // Franjas de hora alternadas (sutiles) + línea fina:
-                    // fondo neutro, no "horas marcadas".
                     ...List.generate((totalMinutes / 60).ceil(), (i) {
                       return Positioned(
                         top: i * 60 * pixelPerMinute,
@@ -130,11 +124,10 @@ class PublicWeekTimeline extends StatelessWidget {
                         ),
                       );
                     }),
-
-                    // Eventos posicionados
                     ...layouts.map((layout) {
                       return _PositionedEvent(
                         layout: layout,
+                        date: date,
                         startMin: startMin,
                         pixelPerMinute: pixelPerMinute,
                       );
@@ -142,7 +135,6 @@ class PublicWeekTimeline extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(width: 4),
             ],
           ),
@@ -156,7 +148,6 @@ class PublicWeekTimeline extends StatelessWidget {
     return '${hour.toString().padLeft(2, '0')}:00';
   }
 
-  /// Asigna columna y total de columnas a cada evento del día.
   static List<_EventLayout> _layoutEvents(List<PublicEventModel> events) {
     final sorted = [...events]
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
@@ -173,9 +164,6 @@ class PublicWeekTimeline extends StatelessWidget {
 
       for (final e in cluster) {
         var col = 0;
-        // La columna está ocupada si su último evento se solapa con este
-        // (termina DESPUÉS de que empieza). Los consecutivos que tocan
-        // borde se apilan en la misma columna, como en Google Calendar.
         while (col < columnEnds.length &&
             columnEnds[col].isAfter(e.startTime)) {
           col++;
@@ -207,25 +195,29 @@ class PublicWeekTimeline extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Evento posicionado absolutamente
-// ─────────────────────────────────────────────
 class _PositionedEvent extends StatelessWidget {
   const _PositionedEvent({
     required this.layout,
+    required this.date,
     required this.startMin,
     required this.pixelPerMinute,
   });
 
   final _EventLayout layout;
+  final DateTime date;
   final int startMin;
   final double pixelPerMinute;
 
   @override
   Widget build(BuildContext context) {
     final event = layout.event;
-    final startMinOfDay = DateFormatter.minutesFromMidnight(event.startTime);
-    final endMinOfDay = DateFormatter.minutesFromMidnight(event.endTime);
+    final range = DateFormatter.clampRangeToDayMinutes(
+      event.startTime,
+      event.endTime,
+      date,
+    );
+    if (range == null) return const SizedBox.shrink();
+    final (startMinOfDay, endMinOfDay) = range;
 
     final top = (startMinOfDay - startMin) * pixelPerMinute;
     final height = (endMinOfDay - startMinOfDay) * pixelPerMinute;
@@ -255,17 +247,13 @@ class _PositionedEvent extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Bloque de evento público
-// ─────────────────────────────────────────────
 class _PublicEventCard extends StatelessWidget {
   const _PublicEventCard({required this.event, required this.onTap});
 
   final PublicEventModel event;
   final VoidCallback onTap;
 
-  Color get _color => AppColors.calendarEventColors[
-      event.colorIndex % AppColors.calendarEventColors.length];
+  Color get _color => AppColors.colorForOrganization(event.organizationId);
 
   @override
   Widget build(BuildContext context) {
@@ -317,8 +305,8 @@ class _FullContent extends StatelessWidget {
                   event.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: context.textOnBg,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     height: 1.2,
@@ -327,11 +315,11 @@ class _FullContent extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.schedule, size: 13, color: Colors.white70),
+                    Icon(Icons.schedule, size: 13, color: context.textMuted),
                     const SizedBox(width: 4),
                     Text(
                       DateFormatter.timeRange(event.startTime, event.endTime),
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      style: TextStyle(color: context.textMuted, fontSize: 13),
                     ),
                   ],
                 ),
@@ -339,15 +327,15 @@ class _FullContent extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      Icon(Icons.apartment, size: 13, color: Colors.white70),
+                      Icon(Icons.apartment, size: 13, color: context.textMuted),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           event.organizationName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 12),
+                          style: TextStyle(
+                              color: context.textMuted, fontSize: 12),
                         ),
                       ),
                     ],
@@ -357,15 +345,15 @@ class _FullContent extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      Icon(Icons.place, size: 13, color: Colors.white70),
+                      Icon(Icons.place, size: 13, color: context.textMuted),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           event.location!.locationName!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 12),
+                          style: TextStyle(
+                              color: context.textMuted, fontSize: 12),
                         ),
                       ),
                     ],
@@ -406,7 +394,7 @@ class _ShortContent extends StatelessWidget {
                 Text(
                   DateFormatter.timeRange(event.startTime, event.endTime),
                   style: TextStyle(
-                    color: Colors.white,
+                    color: context.textOnBg,
                     fontSize: isVeryShort ? 11 : 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -417,8 +405,8 @@ class _ShortContent extends StatelessWidget {
                     event.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: context.textMuted,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       height: 1.15,
@@ -434,9 +422,6 @@ class _ShortContent extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// Estado vacío
-// ─────────────────────────────────────────────
 class _EmptyDay extends StatelessWidget {
   const _EmptyDay({required this.date});
   final DateTime date;
@@ -450,12 +435,12 @@ class _EmptyDay extends StatelessWidget {
           Icon(
             Icons.calendar_today_outlined,
             size: 56,
-            color: Colors.grey[400],
+            color: context.textMuted,
           ),
           const SizedBox(height: 16),
           Text(
             'Sin eventos el ${DateFormatter.fullDate(date)}',
-            style: TextStyle(color: Colors.grey[500], fontSize: 14),
+            style: TextStyle(color: context.textMuted, fontSize: 14),
             textAlign: TextAlign.center,
           ),
         ],

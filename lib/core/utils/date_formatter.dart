@@ -9,6 +9,8 @@ class DateFormatter {
   static final _fullDate = DateFormat('EEEE d MMMM yyyy', 'es');
   static final _shortDay = DateFormat('EEE', 'es'); // Lun, Mar...
   static final _dayNumber = DateFormat('d');
+  static final _monthYear = DateFormat('MMMM yyyy', 'es'); // septiembre 2026
+  static final _shortMonth = DateFormat('MMM', 'es'); // sep, oct...
 
   /// Ej: "18:30"
   static String hourMin(DateTime dt) => _hourMin.format(dt);
@@ -29,14 +31,33 @@ class DateFormatter {
   /// Número del día: "15"
   static String dayNumber(DateTime dt) => _dayNumber.format(dt);
 
-  /// Devuelve los 7 días de la semana que contiene [reference].
-  static List<DateTime> weekDays(DateTime reference) {
-    // Empezar en lunes (weekday==1)
-    final monday = reference.subtract(
-      Duration(days: reference.weekday - 1),
-    );
-    return List.generate(7, (i) => monday.add(Duration(days: i)));
+  /// Mes y año con el mes en mayúscula corto/medio: "septiembre 2026"
+  static String monthYear(DateTime dt) => _monthYear.format(dt);
+
+  /// Mes abreviado: "sep"
+  static String shortMonth(DateTime dt) => _shortMonth.format(dt);
+
+  /// Capitaliza la primera letra de una cadena ("septiembre" → "Septiembre").
+  static String capitalize(String text) =>
+      text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+
+  /// Devuelve el domingo que inicia la semana de [reference].
+  static DateTime startOfWeek(DateTime reference) {
+    final date = DateTime(reference.year, reference.month, reference.day);
+    return date.subtract(Duration(days: date.weekday % 7));
   }
+
+  /// Devuelve los 7 días de domingo a sábado de la semana de [reference].
+  static List<DateTime> weekDays(DateTime reference) {
+    final sunday = startOfWeek(reference);
+    return List.generate(7, (i) => sunday.add(Duration(days: i)));
+  }
+
+  /// Devuelve [count] días consecutivos comenzando en [start].
+  ///
+  /// Devuelve [count] días consecutivos comenzando en [start].
+  static List<DateTime> consecutiveDays(DateTime start, int count) =>
+      List.generate(count, (i) => start.add(Duration(days: i)));
 
   /// Tiempo en minutos desde la medianoche.
   static int minutesFromMidnight(DateTime dt) => dt.hour * 60 + dt.minute;
@@ -44,4 +65,42 @@ class DateFormatter {
   /// Duración en minutos entre dos DateTime.
   static int durationMinutes(DateTime start, DateTime end) =>
       end.difference(start).inMinutes;
+
+  /// ¿El tramo [start]–[end] toca el día [day] (inclusive si cruza la
+  /// medianoche o dura varios días)?
+  static bool rangeCoversDay(DateTime start, DateTime end, DateTime day) {
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final nextDay = dayStart.add(const Duration(days: 1));
+    return start.isBefore(nextDay) && end.isAfter(dayStart);
+  }
+
+  /// Recorta el tramo [start]–[end] al día [day] y devuelve los minutos desde
+  /// la medianoche del inicio y del fin (el fin puede ser 1440 para "00:00 del
+  /// día siguiente"). Devuelve `null` si el tramo no toca ese día.
+  ///
+  /// Permite dibujar eventos multi-día correctamente: el día de inicio se
+  /// muestra desde la hora real hasta fin de día, y los días posteriores
+  /// desde 00:00 hasta la hora real de fin.
+  static (int, int)? clampRangeToDayMinutes(
+    DateTime start,
+    DateTime end,
+    DateTime day,
+  ) {
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final nextDay = dayStart.add(const Duration(days: 1));
+
+    if (!start.isBefore(nextDay)) return null;
+    if (!end.isAfter(dayStart)) return null;
+
+    final clampedStart = start.isBefore(dayStart) ? dayStart : start;
+    final clampedEnd = end.isAfter(nextDay) ? nextDay : end;
+    final isEndOfDay = !clampedEnd.isBefore(nextDay);
+
+    if (!clampedStart.isBefore(clampedEnd)) return null;
+
+    return (
+      minutesFromMidnight(clampedStart),
+      isEndOfDay ? 24 * 60 : minutesFromMidnight(clampedEnd),
+    );
+  }
 }

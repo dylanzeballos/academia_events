@@ -98,6 +98,35 @@ class AppValidators {
     if (parsed < 1) return 'El cupo mínimo es 1';
     return null;
   }
+
+  // ─────────────────── Pagos ───────────────────
+
+  /// Monto positivo con separador decimal por coma o punto.
+  static String? amount(
+    String? value, {
+    double min = 0.01,
+    double max = 100000,
+  }) {
+    final raw = (value ?? '').trim().replaceAll(',', '.');
+    if (raw.isEmpty) return 'Ingresa un monto';
+    final parsed = double.tryParse(raw);
+    if (parsed == null) return 'Monto inválido';
+    if (parsed < min) return 'El monto debe ser mayor a 0';
+    if (parsed > max) return 'El monto supera el máximo permitido';
+    return null;
+  }
+
+  /// URL HTTPS pública, sin parámetros ni redirecciones.
+  static String? httpsUrl(String? value) {
+    final v = (value ?? '').trim();
+    if (v.isEmpty) return 'Ingresa una URL';
+    final uri = Uri.tryParse(v);
+    if (uri == null || !uri.isAbsolute) return 'URL inválida';
+    if (uri.scheme.toLowerCase() != 'https') return 'La URL debe usar HTTPS';
+    if (uri.host.isEmpty) return 'URL inválida';
+    if (uri.hasQuery) return 'La URL no debe tener parámetros';
+    return null;
+  }
 }
 
 // Alias de compatibilidad con el código antiguo

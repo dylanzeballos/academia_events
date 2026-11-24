@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/config/supabase_config.dart';
@@ -15,21 +16,47 @@ class DanceClassService {
   // ─── Classes CRUD ────────────────────────────────
 
   Future<List<Map<String, dynamic>>> fetchOrganizationClasses(
-      String organizationId) async {
+    String organizationId,
+  ) async {
     try {
-      return await supabase
+      final rows = await supabase
           .from('dance_classes')
           .select('''
             id, title, organization_id, slug,
             description, cover_image_url,
-            status, capacity, price, currency,
+            status, capacity, price, price_monthly, currency,
+            dance_category_id,
+            dance_categories!dance_classes_dance_category_id_fkey(name),
+            organizations(name, logo_url),
             start_at, end_at, timezone,
             instructor_id,
-            profiles!instructor_id(first_name, last_name)
+            profiles:instructor_id(first_name, last_name)
           ''')
           .eq('organization_id', organizationId)
           .order('created_at', ascending: false);
-    } catch (e) {
+
+      if (rows.isEmpty) return rows;
+
+      // Conteo de inscritos por clase
+      final classIds = rows.map((c) => c['id'] as String).toList();
+      final enrollments = await supabase
+          .from('class_enrollments')
+          .select('dance_class_id')
+          .inFilter('dance_class_id', classIds)
+          .inFilter('status', ['pending', 'approved', 'active']);
+
+      final countByClass = <String, int>{};
+      for (final e in enrollments) {
+        final id = e['dance_class_id'] as String;
+        countByClass[id] = (countByClass[id] ?? 0) + 1;
+      }
+
+      return [
+        for (final row in rows)
+          {...row, 'enrolled_count': countByClass[row['id']] ?? 0},
+      ];
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchOrganizationClasses Error]: $e\n$st');
       return [];
     }
   }
@@ -41,14 +68,18 @@ class DanceClassService {
           .select('''
             id, title, organization_id, slug,
             description, cover_image_url,
-            status, capacity, price, currency,
+            status, capacity, price, price_monthly, currency,
+            dance_category_id,
+            dance_categories!dance_classes_dance_category_id_fkey(name),
+            organizations(name, logo_url),
             start_at, end_at, timezone,
             instructor_id,
-            profiles!instructor_id(first_name, last_name)
+            profiles:instructor_id(first_name, last_name)
           ''')
           .eq('id', classId)
           .maybeSingle();
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchClass Error]: $e\n$st');
       return null;
     }
   }
@@ -61,7 +92,11 @@ class DanceClassService {
           .select()
           .single();
     } on PostgrestException catch (e) {
+      debugPrint('❌ [SERVICE createClass PostgrestException]: ${e.message}');
       throw DanceClassException(_friendlyError(e.message));
+    } catch (e) {
+      debugPrint('❌ [SERVICE createClass Error]: $e');
+      rethrow;
     }
   }
 
@@ -79,10 +114,9 @@ class DanceClassService {
 
   // ─── Schedules CRUD ──────────────────────────────
 
-  Future<List<Map<String, dynamic>>> fetchClassSchedules(
-      String classId) async {
+  Future<List<Map<String, dynamic>>> fetchClassSchedules(String classId) async {
     try {
-      return await supabase
+      final rows = await supabase
           .from('dance_class_schedules')
           .select('''
             id, dance_class_id, day_of_week,
@@ -91,11 +125,14 @@ class DanceClassService {
             start_date, end_date,
             location_override, is_active,
             created_at, updated_at,
-            profiles!instructor_id(first_name, last_name)
+            profiles:instructor_id(first_name, last_name)
           ''')
           .eq('dance_class_id', classId)
           .order('day_of_week');
-    } catch (e) {
+
+      return (rows as List).cast<Map<String, dynamic>>();
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchClassSchedules Error]: $e\n$st');
       return [];
     }
   }
@@ -108,19 +145,20 @@ class DanceClassService {
           .select()
           .single();
     } on PostgrestException catch (e) {
+      debugPrint('❌ [SERVICE createSchedule PostgrestException]: ${e.message}');
       if (e.code == '23505') {
         throw const DanceClassException('Ya existe un horario para ese día.');
       }
       throw DanceClassException(_friendlyError(e.message));
+    } catch (e) {
+      debugPrint('❌ [SERVICE createSchedule Error]: $e');
+      rethrow;
     }
   }
 
   Future<void> updateSchedule(String id, Map<String, dynamic> data) async {
     try {
-      await supabase
-          .from('dance_class_schedules')
-          .update(data)
-          .eq('id', id);
+      await supabase.from('dance_class_schedules').update(data).eq('id', id);
     } on PostgrestException catch (e) {
       throw DanceClassException(_friendlyError(e.message));
     }
@@ -132,21 +170,57 @@ class DanceClassService {
 
   // ─── Sessions CRUD ───────────────────────────────
 
-  Future<List<Map<String, dynamic>>> fetchClassSessions(
-      String classId) async {
+  Future<List<Map<String, dynamic>>> fetchClassSessions(String classId) async {
     try {
       return await supabase
           .from('dance_class_sessions')
           .select('*')
           .eq('dance_class_id', classId)
           .order('session_date', ascending: false);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchClassSessions Error]: $e\n$st');
+      return [];
+    }
+  }
+
+  /// Página de sesiones de una clase.
+  ///
+  /// [upcomingOnly] filtra las pasadas y ordena por la próxima; [pastOnly]
+  /// filtra las futuras y ordena de la más reciente a la más vieja. Sin
+  /// filtros devuelve todas, de la más reciente a la más vieja. Devuelve como
+  /// máximo [limit] + 1 filas para que el llamador detecte si hay más.
+  Future<List<Map<String, dynamic>>> fetchClassSessionsPage(
+    String classId, {
+    required int limit,
+    int offset = 0,
+    bool upcomingOnly = false,
+    bool pastOnly = false,
+  }) async {
+    try {
+      var query = supabase
+          .from('dance_class_sessions')
+          .select('*')
+          .eq('dance_class_id', classId);
+
+      final now = DateTime.now().toUtc().toIso8601String();
+      if (upcomingOnly) {
+        query = query.gte('start_at', now);
+      } else if (pastOnly) {
+        query = query.lt('start_at', now);
+      }
+
+      return await query
+          .order('start_at', ascending: upcomingOnly)
+          .range(offset, offset + limit);
+    } catch (e, st) {
+      debugPrint('? [SERVICE fetchClassSessionsPage Error]: $e\n$st');
       return [];
     }
   }
 
   Future<List<Map<String, dynamic>>> fetchUpcomingSessions(
-      String classId) async {
+    String classId,
+  ) async {
     try {
       return await supabase
           .from('dance_class_sessions')
@@ -156,8 +230,38 @@ class DanceClassService {
           .gte('session_date', DateTime.now().toIso8601String().split('T')[0])
           .order('session_date')
           .limit(10);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchUpcomingSessions Error]: $e\n$st');
       return [];
+    }
+  }
+
+  /// Próxima sesión programada de toda la organización (una sola fila).
+  ///
+  /// Se usa como vista previa en el panel: listar cinco no aporta nada.
+  Future<Map<String, dynamic>?> fetchNextOrgSession(
+    String organizationId,
+  ) async {
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+      final rows = await supabase
+          .from('dance_class_sessions')
+          .select('''
+            id, session_date, start_at, end_at, status,
+            dance_classes!inner(id, title, organization_id)
+          ''')
+          .eq('dance_classes.organization_id', organizationId)
+          .eq('dance_classes.status', 'published')
+          .eq('status', 'scheduled')
+          .gte('start_at', now)
+          .order('start_at')
+          .limit(1);
+
+      if (rows.isEmpty) return null;
+      return rows.first;
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchNextOrgSession Error]: $e\n$st');
+      return null;
     }
   }
 
@@ -174,10 +278,10 @@ class DanceClassService {
     String? reason,
   }) async {
     try {
-      await supabase.from('dance_class_sessions').update({
-        'status': 'cancelled',
-        'cancelled_reason': reason,
-      }).eq('id', sessionId);
+      await supabase
+          .from('dance_class_sessions')
+          .update({'status': 'cancelled', 'cancelled_reason': reason})
+          .eq('id', sessionId);
     } on PostgrestException catch (e) {
       throw DanceClassException(_friendlyError(e.message));
     }
@@ -185,10 +289,10 @@ class DanceClassService {
 
   Future<void> completeSession(String sessionId) async {
     try {
-      await supabase.from('dance_class_sessions').update({
-        'status': 'completed',
-        'is_completed': true,
-      }).eq('id', sessionId);
+      await supabase
+          .from('dance_class_sessions')
+          .update({'status': 'completed', 'is_completed': true})
+          .eq('id', sessionId);
     } on PostgrestException catch (e) {
       throw DanceClassException(_friendlyError(e.message));
     }
@@ -199,9 +303,10 @@ class DanceClassService {
     required Map<String, dynamic> location,
   }) async {
     try {
-      await supabase.from('dance_class_sessions').update({
-        'location_override': location,
-      }).eq('id', sessionId);
+      await supabase
+          .from('dance_class_sessions')
+          .update({'location_override': location})
+          .eq('id', sessionId);
     } on PostgrestException catch (e) {
       throw DanceClassException(_friendlyError(e.message));
     }
@@ -213,11 +318,14 @@ class DanceClassService {
     required DateTime newEndAt,
   }) async {
     try {
-      await supabase.from('dance_class_sessions').update({
-        'start_at': newStartAt.toIso8601String(),
-        'end_at': newEndAt.toIso8601String(),
-        'status': 'rescheduled',
-      }).eq('id', sessionId);
+      await supabase
+          .from('dance_class_sessions')
+          .update({
+            'start_at': newStartAt.toIso8601String(),
+            'end_at': newEndAt.toIso8601String(),
+            'status': 'rescheduled',
+          })
+          .eq('id', sessionId);
     } on PostgrestException catch (e) {
       throw DanceClassException(_friendlyError(e.message));
     }
@@ -225,12 +333,6 @@ class DanceClassService {
 
   // ─── Sessions generation ─────────────────────────
 
-  /// Genera las sesiones de una clase dentro del rango [startDate]..[endDate].
-  ///
-  /// Cada horario activo respeta su PROPIO rango (start_date/end_date): si el
-  /// schedule define fechas, se acotan las sesiones a ese rango; si no, se usa
-  /// el rango de la llamada como fallback. La ubicación del schedule se hereda
-  /// a sus sesiones (location_override).
   Future<void> generateSessions({
     required String classId,
     required DateTime startDate,
@@ -259,7 +361,6 @@ class DanceClassService {
       final endHour = int.parse(endParts[0]);
       final endMinute = int.parse(endParts[1]);
 
-      // Rango propio del schedule (si define fechas, se respeta).
       DateTime rangeStart = startDate;
       DateTime rangeEnd = endDate;
       if (schedule['start_date'] != null) {
@@ -273,9 +374,12 @@ class DanceClassService {
       if (rangeStart.isAfter(rangeEnd)) continue;
 
       var current = DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
-      final effectiveEnd = DateTime(rangeEnd.year, rangeEnd.month, rangeEnd.day);
+      final effectiveEnd = DateTime(
+        rangeEnd.year,
+        rangeEnd.month,
+        rangeEnd.day,
+      );
       while (!current.isAfter(effectiveEnd)) {
-        // day_of_week: 0=domingo, pero weekday: 1=lunes..7=domingo.
         final scheduleWeekday = dayOfWeek == 0 ? 7 : dayOfWeek;
         if (current.weekday == scheduleWeekday) {
           final sessionStart = DateTime(
@@ -300,20 +404,36 @@ class DanceClassService {
             'start_at': sessionStart.toIso8601String(),
             'end_at': sessionEnd.toIso8601String(),
             'status': 'scheduled',
-            'location_override': ?locationOverride,
+            'location_override': locationOverride,
           });
         }
         current = current.add(const Duration(days: 1));
       }
     }
 
-    if (sessions.isNotEmpty) {
-      await createSessionsBatch(sessions);
+    if (sessions.isEmpty) return;
+
+    final existingRows = await supabase
+        .from('dance_class_sessions')
+        .select('schedule_id, session_date')
+        .eq('dance_class_id', classId);
+    final existingKeys = <String>{
+      for (final row in existingRows)
+        '${row['schedule_id']}|${row['session_date']}',
+    };
+    final toInsert = sessions
+        .where(
+          (s) => !existingKeys.contains(
+            '${s['schedule_id']}|${s['session_date']}',
+          ),
+        )
+        .toList();
+
+    if (toInsert.isNotEmpty) {
+      await createSessionsBatch(toInsert);
     }
   }
 
-  /// Vacía las sesiones futuras (>= hoy) de un horario, para poder regenerarlas
-  /// sin duplicados al editar el horario o su rango.
   Future<void> clearUpcomingSessionsForSchedule(String scheduleId) async {
     final today = DateTime.now().toIso8601String().split('T')[0];
     await supabase
@@ -344,16 +464,20 @@ class DanceClassService {
       final now = DateTime.now();
       final today = now.toIso8601String().split('T')[0];
 
-      final sessionsResult = await supabase
-          .from('dance_class_sessions')
-          .select('id, status')
-          .inFilter(
-              'dance_class_id', classesResult.map((c) => c['id'] as String).toList())
-          .gte('session_date', today);
+      final classIds = classesResult.map((c) => c['id'] as String).toList();
+      int upcomingSessions = 0;
 
-      final upcomingSessions = sessionsResult
-          .where((s) => s['status'] == 'scheduled')
-          .length;
+      if (classIds.isNotEmpty) {
+        final sessionsResult = await supabase
+            .from('dance_class_sessions')
+            .select('id, status')
+            .inFilter('dance_class_id', classIds)
+            .gte('session_date', today);
+
+        upcomingSessions = sessionsResult
+            .where((s) => s['status'] == 'scheduled')
+            .length;
+      }
 
       final membersResult = await supabase
           .from('organization_members')
@@ -367,7 +491,8 @@ class DanceClassService {
         'upcomingSessions': upcomingSessions,
         'totalMembers': membersResult.length,
       };
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchOrgStats Error]: $e\n$st');
       return {
         'totalClasses': 0,
         'activeClasses': 0,
@@ -380,7 +505,8 @@ class DanceClassService {
   // ─── Instructors ─────────────────────────────────
 
   Future<List<Map<String, dynamic>>> fetchOrgInstructors(
-      String organizationId) async {
+    String organizationId,
+  ) async {
     try {
       return await supabase
           .from('organization_members')
@@ -392,7 +518,8 @@ class DanceClassService {
           .eq('role', 'instructor')
           .eq('is_active', true)
           .order('created_at');
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ [SERVICE fetchOrgInstructors Error]: $e\n$st');
       return [];
     }
   }
@@ -401,7 +528,14 @@ class DanceClassService {
 
   String _friendlyError(String message) {
     final msg = message.toLowerCase();
-    if (msg.contains('permission denied') || msg.contains('row-level security')) {
+    if (msg.contains('membres') || msg.contains('suscripci')) {
+      return 'Se requiere una membresía/suscripción activa para crear o publicar clases.';
+    }
+    if (msg.contains('pago de publicación')) {
+      return 'Se requiere el pago de publicación para publicar la clase.';
+    }
+    if (msg.contains('permission denied') ||
+        msg.contains('row-level security')) {
       return 'No tienes permiso para realizar esta acción.';
     }
     if (msg.contains('duplicate key') || msg.contains('unique constraint')) {

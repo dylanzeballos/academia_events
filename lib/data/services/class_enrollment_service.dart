@@ -17,9 +17,10 @@ class ClassEnrollmentService {
   /// Llama al RPC `enroll_in_class`. Devuelve el id de la inscripción creada.
   Future<String> enrollInClass(String classId) async {
     try {
-      final id = await supabase.rpc('enroll_in_class', params: {
-        'p_class_id': classId,
-      });
+      final id = await supabase.rpc(
+        'enroll_in_class',
+        params: {'p_class_id': classId},
+      );
       return id as String;
     } on PostgrestException catch (e) {
       throw ClassEnrollmentException(_friendlyError(e.message));
@@ -29,28 +30,10 @@ class ClassEnrollmentService {
   /// Llama al RPC `cancel_enrollment`.
   Future<void> cancelEnrollment(String enrollmentId) async {
     try {
-      await supabase.rpc('cancel_enrollment', params: {
-        'p_enrollment_id': enrollmentId,
-      });
-    } on PostgrestException catch (e) {
-      throw ClassEnrollmentException(_friendlyError(e.message));
-    }
-  }
-
-  /// Llama al RPC `record_attendance`.
-  Future<void> recordAttendance({
-    required String enrollmentId,
-    required String sessionId,
-    required String status,
-    String? notes,
-  }) async {
-    try {
-      await supabase.rpc('record_attendance', params: {
-        'p_enrollment_id': enrollmentId,
-        'p_session_id': sessionId,
-        'p_status': status,
-        'p_notes': notes,
-      });
+      await supabase.rpc(
+        'cancel_enrollment',
+        params: {'p_enrollment_id': enrollmentId},
+      );
     } on PostgrestException catch (e) {
       throw ClassEnrollmentException(_friendlyError(e.message));
     }
@@ -59,15 +42,20 @@ class ClassEnrollmentService {
   // ─── Consultas de inscripciones del usuario ──────
 
   Future<List<Map<String, dynamic>>> fetchMyEnrollments() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return [];
     try {
       return await supabase
           .from('class_enrollments')
           .select('''
             id, dance_class_id, user_id, status,
             enrolled_at, cancelled_at, created_at, updated_at,
-            dance_classes(id, title, cover_image_url),
-            organizations(id, name)
+            dance_classes(
+              id, title, cover_image_url,
+              organizations(id, name, logo_url)
+            )
           ''')
+          .eq('user_id', userId)
           .order('enrolled_at', ascending: false);
     } catch (e) {
       return [];
@@ -75,7 +63,8 @@ class ClassEnrollmentService {
   }
 
   Future<List<Map<String, dynamic>>> fetchEnrollmentsForClass(
-      String classId) async {
+    String classId,
+  ) async {
     try {
       return await supabase
           .from('class_enrollments')
@@ -94,8 +83,7 @@ class ClassEnrollmentService {
   // ─── Asistencia ──────────────────────────────────
 
   /// Asistencias del usuario autenticado (estudiante).
-  Future<List<Map<String, dynamic>>>
-      fetchMyAttendance() async {
+  Future<List<Map<String, dynamic>>> fetchMyAttendance() async {
     try {
       return await supabase
           .from('attendances')
@@ -115,65 +103,20 @@ class ClassEnrollmentService {
     }
   }
 
-  /// Asistencias registradas para una sesión (para la academia poder
-  /// revisarlas/registrarlas). RLS asegura solo org owner/admin/instructor.
-  Future<List<Map<String, dynamic>>> fetchAttendanceForSession(
-      String sessionId) async {
-    try {
-      return await supabase
-          .from('attendances')
-          .select('''
-            id, enrollment_id, session_id, status, notes,
-            recorded_by, recorded_at, created_at, updated_at
-          ''')
-          .eq('session_id', sessionId)
-          .order('recorded_at');
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // ─── Sesiones para la academia ────────────────────
-
-  /// Sesiones de una clase para poder registrar asistencia (academia).
-  Future<List<Map<String, dynamic>>> fetchSessionsForClass(
-      String classId) async {
-    try {
-      return await supabase
-          .from('dance_class_sessions')
-          .select('*')
-          .eq('dance_class_id', classId)
-          .eq('status', 'scheduled')
-          .order('session_date');
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /// Todas las sesiones de una clase (para el estudiante ver su progreso).
-  Future<List<Map<String, dynamic>>> fetchAllSessionsForClass(
-      String classId) async {
-    try {
-      return await supabase
-          .from('dance_class_sessions')
-          .select('*')
-          .eq('dance_class_id', classId)
-          .order('session_date');
-    } catch (e) {
-      return [];
-    }
-  }
-
   // ─── Exploración: clases publicadas de una organización ───
 
   Future<List<Map<String, dynamic>>> fetchPublishedClassesForOrg(
-      String orgId) async {
+    String orgId,
+  ) async {
     try {
       return await supabase
           .from('dance_classes')
           .select('''
             id, title, description, cover_image_url, status, capacity,
-            price, currency, timezone, organization_id, instructor_id,
+            price, price_monthly, currency, dance_category_id,
+            dance_categories!dance_classes_dance_category_id_fkey(name),
+            organizations(name, logo_url),
+            timezone, organization_id, instructor_id,
             profiles(first_name, last_name)
           ''')
           .eq('organization_id', orgId)
@@ -194,7 +137,7 @@ class ClassEnrollmentService {
       final response = await supabase
           .from('organizations')
           .select('''
-            id, name, logo_url, description, city_id,
+            id, name, logo_url, description,
             dance_classes!inner(id, status)
           ''')
           .eq('is_active', true)
@@ -230,14 +173,17 @@ class ClassEnrollmentService {
     if (msg.contains('no existe') || msg.contains('not found')) {
       return 'La clase o inscripción no existe.';
     }
-    if (msg.contains('no está publicada') || msg.contains('not published') ||
-        msg.contains('está llena') || msg.contains('full')) {
+    if (msg.contains('no está publicada') ||
+        msg.contains('not published') ||
+        msg.contains('está llena') ||
+        msg.contains('full')) {
       return message;
     }
     if (msg.contains('ya estás inscrito') || msg.contains('already enrolled')) {
       return 'Ya estás inscrito en esta clase.';
     }
-    if (msg.contains('permiso') || msg.contains('permission') ||
+    if (msg.contains('permiso') ||
+        msg.contains('permission') ||
         msg.contains('row-level security')) {
       return 'No tienes permiso para realizar esta acción.';
     }

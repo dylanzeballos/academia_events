@@ -1,3 +1,5 @@
+import '../../core/utils/display_labels.dart';
+
 class DanceClassSessionModel {
   const DanceClassSessionModel({
     required this.id,
@@ -32,12 +34,12 @@ class DanceClassSessionModel {
   bool get isCompletedStatus => status == 'completed';
 
   String get statusDisplayName => switch (status) {
-        'scheduled' => 'Programada',
-        'cancelled' => 'Cancelada',
-        'completed' => 'Completada',
-        'rescheduled' => 'Reprogramada',
-        _ => status,
-      };
+    'scheduled' => 'Programada',
+    'cancelled' => 'Cancelada',
+    'completed' => 'Completada',
+    'rescheduled' => 'Reprogramada',
+    _ => DisplayLabels.status(status),
+  };
 
   factory DanceClassSessionModel.fromJson(Map<String, dynamic> json) {
     return DanceClassSessionModel(
@@ -61,14 +63,52 @@ class DanceClassSessionModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'dance_class_id': danceClassId,
-        'session_date': sessionDate.toIso8601String().split('T')[0],
-        'start_at': startAt.toIso8601String(),
-        'end_at': endAt.toIso8601String(),
-        'schedule_id': scheduleId,
-        'status': status,
-        'location_override': locationOverride,
-        'cancelled_reason': cancelledReason,
-        'is_completed': isCompleted,
-      };
+    'dance_class_id': danceClassId,
+    'session_date': sessionDate.toIso8601String().split('T')[0],
+    'start_at': startAt.toIso8601String(),
+    'end_at': endAt.toIso8601String(),
+    'schedule_id': scheduleId,
+    'status': status,
+    'location_override': locationOverride,
+    'cancelled_reason': cancelledReason,
+    'is_completed': isCompleted,
+  };
+}
+
+/// Página de sesiones de una clase.///
+/// Una clase con horario recurrente puede tener cientos de sesiones al año, así
+/// que las vistas cargan de a bloques y piden más con "Ver más".
+class SessionPage {
+  const SessionPage({required this.sessions, required this.hasMore});
+
+  final List<DanceClassSessionModel> sessions;
+  final bool hasMore;
+}
+
+/// Próxima sesión programada de una organización (vista previa del panel).
+class NextClassSession {
+  const NextClassSession({
+    required this.id,
+    required this.classId,
+    required this.classTitle,
+    required this.startAt,
+    required this.endAt,
+  });
+
+  final String id;
+  final String classId;
+  final String classTitle;
+  final DateTime startAt;
+  final DateTime endAt;
+
+  factory NextClassSession.fromJson(Map<String, dynamic> json) {
+    final danceClass = json['dance_classes'] as Map<String, dynamic>?;
+    return NextClassSession(
+      id: json['id'] as String,
+      classId: danceClass?['id'] as String? ?? '',
+      classTitle: danceClass?['title'] as String? ?? 'Clase',
+      startAt: DateTime.parse(json['start_at'] as String),
+      endAt: DateTime.parse(json['end_at'] as String),
+    );
+  }
 }

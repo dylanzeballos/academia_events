@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/event_model.dart';
-import '../../../shared/widgets/fullscreen_image_viewer.dart';
+import '../../../../providers/organization_provider.dart';
+import '../../../../shared/widgets/fullscreen_image_viewer.dart';
 
 /// Vista previa del evento al tocar su bloque en el calendario
 /// (estilo Google Calendar). Desde aquí se accede al detalle completo.
@@ -13,8 +16,7 @@ class EventPreviewSheet {
   const EventPreviewSheet._();
 
   static void show(BuildContext context, EventModel event) {
-    final colors = AppColors.calendarEventColors;
-    final color = colors[event.colorIndex % colors.length];
+    final color = AppColors.colorForOrganization(event.organizationId);
 
     showModalBottomSheet<void>(
       context: context,
@@ -25,15 +27,18 @@ class EventPreviewSheet {
   }
 }
 
-class _PreviewContent extends StatelessWidget {
+class _PreviewContent extends ConsumerWidget {
   const _PreviewContent({required this.event, required this.color});
 
   final EventModel event;
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = event.location;
+    final organizationLogo = ref
+        .watch(orgLogoUrlProvider(event.organizationLogoUrl))
+        .whenOrNull(data: (url) => url);
     final duration = DateFormatter.durationMinutes(
       event.startTime,
       event.endTime,
@@ -41,13 +46,14 @@ class _PreviewContent extends StatelessWidget {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
       decoration: BoxDecoration(
         color: context.cardBg,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppSizes.radiusLarge),
         ),
+        border: Border.all(color: context.divider),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -72,7 +78,7 @@ class _PreviewContent extends StatelessWidget {
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: AppColors.onPrimary.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -80,7 +86,7 @@ class _PreviewContent extends StatelessWidget {
                   Text(
                     DateFormatter.timeRange(event.startTime, event.endTime),
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.onPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -89,7 +95,7 @@ class _PreviewContent extends StatelessWidget {
                   Text(
                     event.title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.onPrimary,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
@@ -97,12 +103,40 @@ class _PreviewContent extends StatelessWidget {
                   ),
                   if (event.organizationName.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      '${event.organizationName} · ${_durationLabel(duration)}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                      ),
+                    Row(
+                      children: [
+                        if (organizationLogo != null)
+                          GestureDetector(
+                            onTap: () => FullscreenImageViewer.show(
+                              context,
+                              organizationLogo,
+                              tag: 'calendar-org-logo-${event.id}',
+                            ),
+                            child: Hero(
+                              tag: 'calendar-org-logo-${event.id}',
+                              child: CircleAvatar(
+                                radius: 14,
+                                backgroundImage: NetworkImage(organizationLogo),
+                              ),
+                            ),
+                          )
+                        else
+                          Icon(
+                            Icons.apartment,
+                            size: 16,
+                            color: AppColors.onPrimary.withValues(alpha: 0.7),
+                          ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            '${event.organizationName} · ${_durationLabel(duration)}',
+                            style: TextStyle(
+                              color: AppColors.onPrimary.withValues(alpha: 0.85),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],
@@ -137,8 +171,7 @@ class _PreviewContent extends StatelessWidget {
                       child: Hero(
                         tag: 'cover-${event.id}',
                         child: ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radiusMedium),
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
                           child: SizedBox(
                             height: 150,
                             width: double.infinity,
@@ -151,19 +184,16 @@ class _PreviewContent extends StatelessWidget {
                                       : const Center(
                                           child: CircularProgressIndicator(),
                                         ),
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
+                              errorBuilder: (_, _, _) => const SizedBox.shrink(),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  if (event.coverImageUrl != null)
-                    const SizedBox(height: 14),
+                  if (event.coverImageUrl != null) const SizedBox(height: 14),
 
                   // ── Descripción ──────────────────────────────────
-                  if (event.description != null &&
-                      event.description!.isNotEmpty) ...[
+                  if (event.description != null && event.description!.isNotEmpty) ...[
                     Text(
                       event.description!,
                       maxLines: 4,
@@ -178,8 +208,7 @@ class _PreviewContent extends StatelessWidget {
                   ],
 
                   // ── Ubicación ────────────────────────────────────
-                  if (location?.locationName != null ||
-                      location?.addressLine1 != null)
+                  if (location?.locationName != null || location?.addressLine1 != null)
                     Row(
                       children: [
                         Icon(Icons.place_outlined, color: color, size: 18),
@@ -198,15 +227,13 @@ class _PreviewContent extends StatelessWidget {
                         ),
                       ],
                     ),
-                  if (location?.locationName != null ||
-                      location?.addressLine1 != null)
+                  if (location?.locationName != null || location?.addressLine1 != null)
                     const SizedBox(height: 6),
 
                   // ── Hora exacta ──────────────────────────────────
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_outlined,
-                          color: color, size: 16),
+                      Icon(Icons.calendar_today_outlined, color: color, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -225,12 +252,15 @@ class _PreviewContent extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      context.push(AppRoutes.eventDetail, extra: event.id);
+                      context.push('${AppRoutes.eventDetail}/${event.id}');
                     },
                     style: FilledButton.styleFrom(
                       backgroundColor: color,
-                      foregroundColor: Colors.white,
+                      foregroundColor: AppColors.onPrimary,
                       minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+                      ),
                     ),
                     icon: const Icon(Icons.open_in_new, size: 18),
                     label: const Text(

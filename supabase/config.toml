@@ -1,0 +1,29 @@
+
+[functions.send-push-notification]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-push-notification/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/send-push-notification/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/send-push-notification/*.html" ]
+
+# PagosYa: acciones autenticadas con el JWT del usuario.
+[functions.pagosya-api]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/pagosya-api/index.ts"
+
+# PagosYa: webhook público. La autenticidad la da la firma HMAC (X-PagosYa-Signature).
+[functions.pagosya-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/pagosya-webhook/index.ts"
+
+# PagosYa: reconciliación invocada por pg_cron con PAGOSYA_CRON_SECRET.
+[functions.pagosya-reconcile]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/pagosya-reconcile/index.ts"

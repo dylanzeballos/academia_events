@@ -2,48 +2,147 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/theme_extensions.dart';
 import '../../../../data/models/public_event_data.dart';
+import '../../../../providers/events_provider.dart';
 import '../../../../providers/public_events_provider.dart';
 
-/// Auto-sliding carousel of organizations that have published events.
-/// Placed above the bottom navigation bar in student mode.
-///
-/// - Solo muestra organizaciones que tienen logo.
-/// - Cada tarjeta es únicamente el logo (ampliado).
-/// - Al tocar un logo se abre un bottom sheet con la información (sin
-///   depender de rutas protegidas por autenticación).
+class OrganizationCarouselSearchNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void setQuery(String query) => state = query;
+}
+
+final organizationCarouselSearchProvider =
+    NotifierProvider<OrganizationCarouselSearchNotifier, String>(
+      OrganizationCarouselSearchNotifier.new,
+    );
+
+class OrganizationCarouselSearchBar extends ConsumerStatefulWidget {
+  const OrganizationCarouselSearchBar({super.key});
+
+  @override
+  ConsumerState<OrganizationCarouselSearchBar> createState() =>
+      _OrganizationCarouselSearchBarState();
+}
+
+class _OrganizationCarouselSearchBarState
+    extends ConsumerState<OrganizationCarouselSearchBar> {
+  Timer? _debounce;
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(organizationCarouselSearchProvider.notifier).setQuery(value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = ref.watch(organizationCarouselSearchProvider);
+    if (_controller.text != query) _controller.text = query;
+
+    return TextField(
+      controller: _controller,
+      style: TextStyle(color: context.textOnBg, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: 'Buscar academias u organizaciones...',
+        hintStyle: TextStyle(color: context.textMuted, fontSize: 14),
+        prefixIcon: Icon(Icons.search, color: context.textMuted),
+        suffixIcon: query.isNotEmpty
+            ? IconButton(
+                icon: Icon(Icons.clear, color: context.textMuted),
+                onPressed: () {
+                  _debounce?.cancel();
+                  _controller.clear();
+                  ref
+                      .read(organizationCarouselSearchProvider.notifier)
+                      .setQuery('');
+                },
+                tooltip: 'Limpiar búsqueda',
+              )
+            : null,
+        filled: true,
+        fillColor: context.cardBg,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: BorderSide(color: context.divider),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+      ),
+      onChanged: _onChanged,
+      textInputAction: TextInputAction.search,
+    );
+  }
+}
+
 class OrganizationCarousel extends ConsumerStatefulWidget {
   const OrganizationCarousel({
     super.key,
-    this.height = 80,
-    this.autoPlayInterval = const Duration(seconds: 5),
-    this.showTitle = false,
-    this.onCollapse,
+    this.height = 96,
+    this.autoPlayInterval = const Duration(seconds: 4),
+    this.compact = false,
+    this.expandedHeight,
   });
 
   final double height;
   final Duration autoPlayInterval;
-  final bool showTitle;
-  final VoidCallback? onCollapse;
+  final bool compact;
+  final double? expandedHeight;
 
   @override
-  ConsumerState<OrganizationCarousel> createState() => _OrganizationCarouselState();
+  ConsumerState<OrganizationCarousel> createState() =>
+      _OrganizationCarouselState();
 }
 
 class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
+  static const _virtualPageCount = 1000;
+  static const _initialPage = _virtualPageCount ~/ 2;
+
   late PageController _pageController;
-  int _currentPage = 0;
+  int _currentPage = _initialPage;
+  int _orgsCount = 0;
   Timer? _autoPlayTimer;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.85);
-    _startAutoPlay();
+    _pageController = PageController(
+      initialPage: _initialPage,
+      viewportFraction: 0.68,
+    );
+    _autoPlayTimer = Timer.periodic(widget.autoPlayInterval, (_) => _advance());
   }
 
   @override
@@ -53,197 +152,367 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
     super.dispose();
   }
 
-  void _startAutoPlay() {
-    _autoPlayTimer?.cancel();
-    _autoPlayTimer = Timer(widget.autoPlayInterval, () {
-      if (!mounted || !_pageController.hasClients) {
-        _startAutoPlay();
-        return;
-      }
-      final orgs = ref.read(organizationsWithEventsProvider).value ?? [];
-      if (orgs.length > 1) {
-        _currentPage = (_currentPage + 1) % orgs.length;
-        _pageController.animateToPage(
-          _currentPage,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-        );
-      }
-      _startAutoPlay();
-    });
+  void _advance() {
+    if (!mounted || !_pageController.hasClients) return;
+    if (_orgsCount <= 1) return;
+    final next = _currentPage + 1 >= _virtualPageCount
+        ? _initialPage
+        : _currentPage + 1;
+    _pageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final orgsAsync = ref.watch(organizationsWithEventsProvider);
+    final filter = ref.watch(eventFiltersProvider);
+    final weekEventsAsync = ref.watch(weekEventsProvider);
+    final matchingEvents = weekEventsAsync.value ?? const [];
+    final query = ref
+        .watch(organizationCarouselSearchProvider)
+        .trim()
+        .toLowerCase();
 
     return orgsAsync.when(
       loading: () => SizedBox(
         height: widget.height,
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
+          ),
+        ),
       ),
       error: (_, _) => const SizedBox.shrink(),
       data: (allOrgs) {
-        // Solo organizaciones con logo.
-        final orgs = List<OrganizationWithEventCount>.from(
-          allOrgs.where((o) =>
-              o.logoUrl != null && o.logoUrl!.trim().isNotEmpty),
-        );
-        if (orgs.isEmpty) return const SizedBox.shrink();
+        final showExpandedCarousel =
+            widget.expandedHeight != null ||
+            (weekEventsAsync.hasValue && matchingEvents.isEmpty);
+        final carouselHeight =
+            showExpandedCarousel && widget.expandedHeight != null
+            ? widget.expandedHeight!
+            : showExpandedCarousel
+            ? (MediaQuery.sizeOf(context).height * 0.5)
+                  .clamp(widget.height * 1.5, 360.0)
+                  .toDouble()
+            : widget.height;
 
-        return Stack(
-          children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.showTitle)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.business_outlined, size: 18, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Organizaciones con eventos',
-                          style: TextStyle(
-                            color: context.textOnBg,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+        final matchingOrganizationIds = matchingEvents
+            .map((event) => event.organizationId)
+            .toSet();
+
+        final requiresMatchingEvent =
+            filter.categoryIds.isNotEmpty ||
+            filter.priceMin != null ||
+            filter.priceMax != null ||
+            filter.dateFrom != null ||
+            filter.dateTo != null ||
+            filter.cityId != null;
+
+        final searchedOrgs = query.isEmpty
+            ? List<OrganizationWithEventCount>.from(allOrgs)
+            : allOrgs
+                  .where(
+                    (organization) =>
+                        organization.name.toLowerCase().contains(query) ||
+                        organization.danceGenres.any(
+                          (genre) => genre.toLowerCase().contains(query),
                         ),
-                      ],
+                  )
+                  .toList();
+
+        final visibleOrgs = searchedOrgs.where((organization) {
+          // El carrusel del calendario es el beneficio de membresía.
+          if (!organization.hasMembership) return false;
+          if (filter.organizationId != null &&
+              organization.id != filter.organizationId) {
+            return false;
+          }
+          if (filter.departmentId != null &&
+              organization.departmentId != filter.departmentId &&
+              !matchingOrganizationIds.contains(organization.id)) {
+            return false;
+          }
+          if (filter.provinceId != null &&
+              organization.provinceId != filter.provinceId) {
+            return false;
+          }
+          if (filter.municipalityId != null &&
+              organization.municipalityId != filter.municipalityId) {
+            return false;
+          }
+          if (filter.danceCategoryIds.isNotEmpty &&
+              !organization.danceCategoryIds.any(
+                filter.danceCategoryIds.contains,
+              )) {
+            return false;
+          }
+          final searchQuery = filter.searchQuery.trim().toLowerCase();
+          if (searchQuery.isNotEmpty &&
+              !organization.name.toLowerCase().contains(searchQuery) &&
+              !organization.danceGenres.any(
+                (genre) => genre.toLowerCase().contains(searchQuery),
+              )) {
+            return false;
+          }
+          if (requiresMatchingEvent &&
+              !matchingOrganizationIds.contains(organization.id)) {
+            return false;
+          }
+          return true;
+        }).toList();
+
+        if (visibleOrgs.isEmpty) return const SizedBox.shrink();
+        _orgsCount = visibleOrgs.length;
+
+        return SizedBox(
+          height: carouselHeight,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.circle, size: 9, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'ACADEMIAS & SEDES',
+                      style: TextStyle(
+                        color: context.textOnBg,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
                     ),
-                  ),
-                SizedBox(
-                  height: widget.height,
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: orgs.length,
-                    onPageChanged: (index) {
-                      // Si el índice salió del rango (p.ej. al quitar orgs sin logo),
-                      // reajustar para evitar desbordes.
-                      final clamped = index.clamp(0, orgs.length - 1);
-                      setState(() => _currentPage = clamped);
-                    },
-                    padEnds: false,
-                    physics: const ClampingScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      final org = orgs[index];
-                      return _OrgLogoItem(
-                        organization: org,
-                        isActive: index == _currentPage,
-                        onTap: () => _showOrgInfo(context, org),
-                      );
-                    },
-                  ),
-                ),
-                if (orgs.length > 1) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(orgs.length, (index) {
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: _currentPage == index ? 20 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _currentPage == index
-                              ? AppColors.primary
-                              : context.divider,
-                          borderRadius: BorderRadius.circular(4),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.5),
                         ),
-                      );
-                    }),
-                  ),
-                ],
-              ],
-            ),
-            if (widget.onCollapse != null)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: IconButton(
-                  onPressed: widget.onCollapse,
-                  icon: const Icon(Icons.expand_more, size: 20),
-                  color: context.textOnBg.withValues(alpha: 0.6),
-                  tooltip: 'Plegar carrusel',
-                  visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        '${visibleOrgs.length} activas',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-          ],
+              Expanded(
+                child: visibleOrgs.length == 1
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Center(
+                          child: FractionallySizedBox(
+                            widthFactor: 0.72,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 380),
+                              child: _OrgLogoItem(
+                                organization: visibleOrgs.first,
+                                isActive: true,
+                                compact: widget.compact,
+                                expanded: showExpandedCarousel,
+                                cardHeight: carouselHeight - 32,
+                                onTap: () => context.push(
+                                  '${AppRoutes.organizationPublicDetailBase}/${visibleOrgs.first.id}',
+                                  extra: visibleOrgs.first.name,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : PageView.builder(
+                        controller: _pageController,
+                        itemCount: _virtualPageCount,
+                        onPageChanged: (index) {
+                          setState(() => _currentPage = index);
+                        },
+                        physics: const ClampingScrollPhysics(),
+                        itemBuilder: (context, index) {
+                          final orgIndex = index % visibleOrgs.length;
+                          final org = visibleOrgs[orgIndex];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 380,
+                                ),
+                                child: _OrgLogoItem(
+                                  organization: org,
+                                  isActive:
+                                      orgIndex ==
+                                      _currentPage % visibleOrgs.length,
+                                  compact: widget.compact,
+                                  expanded: showExpandedCarousel,
+                                  cardHeight: carouselHeight - 32,
+                                  onTap: () => context.push(
+                                    '${AppRoutes.organizationPublicDetailBase}/${org.id}',
+                                    extra: org.name,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
+}
 
-  /// Abre un bottom sheet con la información de la organización (no requiere
-  /// autenticación y no navega a rutas protegidas).
-  void _showOrgInfo(BuildContext context, OrganizationWithEventCount org) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.cardBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusXl)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+class _OrgLogoItem extends StatelessWidget {
+  const _OrgLogoItem({
+    required this.organization,
+    required this.isActive,
+    required this.compact,
+    required this.expanded,
+    this.cardHeight,
+    required this.onTap,
+  });
+
+  final OrganizationWithEventCount organization;
+  final bool isActive;
+  final VoidCallback onTap;
+  final bool compact;
+  final bool expanded;
+  final double? cardHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final compactCard = (cardHeight ?? 0) < 240;
+    final avatarSize = compactCard ? 56.0 : 72.0;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Center(
+        child: Container(
+          width: double.infinity,
+          height: cardHeight,
+          decoration: BoxDecoration(
+            color: context.cardBg,
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            border: Border.all(
+              color: isActive ? AppColors.primary : context.divider,
+              width: isActive ? 2 : 1,
+            ),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.22),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              Container(
+              if (organization.bannerUrl != null &&
+                  organization.bannerUrl!.isNotEmpty)
+                CachedNetworkImage(
+                  imageUrl: organization.bannerUrl!,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, _, _) =>
+                      _BannerFallback(name: organization.name),
+                )
+              else
+                _BannerFallback(name: organization.name),
+              DecoratedBox(
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: context.divider.withValues(alpha: 0.3),
-                  border: Border.all(color: context.divider),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.18),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.78),
+                    ],
+                    stops: const [0, 0.42, 1],
+                  ),
                 ),
-                child: ClipOval(
-                  child: CachedNetworkImage(
-                    imageUrl: org.logoUrl!,
-                    fit: BoxFit.cover,
-                    width: 72,
-                    height: 72,
-                    errorWidget: (_, _, _) => SizedBox(
-                      width: 72,
-                      height: 72,
-                      child: Icon(
-                        Icons.business_outlined,
-                        color: AppColors.primary,
-                        size: 34,
+              ),
+              Positioned(
+                top: 12,
+                left: 12,
+                child: _OrgAvatar(
+                  name: organization.name,
+                  logoUrl: organization.logoUrl,
+                  size: avatarSize,
+                  isActive: isActive,
+                ),
+              ),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: _CardBadge(label: '${organization.eventCount} eventos'),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 14,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      organization.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: compactCard ? 16 : 20,
+                        fontWeight: FontWeight.w800,
+                        shadows: const [
+                          Shadow(color: Colors.black54, blurRadius: 8),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                org.name,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.textOnBg,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                org.eventCount == 1
-                    ? '1 evento publicado'
-                    : '${org.eventCount} eventos publicados',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[500], fontSize: 13),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () => Navigator.of(sheetContext).pop(),
-                  child: const Text('Cerrar'),
+                    if (organization.danceGenres.isNotEmpty || expanded) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        organization.danceGenres.isNotEmpty
+                            ? organization.danceGenres.take(2).join(' & ')
+                            : 'Academia de baile',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: compactCard ? 11 : 13,
+                          shadows: const [
+                            Shadow(color: Colors.black54, blurRadius: 8),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -254,79 +523,119 @@ class _OrganizationCarouselState extends ConsumerState<OrganizationCarousel> {
   }
 }
 
-class _OrgLogoItem extends StatelessWidget {
-  const _OrgLogoItem({
-    required this.organization,
-    required this.isActive,
-    required this.onTap,
-  });
+class _CardBadge extends StatelessWidget {
+  const _CardBadge({required this.label});
 
-  final OrganizationWithEventCount organization;
-  final bool isActive;
-  final VoidCallback onTap;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: context.cardBg,
-          borderRadius: BorderRadius.circular(AppSizes.radiusLarge),
-          border: Border.all(
-            color: isActive ? AppColors.primary : context.divider,
-            width: isActive ? 2 : 1,
-          ),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: context.cardBg.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.7)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
         ),
-        child: Center(
-          child: ClipOval(
-            child: CachedNetworkImage(
-              imageUrl: organization.logoUrl!,
-              fit: BoxFit.cover,
-              width: 52,
-              height: 52,
-              placeholder: (_, _) => Container(
-                width: 52,
-                height: 52,
-                color: context.divider.withValues(alpha: 0.3),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              errorWidget: (_, _, _) => Container(
-                width: 52,
-                height: 52,
-                color: context.divider.withValues(alpha: 0.3),
-                child: Icon(
-                  Icons.business_outlined,
-                  color: AppColors.primary,
-                  size: 26,
-                ),
-              ),
-            ),
-          ),
+      ),
+    );
+  }
+}
+
+class _BannerFallback extends StatelessWidget {
+  const _BannerFallback({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.secondary.withValues(alpha: 0.45),
+            AppColors.primary.withValues(alpha: 0.3),
+          ],
         ),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.groups_rounded,
+        size: 34,
+        color: context.textOnBg.withValues(alpha: 0.8),
+      ),
+    );
+  }
+}
+
+class _OrgAvatar extends StatelessWidget {
+  const _OrgAvatar({
+    required this.name,
+    required this.logoUrl,
+    required this.size,
+    required this.isActive,
+  });
+
+  final String name;
+  final String? logoUrl;
+  final double size;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = logoUrl;
+    final hasUrl = url != null && url.trim().isNotEmpty;
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+
+    final fallback = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.primary.withValues(alpha: 0.18),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: AppColors.primary,
+          fontSize: size * 0.42,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: context.cardBg,
+        border: Border.all(
+          color: isActive
+              ? AppColors.primary.withValues(alpha: 0.6)
+              : context.divider.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+      ),
+      child: ClipOval(
+        child: hasUrl
+            ? CachedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.cover,
+                width: size,
+                height: size,
+                placeholder: (_, _) => fallback,
+                errorWidget: (_, _, _) => fallback,
+              )
+            : fallback,
       ),
     );
   }

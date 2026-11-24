@@ -63,8 +63,7 @@ class WeekTimeline extends StatelessWidget {
       builder: (context, constraints) {
         final availableHeight = constraints.maxHeight;
         if (availableHeight <= 0) return const SizedBox.shrink();
-
-        // Alto por hora para que TODO el rango quepa sin scroll.
+       
         final pixelPerHour = availableHeight / totalHours;
 
         return Container(
@@ -207,7 +206,6 @@ class WeekTimeline extends StatelessWidget {
     }
 
     for (final e in sorted) {
-      // Si empieza después de que termina TODO el clúster actual,
       // cierra el clúster y abre uno nuevo.
       if (cluster.isNotEmpty && !e.startTime.isBefore(clusterEnd)) {
         flushCluster();

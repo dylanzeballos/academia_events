@@ -1,22 +1,56 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/constants/app_constants.dart';
-import '../../../../core/utils/theme_extensions.dart';
-import '../../../../core/utils/date_formatter.dart';
-import '../../../../providers/events_provider.dart';
-import '../../../../data/models/event_model.dart';
-import 'event_preview_sheet.dart';
+import '../../../core/utils/date_formatter.dart';
+import '../../../data/models/event_model.dart';
+import 'column/day_column_body.dart';
+import 'column/timeline_indicators.dart';
+import 'column/timeline_labels.dart';
+import 'column/timeline_scale.dart';
+import 'week_day_header.dart';
 
-/// Vista de semana compacta (los 7 días visibles a la vez, estilo Google
-/// Calendar con columnas). Cada día es una columna; los eventos se posicionan
-/// por hora dentro de un canvas de alto fijo.
-///
-/// Soporta:
-/// - Scroll vertical por horas.
-/// - Pinch-to-zoom para ampliar/reducir el alto por hora.
-/// - Deslizar horizontalmente para cambiar de semana.
-/// - Tocar una columna para abrir la vista de día.
+(int, int) _effectiveHourRange(
+  List<DateTime> weekDays,
+  List<EventModel> events,
+  int requestedStart,
+  int requestedEnd,
+) {
+  if (weekDays.length == 1) {
+    return (requestedStart, requestedEnd);
+  }
+  var minHour = 24;
+  var maxHour = 0;
+  var hasEvents = false;
+  for (final event in events) {
+    for (final day in weekDays) {
+      final range = DateFormatter.clampRangeToDayMinutes(
+        event.startTime,
+        event.endTime,
+        day,
+      );
+      if (range == null) continue;
+      hasEvents = true;
+      final (startMin, endMin) = range;
+      final startHour = startMin ~/ 60;
+      final endHour = (endMin / 60).ceil();
+      if (startHour < minHour) minHour = startHour;
+      if (endHour > maxHour) maxHour = endHour;
+    }
+  }
+  if (!hasEvents) {
+    return (requestedStart, requestedEnd);
+  }
+
+  final start = minHour.clamp(0, 23);
+  final end = maxHour.clamp(1, 24);
+  return (start.toInt(), end.toInt());
+}
+
+const double _timelineLabelWidth = 44.0;
+const double _minDayColumnWidth = 64.0;
+
 class WeekColumns extends ConsumerStatefulWidget {
   const WeekColumns({
     super.key,
@@ -25,6 +59,11 @@ class WeekColumns extends ConsumerStatefulWidget {
     required this.selectedDay,
     required this.heightPerHour,
     required this.onDaySelected,
+    this.autoScrollToEarliest = false,
+    this.showNowLine = false,
+    this.showDayStrip = false,
+    this.startHour = 0,
+    this.endHour = 24,
   });
 
   final List<DateTime> weekDays;
@@ -32,6 +71,11 @@ class WeekColumns extends ConsumerStatefulWidget {
   final DateTime selectedDay;
   final double heightPerHour;
   final ValueChanged<DateTime> onDaySelected;
+  final bool autoScrollToEarliest;
+  final bool showNowLine;
+  final bool showDayStrip;
+  final int startHour;
+  final int endHour;
 
   @override
   ConsumerState<WeekColumns> createState() => _WeekColumnsState();
@@ -39,13 +83,17 @@ class WeekColumns extends ConsumerStatefulWidget {
 
 class _WeekColumnsState extends ConsumerState<WeekColumns> {
   final ScrollController _scrollController = ScrollController();
+  final ScrollController _hScrollController = ScrollController();
+  final ScrollController _hStripScrollController = ScrollController();
+  bool _syncingHorizontal = false;
+  bool _atRightEdge = true;
 
-  /// Alto por hora actual (modificable con pinch-to-zoom).
-  double _heightPerHour = 48;
-  static const double _minHeightPerHour = 24;
-  static const double _maxHeightPerHour = 160;
+  double _zoom = 1;
+  static const double _minZoom = 0.7;
+  static const double _maxZoom = 4;
 
-  /// Punteros activos y separación previa, para el pinch-to-zoom manual.
+  TimelineScale? _activeScale;
+
   final Map<int, Offset> _points = {};
   double? _lastSpacing;
 
@@ -70,13 +118,10 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
 
     if (previous == null || previous <= 0 || spacing <= 0) return;
 
-    final target = (_heightPerHour * spacing / previous).clamp(
-      _minHeightPerHour,
-      _maxHeightPerHour,
-    );
+    final target = (_zoom * spacing / previous).clamp(_minZoom, _maxZoom);
 
-    if (target != _heightPerHour) {
-      setState(() => _heightPerHour = target);
+    if (target != _zoom) {
+      setState(() => _zoom = target);
     }
   }
 
@@ -93,413 +138,278 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _hScrollController.dispose();
+    _hStripScrollController.dispose();
     super.dispose();
   }
 
-  List<EventModel> get events => widget.events;
-  DateTime get selectedDay => widget.selectedDay;
-  List<DateTime> get weekDays => widget.weekDays;
-  double get heightPerHour => _heightPerHour;
-  ValueChanged<DateTime> get onDaySelected => widget.onDaySelected;
+  @override
+  void initState() {
+    super.initState();
+    _hScrollController.addListener(_syncHorizontal);
+    _hStripScrollController.addListener(_syncHorizontal);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshRightEdge());
+    if (widget.autoScrollToEarliest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEarliest());
+    }
+  }
 
-  void _enterDayView(DateTime day) {
-    if (Navigator.of(context).mounted) {
-      onDaySelected(day);
+  void _refreshRightEdge() {
+    if (!mounted || !_hScrollController.hasClients) return;
+    final maxExtent = _hScrollController.position.maxScrollExtent;
+    final atRight = _hScrollController.offset >= maxExtent - 1;
+    if (atRight != _atRightEdge) {
+      setState(() => _atRightEdge = atRight);
+    }
+  }
+
+  void _syncHorizontal() {
+    if (_syncingHorizontal) return;
+    if (!_hScrollController.hasClients || !_hStripScrollController.hasClients) {
+      return;
+    }
+    _syncingHorizontal = true;
+    if ((_hScrollController.offset - _hStripScrollController.offset).abs() >
+        0.1) {
+      _hStripScrollController.jumpTo(_hScrollController.offset);
+    } else if ((_hStripScrollController.offset - _hScrollController.offset)
+            .abs() >
+        0.1) {
+      _hScrollController.jumpTo(_hStripScrollController.offset);
+    }
+    _syncingHorizontal = false;
+
+    final maxExtent = _hScrollController.position.maxScrollExtent;
+    final atRight = _hScrollController.offset >= maxExtent - 1;
+    if (atRight != _atRightEdge) {
+      setState(() => _atRightEdge = atRight);
     }
   }
 
   @override
+  void didUpdateWidget(covariant WeekColumns oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.autoScrollToEarliest) return;
+    if (oldWidget.weekDays.isEmpty || widget.weekDays.isEmpty) return;
+    final dayChanged = !_isSameDay(
+      oldWidget.weekDays.first,
+      widget.weekDays.first,
+    );
+    if (dayChanged) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEarliest());
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshRightEdge());
+  }
+
+  void _scrollToEarliest() {
+    if (!_scrollController.hasClients) return;
+    final day = widget.weekDays.first;
+
+    final dayEvents =
+        widget.events
+            .where(
+              (e) => DateFormatter.rangeCoversDay(e.startTime, e.endTime, day),
+            )
+            .toList()
+          ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    if (dayEvents.isEmpty) {
+      _scrollController.jumpTo(0);
+      return;
+    }
+
+    final first = dayEvents.first;
+    final range = DateFormatter.clampRangeToDayMinutes(
+      first.startTime,
+      first.endTime,
+      day,
+    );
+    final startMin =
+        range?.$1 ?? DateFormatter.minutesFromMidnight(first.startTime);
+
+    final scale = _activeScale;
+    double target = 0;
+    if (scale != null) {
+      final start = math.max(startMin - 60, scale.startHour * 60);
+      target = scale.yForMinutes(start);
+    }
+    _scrollController.jumpTo(
+      target.clamp(0.0, _scrollController.position.maxScrollExtent),
+    );
+  }
+
+  static bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  @override
   Widget build(BuildContext context) {
     final dayEvents = <int, List<EventModel>>{};
-    for (final day in weekDays) {
-      dayEvents[day.weekday] = events
+    for (final day in widget.weekDays) {
+      dayEvents[day.weekday] = widget.events
           .where(
-            (e) =>
-                e.startTime.year == day.year &&
-                e.startTime.month == day.month &&
-                e.startTime.day == day.day,
+            (event) => DateFormatter.rangeCoversDay(
+              event.startTime,
+              event.endTime,
+              day,
+            ),
           )
           .toList();
     }
 
-    // Rango de horas global: de 0 a 24 siempre (para que las columnas se
-    // alineen). El canvas interno usa un contenedor con alto fijo y scroll.
-    const startHour = 0;
-    const endHour = 24;
-    final totalHours = endHour - startHour;
-    final canvasHeight = totalHours * _heightPerHour;
+    final (int startHour, int endHour) = _effectiveHourRange(
+      widget.weekDays,
+      widget.events,
+      widget.startHour,
+      widget.endHour,
+    );
 
-    // Ancho de la columna de etiquetas de hora (más estrecha que en día)
-    const labelWidth = 44.0;
+    final activeHours = <int>{};
+    for (final day in widget.weekDays) {
+      for (final event in dayEvents[day.weekday] ?? const <EventModel>[]) {
+        final range = DateFormatter.clampRangeToDayMinutes(
+          event.startTime,
+          event.endTime,
+          day,
+        );
+        if (range == null) continue;
+        final (startMin, endMin) = range;
+        for (var hour = startMin ~/ 60; hour * 60 < endMin; hour++) {
+          activeHours.add(hour);
+        }
+      }
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final availableWidth = constraints.maxWidth;
-              final timeColumnWidth = labelWidth;
-              final gridWidth = availableWidth - timeColumnWidth;
-              final colWidth = gridWidth / weekDays.length;
+    final eventDays = widget.weekDays
+        .where((day) => (dayEvents[day.weekday] ?? const []).isNotEmpty)
+        .toList();
+    final daysToRender = eventDays.isEmpty
+        ? widget.weekDays
+        : List<DateTime>.unmodifiable(eventDays);
 
-              // Listener: captura el pinch-to-zoom SIN entrar al arena de
-              // gestos (no bloquea el scroll de 1 dedo ni la rueda).
-              return Listener(
-                onPointerDown: _onPointerDown,
-                onPointerMove: _onPointerMove,
-                onPointerUp: _onPointerUp,
-                onPointerCancel: _onPointerCancel,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  // Deslizar horizontal para cambiar de semana
-                  onHorizontalDragEnd: (details) {
-                    final v = details.primaryVelocity ?? 0;
-                    if (v < -200) {
-                      ref.read(selectedWeekProvider.notifier).nextWeek();
-                    } else if (v > 200) {
-                      ref.read(selectedWeekProvider.notifier).previousWeek();
-                    }
-                  },
-                  // UN único scroll vertical: etiquetas de hora + grid de días
-                  // comparten el mismo scroll position, por lo que SIEMPRE se
-                  // mueven juntas al hacer scroll (rueda o dedo).
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    child: SizedBox(
-                      height: canvasHeight,
-                      width: availableWidth,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final labelWidth = _timelineLabelWidth * _zoom;
+        final gridWidth = availableWidth - labelWidth;
+        final baseColWidth = math.max(
+          gridWidth / daysToRender.length,
+          _minDayColumnWidth,
+        );
+        final colWidth = baseColWidth * _zoom;
+        final totalDaysWidth = colWidth * daysToRender.length;
+        final showSlideHint = totalDaysWidth > gridWidth && !_atRightEdge;
+
+        return Stack(
+          children: [
+            Listener(
+              onPointerDown: _onPointerDown,
+              onPointerMove: _onPointerMove,
+              onPointerUp: _onPointerUp,
+              onPointerCancel: _onPointerCancel,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.showDayStrip && widget.weekDays.length > 1)
+                    SingleChildScrollView(
+                      controller: _hStripScrollController,
+                      scrollDirection: Axis.horizontal,
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Etiquetas de hora ─────────────────────────
-                          SizedBox(
-                            width: timeColumnWidth,
-                            child: _TimeLabels(
-                              startHour: startHour,
-                              totalHours: totalHours,
-                              heightPerHour: _heightPerHour,
-                            ),
-                          ),
-                          // ── Columnas de días ─────────────────────────
-                          Expanded(
-                            child: SizedBox(
-                              width: gridWidth,
-                              child: Row(
-                                children: weekDays.map((day) {
-                                  final isSelected = _isSameDay(
-                                    day,
-                                    selectedDay,
-                                  );
-                                  return SizedBox(
-                                    width: colWidth,
-                                    child: _DayColumnBody(
-                                      day: day,
-                                      isSelected: isSelected,
-                                      events:
-                                          dayEvents[day.weekday] ?? const [],
-                                      startHour: startHour,
-                                      totalHours: totalHours,
-                                      heightPerHour: _heightPerHour,
-                                      onTap: () => _enterDayView(day),
-                                    ),
-                                  );
-                                }).toList(),
+                          SizedBox(width: labelWidth),
+                          ...daysToRender.map(
+                            (day) => SizedBox(
+                              width: colWidth,
+                              child: WeekDayHeader(
+                                day: day,
+                                isSelected: _isSameDay(day, widget.selectedDay),
+                                onTap: () => widget.onDaySelected(day),
+                                zoom: _zoom,
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  static bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-}
-
-// ─────────────────────────────────────────────
-// Etiquetas de hora de la columna izquierda
-// ─────────────────────────────────────────────
-class _TimeLabels extends StatelessWidget {
-  const _TimeLabels({
-    required this.startHour,
-    required this.totalHours,
-    required this.heightPerHour,
-  });
-
-  final int startHour;
-  final int totalHours;
-  final double heightPerHour;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: totalHours * heightPerHour,
-      child: Stack(
-        children: List.generate(totalHours, (i) {
-          final hour = startHour + i;
-          return Positioned(
-            top: i * heightPerHour + 2,
-            left: 0,
-            right: 4,
-            child: Text(
-              '${hour.toString().padLeft(2, '0')}:00',
-              textAlign: TextAlign.right,
-              style: const TextStyle(color: Colors.grey, fontSize: 10),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-// Cuerpo de una columna de día
-// ─────────────────────────────────────────────
-class _DayColumnBody extends StatelessWidget {
-  const _DayColumnBody({
-    required this.day,
-    required this.isSelected,
-    required this.events,
-    required this.startHour,
-    required this.totalHours,
-    required this.heightPerHour,
-    required this.onTap,
-  });
-
-  final DateTime day;
-  final bool isSelected;
-  final List<EventModel> events;
-  final int startHour;
-  final int totalHours;
-  final double heightPerHour;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final layouts = WeekTimelineLayout.layout(events);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.06)
-              : Colors.transparent,
-          border: Border(
-            left: BorderSide(color: context.divider.withValues(alpha: 0.4)),
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Líneas de hora
-            ...List.generate(totalHours + 1, (i) {
-              return Positioned(
-                top: i * heightPerHour,
-                left: 0,
-                right: 0,
-                child: Divider(
-                  height: 1,
-                  thickness: 0.5,
-                  color: context.divider.withValues(alpha: 0.4),
-                ),
-              );
-            }),
-            // Eventos (ancho proporcional al número de columnas del clúster)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final colWidth = constraints.maxWidth;
-                  return ClipRect(
-                    child: Stack(
-                      children: layouts.map((layout) {
-                        final event = layout.event;
-                        final startMin = DateFormatter.minutesFromMidnight(
-                          event.startTime,
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, innerConstraints) {
+                        final scale = TimelineScale(
+                          startHour: startHour,
+                          endHour: endHour,
+                          activeHours: activeHours,
+                          activePxPerHour: widget.heightPerHour,
+                          availableHeight: innerConstraints.maxHeight,
+                          zoom: _zoom,
+                          collapseInactiveHours: widget.weekDays.length > 1,
+                          centerContentIfShort: widget.weekDays.length > 1,
                         );
-                        final endMin = DateFormatter.minutesFromMidnight(
-                          event.endTime,
-                        );
-                        final timelineOrigin = startHour * 60;
-                        final top =
-                            (startMin - timelineOrigin) * heightPerHour / 60;
-                        final height = (endMin - startMin) * heightPerHour / 60;
-                        final itemWidth = colWidth / layout.totalColumns;
+                        _activeScale = scale;
 
-                        return Positioned(
-                          top: top,
-                          left: itemWidth * layout.column,
-                          width: itemWidth,
-                          height: height,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 1),
-                            child: _WeekEventTile(
-                              event: event,
-                              onTap: () =>
-                                  EventPreviewSheet.show(context, event),
+                        return SingleChildScrollView(
+                          controller: _scrollController,
+                          child: SizedBox(
+                            height: scale.totalHeight,
+                            width: availableWidth,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: labelWidth,
+                                  child: TimelineLabels(
+                                    scale: scale,
+                                    zoom: _zoom,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    controller: _hScrollController,
+                                    scrollDirection: Axis.horizontal,
+                                    child: SizedBox(
+                                      width: totalDaysWidth,
+                                      child: Row(
+                                        children: daysToRender.map((day) {
+                                          return SizedBox(
+                                            width: colWidth,
+                                            child: DayColumnBody(
+                                              day: day,
+                                              isSelected: _isSameDay(
+                                                day,
+                                                widget.selectedDay,
+                                              ),
+                                              events:
+                                                  dayEvents[day.weekday] ??
+                                                  const [],
+                                              scale: scale,
+                                              showNowLine: widget.showNowLine,
+                                              onTap: () =>
+                                                  widget.onDaySelected(day),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );
-                      }).toList(),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Reutiliza el algoritmo de layout por clústeres del timeline de día,
-/// expuesto de forma pública para la vista de semana.
-class WeekTimelineLayout {
-  static List<WeekTimelineSlot> layout(List<EventModel> events) {
-    final sorted = [...events]
-      ..sort((a, b) => a.startTime.compareTo(b.startTime));
-
-    final slots = <WeekTimelineSlot>[];
-
-    if (sorted.isEmpty) return slots;
-
-    var cluster = <EventModel>[];
-    var clusterEnd = sorted.first.endTime;
-
-    void flushCluster() {
-      if (cluster.isEmpty) return;
-      final columnEnds = <DateTime>[];
-      final columns = <String, int>{};
-
-      for (final e in cluster) {
-        var col = 0;
-        while (col < columnEnds.length &&
-            columnEnds[col].isAfter(e.startTime)) {
-          col++;
-        }
-        if (col == columnEnds.length) {
-          columnEnds.add(e.endTime);
-        } else {
-          columnEnds[col] = e.endTime;
-        }
-        columns[e.id] = col;
-      }
-
-      for (final e in cluster) {
-        slots.add(
-          WeekTimelineSlot(
-            event: e,
-            column: columns[e.id]!,
-            totalColumns: columnEnds.length,
-          ),
-        );
-      }
-      cluster = [];
-    }
-
-    for (final e in sorted) {
-      if (cluster.isNotEmpty && !e.startTime.isBefore(clusterEnd)) {
-        flushCluster();
-      }
-      if (e.endTime.isAfter(clusterEnd)) clusterEnd = e.endTime;
-      cluster.add(e);
-    }
-    flushCluster();
-
-    return slots;
-  }
-}
-
-class WeekTimelineSlot {
-  const WeekTimelineSlot({
-    required this.event,
-    required this.column,
-    required this.totalColumns,
-  });
-
-  final EventModel event;
-  final int column;
-  final int totalColumns;
-}
-
-/// Bloque compacto de evento para la vista de semana.
-///
-/// A diferencia de la tarjeta usada en la vista de día, este tile está
-/// pensado para columnas muy estrechas y tramos cortos: no muestra filas fijas
-/// que desborden el alto disponible, sino una pastilla de color con el título
-/// (solo si hay margen) y acento lateral. Envuelto en [FittedBox]/recorte para
-/// que NUNCA genere errores de overflow y nunca se dibuje encima del vecino.
-class _WeekEventTile extends StatelessWidget {
-  const _WeekEventTile({required this.event, this.onTap});
-
-  final EventModel event;
-  final VoidCallback? onTap;
-
-  Color get _color {
-    final colors = AppColors.calendarEventColors;
-    return colors[event.colorIndex % colors.length];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final labelColor = isDark ? Colors.white : Colors.black87;
-    final veryShort = event.endTime.difference(event.startTime).inMinutes < 30;
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: _color.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(AppSizes.radiusSmall),
-          border: Border.all(color: _color.withValues(alpha: 0.75), width: 1),
-        ),
-        child: Row(
-          children: [
-            // Franja de acento vertical
-            Container(width: 3, color: _color),
-            const SizedBox(width: 2),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 1),
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      veryShort ? '' : event.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: labelColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        height: 1.1,
-                      ),
+                      },
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-            const SizedBox(width: 2),
+            if (showSlideHint)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: RightSlideHint(visible: showSlideHint),
+              ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

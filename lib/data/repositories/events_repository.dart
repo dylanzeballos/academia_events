@@ -11,8 +11,11 @@ abstract interface class IEventsRepository {
   Future<void> createFullEvent({
     required Map<String, dynamic> eventData,
     required Map<String, dynamic> locationData,
+    List<Map<String, dynamic>>? ticketTypesData,
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
+    Uint8List? rulesPdfBytes,
+    String? venueId,
   });
   Future<void> updateEvent(String id, Map<String, dynamic> data);
   Future<void> deleteEvent(String id);
@@ -28,22 +31,19 @@ class EventsRepository implements IEventsRepository {
 
   @override
   Future<List<EventModel>> fetchWeekEvents(DateTime weekReference) async {
-    final monday = weekReference.subtract(
-      Duration(days: weekReference.weekday - 1),
+    final start = DateTime(
+      weekReference.year,
+      weekReference.month,
+      weekReference.day,
     );
-    final sunday = monday.add(const Duration(days: 6, hours: 23, minutes: 59));
+    final end = start.add(const Duration(days: 7));
 
     final rows = await service.fetchWeekEvents(
-      monday.toIso8601String(),
-      sunday.toIso8601String(),
+      start.toUtc().toIso8601String(),
+      end.toUtc().toIso8601String(),
     );
 
-    final events = rows.map((row) {
-      final json = Map<String, dynamic>.from(row);
-      json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
-      return EventModel.fromJson(json);
-    }).toList();
-
+    final events = rows.map((row) => EventModel.fromJson(row)).toList();
     return _assignColors(events);
   }
 
@@ -52,67 +52,89 @@ class EventsRepository implements IEventsRepository {
     String organizationId,
   ) async {
     final rows = await service.fetchOrganizationEvents(organizationId);
-
-    return rows
-        .map((row) => EventModel.fromJson({...row, 'organization_name': ''}))
-        .toList();
+    return rows.map((row) => EventModel.fromJson(row)).toList();
   }
 
   @override
   Future<EventModel> createEvent(Map<String, dynamic> data) async {
     final row = await service.insertEvent(data);
-    return EventModel.fromJson({...row, 'organization_name': ''});
+    return EventModel.fromJson(row);
   }
 
-  // En la implementación
   @override
   Future<List<EventModel>> fetchAllEvents() async {
     final rows = await service.fetchAllEvents();
-    final events = rows.map((row) {
-      final json = Map<String, dynamic>.from(row);
-      json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
-      return EventModel.fromJson(json);
-    }).toList();
+    final events = rows.map((row) => EventModel.fromJson(row)).toList();
     return _assignColors(events);
   }
 
   @override
   Future<EventModel> fetchEventById(String id) async {
     final row = await service.fetchEventById(id);
-    final json = Map<String, dynamic>.from(row);
-    json['organization_name'] = (row['organizations'] as Map?)?['name'] ?? '';
-    return EventModel.fromJson(json);
+    return EventModel.fromJson(row);
   }
 
   @override
   Future<void> createFullEvent({
     required Map<String, dynamic> eventData,
     required Map<String, dynamic> locationData,
+    List<Map<String, dynamic>>? ticketTypesData,
     Uint8List? bannerBytes,
     Uint8List? qrBytes,
+    Uint8List? rulesPdfBytes,
+    String? venueId,
   }) async {
-    // 1. Insertar evento para obtener su id
-    final eventRow = await service.insertEvent(eventData);
-    final eventId = eventRow['id'] as String;
+    // AHORA
+    final payload = Map<String, dynamic>.from(eventData);
 
-    // 2. Subir afiche al bucket event-banners y vincularlo al evento
     if (bannerBytes != null) {
-      final imageUrl =
-          await service.uploadImage('event-banners', '$eventId/banner', bannerBytes);
-      await service.updateEvent(eventId, {'cover_image_url': imageUrl});
+      final bannerPath = 'banner_${DateTime.now().millisecondsSinceEpoch}';
+      final imageUrl = await service.uploadImage(
+        'event-banners',
+        bannerPath,
+        bannerBytes,
+      );
+      payload['cover_image_url'] = imageUrl;
     }
 
-    // 3. Insertar ubicación
+    final eventRow = await service.insertEvent(payload);
+    final eventId = eventRow['id'] as String;
+
+    if (rulesPdfBytes != null) {
+      final pdfUrl = await service.uploadRulesPdf(eventId, rulesPdfBytes);
+      await service.updateEvent(eventId, {'rules_pdf_url': pdfUrl});
+    }
+
     if ((locationData['location_name'] as String?)?.isNotEmpty == true ||
         (locationData['address_line_1'] as String?)?.isNotEmpty == true ||
         locationData['department_id'] != null) {
       await service.insertLocation({'event_id': eventId, ...locationData});
     }
 
-    // 4. Subir QR al bucket event-qrs e insertarlo en event_images
     if (qrBytes != null) {
-      final qrUrl = await service.uploadImage('event-qrs', '$eventId/qr', qrBytes);
+      final qrUrl = await service.uploadImage(
+        'event-qrs',
+        '$eventId/qr',
+        qrBytes,
+      );
       await service.insertEventImage(eventId, qrUrl);
+    }
+
+    if (venueId != null && venueId.isNotEmpty) {
+      final defaultPrice =
+          (ticketTypesData?.firstOrNull?['price'] as num?)?.toDouble() ?? 50.0;
+      await service.cloneVenueSeats(
+        eventId: eventId,
+        venueId: venueId,
+        defaultPrice: defaultPrice,
+      );
+    }
+
+    if (ticketTypesData != null && ticketTypesData.isNotEmpty) {
+      final ticketsWithEventId = ticketTypesData
+          .map((t) => {...t, 'event_id': eventId})
+          .toList();
+      await service.insertTicketTypes(ticketsWithEventId);
     }
   }
 
@@ -145,7 +167,7 @@ class EventsRepository implements IEventsRepository {
   }
 }
 
-// ─── REPOSITORY DE CLASES (Refactorizado con EventsService) ───────
+// ─── REPOSITORY DE CLASES ──────────────────────────────────────────
 
 abstract interface class IClassesRepository {
   Future<List<ClassModel>> fetchOrganizationClasses(String organizationId);
@@ -165,7 +187,6 @@ class ClassesRepository implements IClassesRepository {
     String organizationId,
   ) async {
     final rows = await service.fetchOrganizationClasses(organizationId);
-
     return rows
         .map((row) => ClassModel.fromJson({...row, 'organization_name': ''}))
         .toList();
@@ -189,14 +210,16 @@ class ClassesRepository implements IClassesRepository {
 
   @override
   Future<List<EventModel>> fetchWeekClasses(DateTime weekReference) async {
-    final monday = weekReference.subtract(
-      Duration(days: weekReference.weekday - 1),
+    final start = DateTime(
+      weekReference.year,
+      weekReference.month,
+      weekReference.day,
     );
-    final sunday = monday.add(const Duration(days: 6, hours: 23, minutes: 59));
+    final endExclusive = start.add(const Duration(days: 7));
 
     final rows = await service.fetchWeekSchedules(
-      monday.toIso8601String(),
-      sunday.toIso8601String(),
+      start.toIso8601String(),
+      endExclusive.toIso8601String(),
     );
 
     final events = <EventModel>[];
@@ -208,11 +231,12 @@ class ClassesRepository implements IClassesRepository {
       final startDate = _parseDate(schedule['start_date']);
       final endDate = _parseDate(schedule['end_date']);
 
-      // day_of_week: 0=domingo..6=sábado. weekday: 1=lunes..7=domingo.
-      final scheduleWeekday = schedule['day_of_week'] == 0 ? 7 : schedule['day_of_week'];
+      final scheduleWeekday = schedule['day_of_week'] == 0
+          ? 7
+          : schedule['day_of_week'];
 
-      var day = monday;
-      while (!day.isAfter(sunday)) {
+      var day = start;
+      while (day.isBefore(endExclusive)) {
         final matchesRecurrence =
             scheduleWeekday != null && day.weekday == scheduleWeekday;
         final dayDate = DateTime(day.year, day.month, day.day);

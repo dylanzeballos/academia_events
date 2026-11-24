@@ -1,0 +1,157 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/theme_extensions.dart';
+import '../../../../data/models/organization_model.dart';
+
+class DashboardStatsGrid extends StatelessWidget {
+  const DashboardStatsGrid({
+    super.key,
+    required this.stats,
+    required this.organization,
+  });
+
+  final Map stats;
+  final OrganizationModel organization;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _InteractiveStatCard(
+                icon: Icons.qr_code_scanner_rounded,
+                label: 'Check-in escáner',
+                value: 'QR',
+                color: AppColors.success,
+                onTap: () => context.push(AppRoutes.academyCheckin),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _InteractiveStatCard(
+                icon: Icons.school_outlined,
+                label: 'Clases activas',
+                value: '${stats['totalClasses'] ?? 0}',
+                color: AppColors.primary,
+                onTap: () => context.push(AppRoutes.academyClassesView),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _InteractiveStatCard(
+                icon: Icons.people_outline,
+                label: 'Equipo / Profes',
+                value: '${stats['totalMembers'] ?? 0}',
+                color: AppColors.warning,
+                onTap: () => context.push(AppRoutes.academyTeachers),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _InteractiveStatCard(
+                icon: Icons.visibility_outlined,
+                label: 'Visitas perfil',
+                value: '${organization.viewsCount}',
+                color: AppColors.secondary,
+                onTap: () {
+                  context.push(
+                    '${AppRoutes.organizationsDetail}/${organization.id}',
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _InteractiveStatCard extends StatelessWidget {
+  const _InteractiveStatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: context.cardBg,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        side: BorderSide(color: context.divider),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 12,
+                    color: context.textMuted.withValues(alpha: 0.6),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: TextStyle(
+                  color: context.textOnBg,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
