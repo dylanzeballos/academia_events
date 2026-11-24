@@ -46,9 +46,9 @@ class EventPublishActionBar extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Para publicar este evento, el administrador debe registrar '
-                    'el pago del QR de publicación. Aparecerá automáticamente '
-                    'al confirmarse.',
+                    'Para publicar este evento se requiere una suscripción '
+                    'mensual activa de la organización y el pago del QR de '
+                    'publicación. Aparecerá automáticamente al confirmarse.',
                     style: TextStyle(
                       color: context.textMuted,
                       fontSize: 12,

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:file_picker_platform_interface/file_picker_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -341,7 +340,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Evento creado. La publicación se habilita al registrar el pago del QR de publicación.',
+              'Evento creado. Para publicarlo necesitás la suscripción mensual activa y el pago de publicación.',
             ),
             backgroundColor: context.cardBg,
           ),
