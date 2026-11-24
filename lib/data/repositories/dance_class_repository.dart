@@ -16,7 +16,15 @@ abstract interface class IDanceClassRepository {
   Future<void> deleteSchedule(String id);
 
   Future<List<DanceClassSessionModel>> fetchClassSessions(String classId);
+  Future<SessionPage> fetchClassSessionsPage(
+    String classId, {
+    required int limit,
+    int offset = 0,
+    bool upcomingOnly = false,
+    bool pastOnly = false,
+  });
   Future<List<DanceClassSessionModel>> fetchUpcomingSessions(String classId);
+  Future<NextClassSession?> fetchNextOrgSession(String organizationId);
   Future<void> generateSessions({
     required String classId,
     required DateTime startDate,
@@ -41,13 +49,14 @@ abstract interface class IDanceClassRepository {
 
 class DanceClassRepository implements IDanceClassRepository {
   const DanceClassRepository({DanceClassService? service})
-      : _service = service ?? const DanceClassService();
+    : _service = service ?? const DanceClassService();
 
   final DanceClassService _service;
 
   @override
   Future<List<ClassModel>> fetchOrganizationClasses(
-      String organizationId) async {
+    String organizationId,
+  ) async {
     final rows = await _service.fetchOrganizationClasses(organizationId);
     return rows
         .map((row) => ClassModel.fromJson({...row, 'organization_name': ''}))
@@ -77,14 +86,16 @@ class DanceClassRepository implements IDanceClassRepository {
 
   @override
   Future<List<DanceClassScheduleModel>> fetchClassSchedules(
-      String classId) async {
+    String classId,
+  ) async {
     final rows = await _service.fetchClassSchedules(classId);
     return rows.map((row) => DanceClassScheduleModel.fromJson(row)).toList();
   }
 
   @override
   Future<DanceClassScheduleModel> createSchedule(
-      Map<String, dynamic> data) async {
+    Map<String, dynamic> data,
+  ) async {
     final raw = await _service.createSchedule(data);
     return DanceClassScheduleModel.fromJson(raw);
   }
@@ -98,16 +109,48 @@ class DanceClassRepository implements IDanceClassRepository {
 
   @override
   Future<List<DanceClassSessionModel>> fetchClassSessions(
-      String classId) async {
+    String classId,
+  ) async {
     final rows = await _service.fetchClassSessions(classId);
     return rows.map((row) => DanceClassSessionModel.fromJson(row)).toList();
   }
 
   @override
+  Future<SessionPage> fetchClassSessionsPage(
+    String classId, {
+    required int limit,
+    int offset = 0,
+    bool upcomingOnly = false,
+    bool pastOnly = false,
+  }) async {
+    final rows = await _service.fetchClassSessionsPage(
+      classId,
+      limit: limit,
+      offset: offset,
+      upcomingOnly: upcomingOnly,
+      pastOnly: pastOnly,
+    );
+    final hasMore = rows.length > limit;
+    final page = hasMore ? rows.take(limit) : rows;
+    return SessionPage(
+      sessions: page.map(DanceClassSessionModel.fromJson).toList(),
+      hasMore: hasMore,
+    );
+  }
+
+  @override
   Future<List<DanceClassSessionModel>> fetchUpcomingSessions(
-      String classId) async {
+    String classId,
+  ) async {
     final rows = await _service.fetchUpcomingSessions(classId);
     return rows.map((row) => DanceClassSessionModel.fromJson(row)).toList();
+  }
+
+  @override
+  Future<NextClassSession?> fetchNextOrgSession(String organizationId) async {
+    final row = await _service.fetchNextOrgSession(organizationId);
+    if (row == null) return null;
+    return NextClassSession.fromJson(row);
   }
 
   @override
@@ -115,12 +158,11 @@ class DanceClassRepository implements IDanceClassRepository {
     required String classId,
     required DateTime startDate,
     required DateTime endDate,
-  }) =>
-      _service.generateSessions(
-        classId: classId,
-        startDate: startDate,
-        endDate: endDate,
-      );
+  }) => _service.generateSessions(
+    classId: classId,
+    startDate: startDate,
+    endDate: endDate,
+  );
 
   @override
   Future<void> clearUpcomingSessionsForSchedule(String scheduleId) =>
@@ -146,12 +188,11 @@ class DanceClassRepository implements IDanceClassRepository {
     required String sessionId,
     required DateTime newStartAt,
     required DateTime newEndAt,
-  }) =>
-      _service.rescheduleSession(
-        sessionId: sessionId,
-        newStartAt: newStartAt,
-        newEndAt: newEndAt,
-      );
+  }) => _service.rescheduleSession(
+    sessionId: sessionId,
+    newStartAt: newStartAt,
+    newEndAt: newEndAt,
+  );
 
   @override
   Future<Map<String, int>> fetchOrgStats(String organizationId) =>
@@ -159,6 +200,6 @@ class DanceClassRepository implements IDanceClassRepository {
 
   @override
   Future<List<Map<String, dynamic>>> fetchOrgInstructors(
-          String organizationId) =>
-      _service.fetchOrgInstructors(organizationId);
+    String organizationId,
+  ) => _service.fetchOrgInstructors(organizationId);
 }

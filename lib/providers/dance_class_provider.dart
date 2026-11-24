@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/class_model.dart';
+import '../data/models/class_publication_status.dart';
 import '../data/models/dance_class_schedule_model.dart';
 import '../data/models/dance_class_session_model.dart';
 import '../data/repositories/dance_class_repository.dart';
+import '../data/services/pagosya_service.dart';
 import 'auth_provider.dart';
 import 'organization_provider.dart';
 
@@ -36,8 +38,8 @@ class SelectedClassIdNotifier extends Notifier<String?> {
 
 final selectedClassIdProvider =
     NotifierProvider<SelectedClassIdNotifier, String?>(
-  () => SelectedClassIdNotifier(),
-);
+      () => SelectedClassIdNotifier(),
+    );
 
 final selectedClassProvider = FutureProvider<ClassModel?>((ref) {
   final classId = ref.watch(selectedClassIdProvider);
@@ -48,26 +50,57 @@ final selectedClassProvider = FutureProvider<ClassModel?>((ref) {
 
 // ─── Schedules for selected class ──────────────────
 
-final classSchedulesProvider =
-    FutureProvider<List<DanceClassScheduleModel>>((ref) {
+final classSchedulesProvider = FutureProvider<List<DanceClassScheduleModel>>((
+  ref,
+) {
   final classId = ref.watch(selectedClassIdProvider);
   if (classId == null) return Future.value([]);
   final repo = ref.watch(danceClassRepositoryProvider);
   return repo.fetchClassSchedules(classId);
 });
 
-// ─── Sessions for selected class ───────────────────
+/// Estado de publicación de una clase (pago, precio y membresía mensual).
+final classPublicationStatusProvider = FutureProvider.autoDispose
+    .family<ClassPublicationStatus, String>((ref, classId) {
+      return const PagosyaService().classPublicationStatus(classId);
+    });
 
-final classSessionsProvider =
-    FutureProvider<List<DanceClassSessionModel>>((ref) {
-  final classId = ref.watch(selectedClassIdProvider);
-  if (classId == null) return Future.value([]);
+// ─── Próxima sesión de la organización (panel) ───────
+/// Una sola sesión próxima, para la vista previa del dashboard.
+final nextOrgSessionProvider = FutureProvider.autoDispose<NextClassSession?>((
+  ref,
+) async {
+  final orgId = ref.watch(selectedOrganizationIdProvider);
+  if (orgId == null) return null;
   final repo = ref.watch(danceClassRepositoryProvider);
-  return repo.fetchClassSessions(classId);
+  return repo.fetchNextOrgSession(orgId);
 });
 
-final upcomingSessionsProvider =
-    FutureProvider<List<DanceClassSessionModel>>((ref) {
+// ─── Sesiones de la clase seleccionada (paginadas) ──
+
+typedef ClassSessionsQuery = ({
+  String classId,
+  int limit,
+  bool upcomingOnly,
+  bool pastOnly,
+});
+
+/// Página de sesiones: una clase con horario recurrente puede tener cientos de
+/// sesiones al año, así que se cargan de a bloques con "Ver más".
+final classSessionsPageProvider = FutureProvider.autoDispose
+    .family<SessionPage, ClassSessionsQuery>((ref, query) {
+      final repo = ref.watch(danceClassRepositoryProvider);
+      return repo.fetchClassSessionsPage(
+        query.classId,
+        limit: query.limit,
+        upcomingOnly: query.upcomingOnly,
+        pastOnly: query.pastOnly,
+      );
+    });
+
+final upcomingSessionsProvider = FutureProvider<List<DanceClassSessionModel>>((
+  ref,
+) {
   final classId = ref.watch(selectedClassIdProvider);
   if (classId == null) return Future.value([]);
   final repo = ref.watch(danceClassRepositoryProvider);
@@ -92,8 +125,9 @@ final orgStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 
 // ─── Org instructors ───────────────────────────────
 
-final orgInstructorsProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final orgInstructorsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final orgId = ref.watch(selectedOrganizationIdProvider);
   if (orgId == null) return [];
   final repo = ref.watch(danceClassRepositoryProvider);
@@ -103,17 +137,15 @@ final orgInstructorsProvider =
 // ─── Horario Semanal Multi-Días (Recurrencia) ───────
 
 class OrgScheduleEntry {
-  const OrgScheduleEntry({
-    required this.schedule,
-    required this.danceClass,
-  });
+  const OrgScheduleEntry({required this.schedule, required this.danceClass});
 
   final DanceClassScheduleModel schedule;
   final ClassModel danceClass;
 }
 
-final orgWeeklyScheduleEntriesProvider =
-    FutureProvider<List<OrgScheduleEntry>>((ref) async {
+final orgWeeklyScheduleEntriesProvider = FutureProvider<List<OrgScheduleEntry>>((
+  ref,
+) async {
   final orgId = ref.watch(selectedOrganizationIdProvider);
   if (orgId == null) return [];
 
@@ -164,6 +196,8 @@ class CreateClassNotifier extends Notifier<CreateClassState> {
     String? description,
     int? capacity,
     double price = 0,
+    double priceMonthly = 0,
+    String? danceCategoryId,
     String? instructorId,
     required String startTime,
     required String endTime,
@@ -186,10 +220,13 @@ class CreateClassNotifier extends Notifier<CreateClassState> {
         'organization_id': orgId,
         'title': title,
         'slug': slug,
-        'description':
-            description?.trim().isEmpty == true ? null : description?.trim(),
+        'description': description?.trim().isEmpty == true
+            ? null
+            : description?.trim(),
         'capacity': capacity,
         'price': price,
+        'price_monthly': priceMonthly,
+        'dance_category_id': danceCategoryId,
         'currency': 'BOB',
         'instructor_id': instructorId,
         'status': 'draft',
@@ -221,5 +258,5 @@ class CreateClassNotifier extends Notifier<CreateClassState> {
 
 final createClassProvider =
     NotifierProvider<CreateClassNotifier, CreateClassState>(() {
-  return CreateClassNotifier();
-});
+      return CreateClassNotifier();
+    });
