@@ -15,6 +15,8 @@ class ClassPassModel {
     this.price = 0,
     this.currency = 'BOB',
     this.totalAmount = 0,
+    this.passType = 'sessions',
+    this.vipMembershipId,
     this.organizationName,
   });
 
@@ -29,17 +31,22 @@ class ClassPassModel {
   final double price;
   final String currency;
   final double totalAmount;
+  final String passType;
+  final String? vipMembershipId;
   final String? organizationName;
+
+  bool get isVip => passType == 'vip';
+  bool get isMonthly => passType == 'monthly';
 
   bool get isActive => passStatus == 'active';
   bool get isExpired => passStatus == 'expired';
 
   String get statusDisplayName => switch (passStatus) {
-        'active' => 'Activo',
-        'expired' => 'Expirado',
-        'cancelled' => 'Cancelado',
-        _ => DisplayLabels.status(passStatus),
-      };
+    'active' => 'Activo',
+    'expired' => 'Expirado',
+    'cancelled' => 'Cancelado',
+    _ => DisplayLabels.status(passStatus),
+  };
 
   factory ClassPassModel.fromJson(Map<String, dynamic> json) {
     return ClassPassModel(
@@ -54,6 +61,8 @@ class ClassPassModel {
       price: (json['price'] as num?)?.toDouble() ?? 0,
       currency: (json['currency'] as String?)?.trim() ?? 'BOB',
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+      passType: (json['pass_type'] as String?) ?? 'sessions',
+      vipMembershipId: json['vip_membership_id'] as String?,
       organizationName: json['organization_name'] as String?,
     );
   }

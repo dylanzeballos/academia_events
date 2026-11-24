@@ -21,6 +21,7 @@ class ClassEnrollmentModel {
     this.classCoverImageUrl,
     this.organizationId,
     this.organizationName,
+    this.organizationLogoUrl,
     this.instructorName,
   });
 
@@ -38,6 +39,7 @@ class ClassEnrollmentModel {
   final String? classCoverImageUrl;
   final String? organizationId;
   final String? organizationName;
+  final String? organizationLogoUrl;
   final String? instructorName;
 
   bool get isActive =>
@@ -45,18 +47,19 @@ class ClassEnrollmentModel {
   bool get isCancelled => status == 'cancelled';
 
   String get statusDisplayName => switch (status) {
-        'pending' => 'Pendiente',
-        'approved' => 'Aprobada',
-        'active' => 'Activa',
-        'cancelled' => 'Cancelada',
-        'rejected' => 'Rechazada',
-        'completed' => 'Completada',
-        _ => DisplayLabels.status(status),
-      };
+    'pending' => 'Pendiente',
+    'approved' => 'Aprobada',
+    'active' => 'Activa',
+    'cancelled' => 'Cancelada',
+    'rejected' => 'Rechazada',
+    'completed' => 'Completada',
+    _ => DisplayLabels.status(status),
+  };
 
   factory ClassEnrollmentModel.fromJson(Map<String, dynamic> json) {
     final danceClass = json['dance_classes'] as Map<String, dynamic>?;
-    final organization = (danceClass?['organizations'] as Map<String, dynamic>?) ??
+    final organization =
+        (danceClass?['organizations'] as Map<String, dynamic>?) ??
         (json['organizations'] as Map<String, dynamic>?);
 
     var instructorName = json['instructor_name'] as String?;
@@ -85,25 +88,31 @@ class ClassEnrollmentModel {
       updatedAt: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at'] as String)
           : null,
-      classTitle: danceClass?['title'] as String? ?? json['class_title'] as String?,
+      classTitle:
+          danceClass?['title'] as String? ?? json['class_title'] as String?,
       classCoverImageUrl:
-          danceClass?['cover_image_url'] as String? ?? json['class_cover_image_url'] as String?,
+          danceClass?['cover_image_url'] as String? ??
+          json['class_cover_image_url'] as String?,
       organizationId:
           organization?['id'] as String? ?? json['organization_id'] as String?,
       organizationName:
-          organization?['name'] as String? ?? json['organization_name'] as String?,
+          organization?['name'] as String? ??
+          json['organization_name'] as String?,
+      organizationLogoUrl:
+          organization?['logo_url'] as String? ??
+          json['organization_logo_url'] as String?,
       instructorName: instructorName,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'dance_class_id': danceClassId,
-        'user_id': userId,
-        'status': status,
-        'enrolled_at': enrolledAt?.toIso8601String(),
-        'cancelled_at': cancelledAt?.toIso8601String(),
-        'created_at': createdAt?.toIso8601String(),
-        'updated_at': updatedAt?.toIso8601String(),
-      };
+    'id': id,
+    'dance_class_id': danceClassId,
+    'user_id': userId,
+    'status': status,
+    'enrolled_at': enrolledAt?.toIso8601String(),
+    'cancelled_at': cancelledAt?.toIso8601String(),
+    'created_at': createdAt?.toIso8601String(),
+    'updated_at': updatedAt?.toIso8601String(),
+  };
 }
