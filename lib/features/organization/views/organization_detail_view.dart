@@ -14,21 +14,21 @@ import '../../../core/utils/validators.dart';
 import '../../../data/models/organization_image_model.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../providers/geographic_provider.dart';
-import '../../../providers/attendance_provider.dart';
 import '../../../providers/categories_provider.dart';
 import '../../../providers/public_events_provider.dart'
     show organizationsWithEventsProvider;
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/app_section_card.dart';
 import '../../../shared/widgets/geographic_location_picker.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../events/widgets/map.dart';
-import '../utils/vip_attendance_exporter.dart';
 import '../widgets/organization_share_section.dart';
 import 'organization_members_view.dart';
 import 'organization_membership_view.dart';
 import 'organization_payments_view.dart';
+import 'organization_vip_plan_view.dart';
 
 class OrganizationDetailView extends ConsumerStatefulWidget {
   const OrganizationDetailView({super.key, this.organizationId});
@@ -47,7 +47,7 @@ class _OrganizationDetailViewState extends ConsumerState<OrganizationDetailView>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
     final id = widget.organizationId;
     if (id != null && id.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -61,34 +61,6 @@ class _OrganizationDetailViewState extends ConsumerState<OrganizationDetailView>
   void dispose() {
     _tabCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _exportVipReport() async {
-    final orgId = ref.read(selectedOrganizationIdProvider);
-    if (orgId == null) return;
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 1, 12, 31),
-      helpText: 'Selecciona el mes del informe VIP',
-    );
-    if (picked == null || !mounted) return;
-    final month = DateTime(picked.year, picked.month, 1);
-    try {
-      final data = await ref
-          .read(attendanceRepositoryProvider)
-          .fetchOrgVipAttendance(orgId, month);
-      await VipAttendanceExporter.export(data);
-    } catch (_) {
-      if (mounted) {
-        AppFeedback.error(
-          context,
-          'No se pudo generar el informe VIP. Inténtalo de nuevo.',
-        );
-      }
-    }
   }
 
   @override
@@ -137,25 +109,36 @@ class _OrganizationDetailViewState extends ConsumerState<OrganizationDetailView>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            actions: [
-              IconButton(
-                tooltip: 'Informe VIP mensual',
-                icon: Icon(Icons.summarize_outlined, color: context.textOnBg),
-                onPressed: _exportVipReport,
-              ),
-            ],
             bottom: TabBar(
               controller: _tabCtrl,
               isScrollable: true,
               tabAlignment: TabAlignment.start,
               indicatorColor: AppColors.primary,
+              indicatorSize: TabBarIndicatorSize.label,
+              dividerColor: Colors.transparent,
               labelColor: AppColors.primary,
               unselectedLabelColor: context.textMuted,
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 14),
               tabs: const [
-                Tab(text: 'INFO'),
-                Tab(text: 'MIEMBROS'),
-                Tab(text: 'MEMBRESÍA'),
-                Tab(text: 'COBROS'),
+                Tab(icon: Icon(Icons.info_outline, size: 18), text: 'Info'),
+                Tab(
+                  icon: Icon(Icons.group_outlined, size: 18),
+                  text: 'Miembros',
+                ),
+                Tab(
+                  icon: Icon(Icons.card_membership_outlined, size: 18),
+                  text: 'Membresía',
+                ),
+                Tab(icon: Icon(Icons.qr_code_2, size: 18), text: 'Cobros'),
+                Tab(icon: Icon(Icons.stars_rounded, size: 18), text: 'VIP'),
               ],
             ),
           ),
@@ -166,6 +149,7 @@ class _OrganizationDetailViewState extends ConsumerState<OrganizationDetailView>
               const OrganizationMembersView(),
               OrganizationMembershipView(organizationId: org.id),
               OrganizationPaymentsView(organizationId: org.id),
+              OrganizationVipPlanView(organizationId: org.id),
             ],
           ),
         );
@@ -458,6 +442,11 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
               .where((c) => _selectedDanceIds.contains(c.id))
               .map((c) => c.name)
               .join(', ');
+    final hasStyles = selectedStyleNames.isNotEmpty;
+    final hasLocation =
+        (org.locationName?.isNotEmpty ?? false) ||
+        (org.address?.isNotEmpty ?? false) ||
+        (org.latitude != null && org.longitude != null);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -528,15 +517,10 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                         ? NetworkImage(resolvedLogo)
                         : null,
                     child: (_logoBytes == null && resolvedLogo == null)
-                        ? Text(
-                            org.name.isNotEmpty
-                                ? org.name[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        ? const Icon(
+                            Icons.storefront_rounded,
+                            size: 34,
+                            color: AppColors.primary,
                           )
                         : null,
                   ),
@@ -666,6 +650,8 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
           const SizedBox(height: 24),
 
           if (_editing) ...[
+            const _SectionLabel('Datos generales'),
+            const SizedBox(height: 8),
             TextFormField(
               controller: _nameCtrl,
               style: TextStyle(color: context.textOnBg),
@@ -724,16 +710,9 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
                 labelStyle: TextStyle(color: context.textMuted),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Ubicación',
-              style: TextStyle(
-                color: context.textMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 20),
+            const _SectionLabel('Ubicación'),
+            const SizedBox(height: 8),
             const GeographicLocationPicker(),
             const SizedBox(height: 12),
             TextFormField(
@@ -855,40 +834,65 @@ class _InfoTabState extends ConsumerState<_InfoTab> {
               ],
             ),
           ] else ...[
-            _InfoRow(label: 'Nombre', value: org.name),
-            if (org.legalName != null && org.legalName!.isNotEmpty)
-              _InfoRow(label: 'Nombre legal', value: org.legalName!),
-            if (org.description != null && org.description!.isNotEmpty)
-              _InfoRow(label: 'Descripción', value: org.description!),
-            if (org.locationName != null && org.locationName!.isNotEmpty)
-              _InfoRow(label: 'Lugar', value: org.locationName!),
-            if (org.address != null && org.address!.isNotEmpty)
-              _InfoRow(label: 'Dirección', value: org.address!),
-            if (selectedStyleNames.isNotEmpty)
-              _InfoRow(label: 'Estilos', value: selectedStyleNames),
-            if (org.latitude != null && org.longitude != null)
-              _InfoRow(
-                label: 'Coordenadas',
-                value:
-                    '${org.latitude!.toStringAsFixed(5)}, ${org.longitude!.toStringAsFixed(5)}',
+            AppSectionCard(
+              title: 'Datos de la academia',
+              icon: Icons.badge_outlined,
+              trailing: _StatusChip(
+                label: org.isActive ? 'Activa' : 'Inactiva',
+                color: org.isActive ? AppColors.success : AppColors.error,
               ),
-            if (org.email != null && org.email!.isNotEmpty)
-              _InfoRow(label: 'Email', value: org.email!),
-            if (org.phoneNumber != null && org.phoneNumber!.isNotEmpty)
-              _InfoRow(label: 'Teléfono', value: org.phoneNumber!),
-            if (org.websiteUrl != null && org.websiteUrl!.isNotEmpty)
-              _InfoRow(label: 'Website', value: org.websiteUrl!),
-            _InfoRow(label: 'Verificada', value: org.isVerified ? 'Sí' : 'No'),
-            _InfoRow(
-              label: 'Estado',
-              value: org.isActive ? 'Activa' : 'Inactiva',
+              children: [
+                _InfoRow(label: 'Nombre', value: org.name),
+                if (org.legalName != null && org.legalName!.isNotEmpty)
+                  _InfoRow(label: 'Nombre legal', value: org.legalName!),
+                if (org.description != null && org.description!.isNotEmpty)
+                  _InfoRow(label: 'Descripción', value: org.description!),
+                if (org.email != null && org.email!.isNotEmpty)
+                  _InfoRow(label: 'Email', value: org.email!),
+                if (org.phoneNumber != null && org.phoneNumber!.isNotEmpty)
+                  _InfoRow(label: 'Teléfono', value: org.phoneNumber!),
+                if (org.websiteUrl != null && org.websiteUrl!.isNotEmpty)
+                  _InfoRow(label: 'Website', value: org.websiteUrl!),
+              ],
             ),
+            if (hasLocation) ...[
+              const SizedBox(height: 12),
+              AppSectionCard(
+                title: 'Ubicación',
+                icon: Icons.place_outlined,
+                children: [
+                  if (org.locationName != null && org.locationName!.isNotEmpty)
+                    _InfoRow(label: 'Lugar', value: org.locationName!),
+                  if (org.address != null && org.address!.isNotEmpty)
+                    _InfoRow(label: 'Dirección', value: org.address!),
+                  if (org.latitude != null && org.longitude != null)
+                    _InfoRow(
+                      label: 'Coordenadas',
+                      value:
+                          '${org.latitude!.toStringAsFixed(5)}, ${org.longitude!.toStringAsFixed(5)}',
+                    ),
+                ],
+              ),
+            ],
+            if (hasStyles) ...[
+              const SizedBox(height: 12),
+              AppSectionCard(
+                title: 'Estilos que enseña',
+                icon: Icons.music_note_rounded,
+                children: [
+                  Text(
+                    selectedStyleNames,
+                    style: TextStyle(color: context.textOnBg, fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
             if (widget.isAdmin)
               AppButton(
-                label: 'Editar',
+                label: 'Editar información',
                 onPressed: () => setState(() => _editing = true),
-                icon: Icons.edit,
+                icon: Icons.edit_outlined,
                 isOutlined: true,
               ),
           ],
@@ -921,6 +925,53 @@ class _InfoRow extends StatelessWidget {
           const SizedBox(height: 2),
           Text(value, style: TextStyle(color: context.textOnBg, fontSize: 15)),
         ],
+      ),
+    );
+  }
+}
+
+/// Etiqueta de bloque en el formulario de edición.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: context.textOnBg,
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+      ),
+    );
+  }
+}
+
+/// Chip de estado (activa/inactiva) para el encabezado de la tarjeta.
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }

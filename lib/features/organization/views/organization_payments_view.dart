@@ -1,5 +1,6 @@
 // lib/features/organization/views/organization_payments_view.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -221,15 +222,40 @@ class _OrganizationPaymentsViewState
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              Text(
-                'ID de comercio (affiliate_id)',
-                style: TextStyle(color: context.textMuted, fontSize: 12),
-              ),
-              const SizedBox(height: 4),
-              SelectableText(
-                _account!['affiliate_id']?.toString() ?? '-',
-                style: TextStyle(color: context.textOnBg, fontSize: 12),
+              const SizedBox(height: 12),
+              AppSectionCard(
+                title: 'ID de comercio',
+                icon: Icons.badge_outlined,
+                trailing: IconButton(
+                  tooltip: 'Copiar ID',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(
+                        text: _account!['affiliate_id']?.toString() ?? '',
+                      ),
+                    );
+                    if (context.mounted) {
+                      AppFeedback.success(context, 'ID copiado.');
+                    }
+                  },
+                ),
+                children: [
+                  SelectableText(
+                    _account!['affiliate_id']?.toString() ?? '-',
+                    style: TextStyle(
+                      color: context.textOnBg,
+                      fontSize: 12.5,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Identificador de la cuenta de cobros en PagosYa.',
+                    style: TextStyle(color: context.textMuted, fontSize: 11.5),
+                  ),
+                ],
               ),
             ],
           ],
