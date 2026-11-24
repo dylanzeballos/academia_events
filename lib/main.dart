@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Firebase
 import 'package:firebase_core/firebase_core.dart';
@@ -16,8 +17,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
+import 'core/storage/preferences.dart';
 import 'core/theme/app_theme.dart';
-import 'core/theme/theme_transition.dart';
 import 'providers/layout_mode_provider.dart';
 import 'providers/notification_service_provider.dart';
 import 'providers/theme_provider.dart';
@@ -52,7 +53,15 @@ Future<void> main() async {
   // 4. Inicializar Supabase
   await initSupabase();
 
-  runApp(const ProviderScope(child: AcademiaApp()));
+  // 5. Preferencias locales (tema y modo de la app)
+  final preferences = await SharedPreferences.getInstance();
+
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
+      child: const AcademiaApp(),
+    ),
+  );
 }
 
 class AcademiaApp extends ConsumerStatefulWidget {
@@ -155,31 +164,34 @@ class _AcademiaAppState extends ConsumerState<AcademiaApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
+    // Respeta "reducir movimiento" del sistema.
+    final reduceMotion = WidgetsBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .disableAnimations;
 
-    return RepaintBoundary(
-      key: themeRootBoundaryKey,
-      child: MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        title: 'Academia Events',
-        locale: const Locale('es'),
-        supportedLocales: const [
-          Locale('es'),
-          Locale('es', 'BO'),
-          Locale('en'),
-        ],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        scaffoldMessengerKey: scaffoldMessengerKey,
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: themeMode,
-        themeAnimationDuration: const Duration(milliseconds: 450),
-        themeAnimationCurve: Curves.easeInOut,
-        routerConfig: router,
-      ),
+    return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      title: 'Academia Events',
+      locale: const Locale('es'),
+      supportedLocales: const [Locale('es'), Locale('es', 'BO'), Locale('en')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      scaffoldMessengerKey: scaffoldMessengerKey,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
+      // Transición nativa entre temas (AnimatedTheme): corta y con la curva
+      // enfatizada de Material 3 para que no se sienta lenta.
+      themeAnimationDuration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 300),
+      themeAnimationCurve: Curves.easeInOutCubicEmphasized,
+      routerConfig: router,
     );
   }
 }
