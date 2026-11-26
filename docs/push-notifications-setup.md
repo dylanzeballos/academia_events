@@ -59,9 +59,34 @@ Si el trigger no está configurado, la función no recibe nada y en los logs de
   (`IMPORTANCE_HIGH` → banner en pantalla).
 - Permiso `POST_NOTIFICATIONS` en `AndroidManifest.xml` (Android 13+).
 - Con la app abierta, FCM no muestra la notificación del sistema: la app muestra
-  un aviso flotante con acción **Ver** que abre la pestaña de Avisos.
-- Al tocar el push (app en segundo plano o cerrada) se navega a Avisos.
+  un aviso flotante con acción **Ver** que abre la pantalla correspondiente.
+- Al tocar el push (app en segundo plano o cerrada) se navega según el `data`
+  de la notificación: `route=my_invitations` abre **Mis invitaciones**; el resto
+  abre la pestaña de Avisos.
 - El token se elimina de `user_fcm_tokens` al cerrar sesión.
+
+## Invitaciones
+
+Al insertar una fila en `organization_invitations` (migración
+`20261125140000_invitations_accept_decline_notify.sql`) se crea un aviso para el
+usuario invitado, si ya tiene cuenta:
+
+- `type = 'organization_invitation'`
+- `data = { invitation_id, organization_id, route: 'my_invitations' }`
+
+El trigger de `notifications` dispara el push automáticamente, con el mismo
+`route`, así que tocar la notificación lleva a **Mis invitaciones** para
+aceptar o rechazar.
+
+## Vigencia y recordatorios
+
+- Las clases generan **un solo recordatorio, 1 hora antes** (`class_reminder_1h`,
+  job `frequent-class-1h-alerts` cada 15 minutos). Ya no existe el aviso
+  `class_reminder_today`.
+- Los avisos se muestran solo durante **el día en que se generan** (hora de
+  Bolivia).
+- El job `cleanup-daily-notifications` (04:10 UTC = 00:10 Bolivia) elimina los
+  avisos de días anteriores con `public.fn_cleanup_daily_notifications()`.
 
 ## iOS (pendiente de configuración manual)
 

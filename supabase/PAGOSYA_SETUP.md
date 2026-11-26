@@ -8,6 +8,7 @@ organización cobra en su propio banco y la plataforma usa una sola clave `spk_`
 | Pieza | Archivo |
 |---|---|
 | Migración (tablas, RPCs, RLS, revokes) | `supabase/migrations/20261112120000_pagosya_saas_integration.sql` |
+| Administración de planes de membresía | `supabase/migrations/20261123160000_admin_membership_plans.sql` |
 | Cliente compartido (firma, API, CORS) | `supabase/functions/_shared/pagosya.ts` |
 | API autenticada (checkout, onboarding, resumen) | `supabase/functions/pagosya-api/index.ts` |
 | Webhook público | `supabase/functions/pagosya-webhook/index.ts` |
@@ -22,7 +23,7 @@ Cubre **tres tipos de cobro** con el mismo flujo:
 | `class_pass` | `class_enrollments.id` | `class_passes` + tickets de sesión + QR |
 | `membership` | `subscriptions.id` | suscripción `active` + pago |
 | `event_publication` | `events.id` | pago de publicación + notificación al admin |
-| `class_publication` | `dance_classes.id` | pago de publicación + notificación al admin |
+| `class_publication` | `dance_classes.id` | **obsoleto**: las clases se publican con la suscripción; la API responde `CLASS_PUBLICATION_INCLUDED` |
 
 Flujo:
 
@@ -190,26 +191,41 @@ Guarda el `affiliate_id` en `payment_platform_config`. Sin este paso,
 `create_checkout` de una membresía responde `PLATFORM_MERCHANT_NOT_CONFIGURED`
 y la app mantiene la solicitud pendiente.
 
+Después de registrarla, conectá el banco **de la plataforma** desde el mismo
+panel (**Administración → PagosYa → Plataforma**):
+
+- **Conectar banco** abre el enlace temporal de PagosYa para el afiliado de la
+  plataforma (vence a los 30 minutos).
+- **Actualizar estado** consulta `merchant_summary` y muestra el chip
+  `Conectado` / `Sin conectar`.
+- Sin `bank.status = connected`, PagosYa rechaza el cobro con
+  `BANK_INTEGRATION_REQUIRED`.
+
 Para pases de clase se usa el `affiliate_id` de la organización dueña de la
 clase (requiere banco conectado).
 
 ## 4c. Publicaciones de eventos y clases
 
-Desde **Administración → Eventos** o **Clases**, cada registro tiene el botón
-**"QR publicación"**:
+La **publicación de clases** está incluida en la suscripción mensual: desde el
+detalle de la clase la organización la publica sin pagar nada (el RPC
+`class_publication_status` devuelve `requires_payment: false`).
+
+La **publicación de eventos** sigue siendo un pago único. Desde
+**Administración → Eventos**, cada registro tiene el botón **"QR publicación"**:
 
 1. El admin ingresa el monto a cobrar.
 2. Se genera un checkout en la cuenta de la plataforma y se muestra el QR y el
    enlace para compartir con la organización.
 3. Cuando la organización paga, el webhook registra:
-   - una fila en `payments` (`event_publication` / `class_publication`),
-   - una fila en `event_publication_payments` / `dance_class_publication_payments`,
+   - una fila en `payments` (`event_publication`),
+   - una fila en `event_publication_payments`,
    - una **notificación** para todos los administradores de plataforma,
    - y **publica automáticamente**: el evento pasa a `approved` + `published`
-     (salvo que esté `suspended`), y la clase pasa a `published`.
+     (salvo que esté `suspended`).
 
 No se puede generar dos veces el mismo cobro: si la publicación ya fue pagada,
-responde `PUBLICATION_ALREADY_PAID`.
+responde `PUBLICATION_ALREADY_PAID`. Un checkout `class_publication` se rechaza
+con `CLASS_PUBLICATION_INCLUDED` (las clases no se cobran).
 
 ## 4d. Liberación de stock (compras abandonadas)
 
@@ -230,8 +246,11 @@ select public.pagosya_expire_stale_payments(30);
 
 En **Administración → PagosYa** el admin de plataforma tiene:
 
-- **Plataforma**: registrar la plataforma como comercio (una vez) y ver su
-  `affiliate_id`.
+- **Plataforma**: registrar la plataforma como comercio (una vez), ver su
+  `affiliate_id` y conectar el banco de la plataforma.
+- **Planes de membresía**: crear, editar y activar/desactivar planes
+  (nombre, descripción, precio, moneda, frecuencia y límites). Solo los planes
+  `monthly` activos se ofrecen en la app; el anual no habilita publicar.
 - **Plan y cartera**: comercios afiliados, cupo del plan y `capacity_used`
   (`overview`).
 - **Webhook global**: URL, activar/pausar, y rotar el secreto (se muestra una
@@ -250,10 +269,11 @@ Migración: `20261116170000_membership_publication_rules.sql`.
 - **Crear** eventos o clases exige una suscripción `active` con período vigente
   (`guard_event_membership`, `guard_class_membership`).
 - Los eventos y clases nuevos se crean en **`draft`**.
-- **Publicar** exige el pago de publicación (`event_publication_payments` /
-  `dance_class_publication_payments`); el admin de plataforma puede omitirlo.
-- El **pago de publicación no exige membresía**: una organización cuya
-  membresía venció puede publicar pagando el QR.
+- **Publicar una clase** exige membresía mensual vigente y **no tiene costo
+  adicional** (migración `20261125120000_class_publication_included.sql`).
+- **Publicar un evento** exige membresía mensual vigente y el pago de
+  publicación (`event_publication_payments`); el admin de plataforma puede
+  omitirlo.
 - El **carrusel** del calendario principal solo muestra organizaciones con
   membresía activa (`organizations_with_active_membership()`).
 
@@ -319,8 +339,9 @@ Flujo en producción:
 - **Butacas:** se asignan en el servidor al confirmar el pago
   (`pagosya_assign_seats`), no en el cliente.
 - **Clases y membresías:** ya usan el mismo checkout (`kind: class_pass` /
-  `kind: membership`). Las publicaciones usan `event_publication` /
-  `class_publication` desde el panel admin.
+  `kind: membership`). La publicación de **eventos** usa
+  `event_publication`; la de clases está incluida en la suscripción y no
+  genera cobro.
 - **`purchased_seats`** tiene políticas de escritura públicas heredadas; conviene
   revisarlas en una tarea aparte.
 - **Webhook:** si un evento no se puede aplicar (monto/afiliado no coinciden) se

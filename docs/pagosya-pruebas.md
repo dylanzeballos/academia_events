@@ -160,9 +160,13 @@ select public.admin_verify_subscription('<subscription-id>', false); -- rechazar
 
 ### 3.3 Publicaciones (admin de plataforma)
 
-1. Administración → Eventos/Clases → **QR publicación**.
+1. Administración → Eventos → **QR publicación**.
 2. Ingresar un monto.
 3. **Esperado:** QR ficticio.
+
+> Las clases ya no llevan QR de publicación: publicarlas está incluido en la
+> suscripción mensual activa.
+
 4. Para confirmar la publicación de prueba, llamar a la acción
    `sandbox_confirm` con el `intent_id` (el diálogo de QR todavía no tiene el
    botón de simulación):
@@ -176,7 +180,7 @@ curl -X POST https://jhrtpaswcotnwiikdtop.supabase.co/functions/v1/pagosya-api \
 
 ### Criterios de aceptación
 
-- [ ] El QR se genera en las cuatro rutas (ticket, pase, membresía, publicación).
+- [ ] El QR se genera en las rutas de ticket, pase, membresía y publicación de evento.
 - [ ] El aviso de sandbox es visible.
 - [ ] El polling no produce errores y nunca marca `paid`.
 - [ ] Los registros quedan `pending` y con `pagosya_checkout_id` prefijado `sandbox:`.
@@ -294,23 +298,28 @@ curl -i -X POST https://jhrtpaswcotnwiikdtop.supabase.co/functions/v1/pagosya-we
 
 ## 5. Reglas de membresía y publicación (activas)
 
-Implementadas en `supabase/migrations/20261116170000_membership_publication_rules.sql`.
+Base: `supabase/migrations/20261116170000_membership_publication_rules.sql` y
+`20261125120000_class_publication_included.sql`.
 
 | Regla | Cómo se aplica |
 |---|---|
 | Crear evento | Trigger `guard_event_membership` exige membresía activa vigente |
 | Crear clase | Trigger `guard_class_membership` exige membresía activa vigente |
-| Publicar evento/clase | Trigger de pago: exige fila en `event_publication_payments` / `dance_class_publication_payments` (o admin de plataforma) |
-| Publicar sin membresía | Permitido si el pago de publicación existe (la membresía pudo vencer después de crear) |
+| Publicar clase | Trigger `guard_class_publication_payment`: exige membresía **mensual** vigente. **Sin pago adicional** |
+| Publicar evento | Trigger `guard_event_publication_payment`: exige membresía **mensual** + fila en `event_publication_payments` (o admin de plataforma) |
 | Carrusel del calendario | Solo organizaciones con `organization_has_active_membership(id) = true` |
 | Aviso en la app | Las pantallas de creación muestran el bloqueo y el botón **Ver membresías** |
 
-Flujo nuevo:
+Flujo:
 
 1. La organización con membresía activa crea el evento/clase → queda en **`draft`**.
-2. El admin de plataforma genera el **QR publicación** (Administración → Eventos/Clases).
-3. Al confirmarse el pago, `fulfill_publication` publica automáticamente (`published` + `approved`) sin volver a exigir membresía.
-4. Solo las organizaciones con membresía activa aparecen en el carrusel del calendario principal.
+2. **Clase:** desde su detalle, la organización la publica sin costo (solo con
+   suscripción mensual activa).
+3. **Evento:** el admin de plataforma (o la propia organización) genera el
+   **QR publicación** y, al confirmarse el pago, `fulfill_publication` publica
+   automáticamente (`published` + `approved`).
+4. Solo las organizaciones con membresía activa aparecen en el carrusel del
+   calendario principal.
 
 Verificación:
 
