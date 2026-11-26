@@ -1,6 +1,7 @@
 // lib/features/academy/views/academy_dashboard_view.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
 
@@ -17,7 +18,7 @@ import 'dashboard/dashboard_empty_orgs.dart';
 import 'dashboard/dashboard_org_selector.dart';
 import 'dashboard/dashboard_quick_actions.dart';
 import 'dashboard/dashboard_stats_grid.dart';
-import 'dashboard/views_recent_activity_card.dart';
+import 'dashboard/upcoming_sessions_list.dart';
 
 class AcademyDashboardView extends ConsumerStatefulWidget {
   const AcademyDashboardView({super.key});
@@ -116,7 +117,7 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
               ref.invalidate(orgStatsProvider);
               ref.invalidate(orgClassesProvider);
               ref.invalidate(orgWeeklyScheduleEntriesProvider);
-              ref.invalidate(organizationRecentActivityProvider(selectedOrgId));
+              ref.invalidate(nextOrgSessionProvider);
               ref.invalidate(organizationViewsStatsProvider(selectedOrgId));
             },
             child: SingleChildScrollView(
@@ -164,17 +165,34 @@ class _AcademyDashboardViewState extends ConsumerState<AcademyDashboardView> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 5. Actividad Reciente
-                  Text(
-                    'Actividad reciente',
-                    style: TextStyle(
-                      color: context.textOnBg,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  // 5. Sesiones programadas
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Sesiones programadas',
+                        style: TextStyle(
+                          color: context.textOnBg,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => context.go(AppRoutes.academyClasses),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          minimumSize: const Size(44, 44),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        child: const Text(
+                          'Ver horario',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  ViewsRecentActivityCard(organizationId: selectedOrgId),
+                  const SizedBox(height: 4),
+                  const UpcomingSessionsList(),
                   const SizedBox(height: 16),
                 ],
               ),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:academia_events/core/theme/app_colors.dart';
+import 'package:academia_events/core/utils/screen_orientation.dart';
 import 'package:academia_events/core/utils/theme_extensions.dart';
 import 'package:academia_events/providers/notification_provider.dart';
 
@@ -36,7 +37,7 @@ class _StudentShellState extends ConsumerState<StudentShell> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    ScreenOrientation.lockPortrait();
   }
 
   @override
@@ -111,9 +112,7 @@ class _AcademyShellState extends State<AcademyShell> {
   }
 
   Future<void> _resetToPortrait() async {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    await ScreenOrientation.lockPortrait();
   }
 
   Future<void> _onSelectBranch(int index) async {
@@ -130,19 +129,28 @@ class _AcademyShellState extends State<AcademyShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    // En horizontal el horario necesita todo el alto posible: ocultamos la
+    // barra inferior. Solo se puede llegar a horizontal desde "Clases".
+    final hideNav =
+        isLandscape && widget.navigationShell.currentIndex == _classesTabIndex;
+
     return _BackButtonExitGuard(
       isAtRoot: widget.navigationShell.currentIndex == 0,
       onBackToRoot: () => _onSelectBranch(0),
       child: Scaffold(
         backgroundColor: context.scaffoldBg,
         body: widget.navigationShell,
-        bottomNavigationBar: InstagramNavBar(
-          selectedIndex: widget.navigationShell.currentIndex,
-          onDestinationSelected: _onSelectBranch,
-          activeIcons: _activeIcons,
-          inactiveIcons: _inactiveIcons,
-          labels: _labels,
-        ),
+        bottomNavigationBar: hideNav
+            ? null
+            : InstagramNavBar(
+                selectedIndex: widget.navigationShell.currentIndex,
+                onDestinationSelected: _onSelectBranch,
+                activeIcons: _activeIcons,
+                inactiveIcons: _inactiveIcons,
+                labels: _labels,
+              ),
       ),
     );
   }
@@ -280,8 +288,9 @@ class InstagramNavBar extends ConsumerWidget {
                         labels[i],
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                           color: isSelected
                               ? AppColors.primary
                               : context.textMuted,
