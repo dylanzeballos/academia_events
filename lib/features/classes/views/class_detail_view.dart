@@ -10,8 +10,6 @@ import '../../../data/models/dance_class_schedule_model.dart';
 import '../../../data/models/dance_class_session_model.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
-import '../../../data/services/pagosya_service.dart';
-import '../../tickets/views/pagosya_checkout_screen.dart';
 import '../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../shared/widgets/app_empty_state.dart';
 import '../../../shared/widgets/app_error_state.dart';
@@ -1204,7 +1202,7 @@ class _PublicationCardState extends ConsumerState<_PublicationCard> {
       context,
       title: 'Publicar clase',
       message:
-          'El pago de publicación ya está acreditado. '
+          'Tu suscripción está activa. '
           '"${widget.danceClass.title}" quedará visible para el público.',
       confirmLabel: 'Publicar',
     );
@@ -1249,50 +1247,11 @@ class _PublicationCardState extends ConsumerState<_PublicationCard> {
     });
   }
 
-  Future<void> _payAndPublish(double price) async {
-    final ok = await showAppConfirm(
-      context,
-      title: 'Pagar publicación',
-      message:
-          'Se generará un QR de pago por ${_money(price)}. '
-          'La clase se publica automáticamente al confirmarse el pago.',
-      confirmLabel: 'Generar QR',
-    );
-    if (!ok || !mounted) return;
-
-    await _confirmationThen(() async {
-      try {
-        final checkout = await const PagosyaService().createPublicationCheckout(
-          kind: 'class_publication',
-          referenceId: widget.danceClass.id,
-          amount: price,
-        );
-        if (!mounted) return;
-        final paid = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(
-            builder: (_) => PagosyaCheckoutScreen(checkout: checkout),
-          ),
-        );
-        _refresh();
-        if (paid == true && mounted) {
-          AppFeedback.success(
-            context,
-            'Pago confirmado. La clase se publicará automáticamente.',
-          );
-        }
-      } catch (e) {
-        if (mounted) AppFeedback.error(context, friendlyError(e));
-      }
-    });
-  }
-
   void _refresh() {
     ref.invalidate(classPublicationStatusProvider(widget.danceClass.id));
     ref.invalidate(selectedClassProvider);
     ref.invalidate(orgClassesProvider);
   }
-
-  String _money(double value) => 'Bs. ${value.toStringAsFixed(2)}';
 
   @override
   Widget build(BuildContext context) {
@@ -1365,8 +1324,7 @@ class _PublicationCardState extends ConsumerState<_PublicationCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'La clase es visible para el público. Despublicarla no devuelve el '
-            'pago de publicación.',
+            'La clase es visible para el público.',
             style: TextStyle(
               color: context.textMuted,
               fontSize: 12.5,
@@ -1399,49 +1357,12 @@ class _PublicationCardState extends ConsumerState<_PublicationCard> {
       );
     }
 
-    if (status.alreadyPaid) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'El pago de publicación está acreditado. Ya podés publicarla.',
-            style: TextStyle(
-              color: context.textMuted,
-              fontSize: 12.5,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _publishButton(context, price: null),
-        ],
-      );
-    }
-
-    if (!status.hasPrice) {
-      return _message(
-        context,
-        icon: Icons.info_outline_rounded,
-        color: context.textMuted,
-        text:
-            'La plataforma todavía no configuró el precio de publicación. '
-            'Pedile el QR al administrador.',
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Precio de publicación: ${_money(status.price!)} (pago único).',
-          style: TextStyle(
-            color: context.textOnBg,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Pagás con QR y la clase se publica automáticamente.',
+          'Publicar clases está incluido en tu suscripción: no se cobra un '
+          'pago adicional.',
           style: TextStyle(
             color: context.textMuted,
             fontSize: 12.5,
@@ -1449,25 +1370,21 @@ class _PublicationCardState extends ConsumerState<_PublicationCard> {
           ),
         ),
         const SizedBox(height: 12),
-        _publishButton(context, price: status.price),
+        _publishButton(context),
       ],
     );
   }
 
-  Widget _publishButton(BuildContext context, {double? price}) {
+  Widget _publishButton(BuildContext context) {
     return FilledButton.icon(
-      icon: Icon(price == null ? Icons.publish : Icons.qr_code_2, size: 18),
-      label: Text(
-        price == null ? 'Publicar' : 'Pagar ${_money(price)} y publicar',
-      ),
+      icon: const Icon(Icons.publish, size: 18),
+      label: const Text('Publicar'),
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,
         minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
       ),
-      onPressed: _busy
-          ? null
-          : () => price == null ? _publish() : _payAndPublish(price),
+      onPressed: _busy ? null : _publish,
     );
   }
 
