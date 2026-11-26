@@ -769,7 +769,7 @@ class _ModeSheet extends StatelessWidget {
               icon: Icons.person_outline_rounded,
               title: 'Estudiante',
               description:
-                  'Explorá clases y horarios, inscribite y comprá acceso.',
+                  'Explorá clases, comprá tu pase y aparecerá en tu horario.',
               selected: current == AppLayoutMode.student,
             ),
             const SizedBox(height: 10),
@@ -979,8 +979,8 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                 keyboardType: TextInputType.phone,
                 validator: (value) =>
                     value?.trim() == widget.profile.phoneNumber?.trim()
-                        ? null
-                        : AppValidators.phone(value),
+                    ? null
+                    : AppValidators.phone(value),
                 decoration: const InputDecoration(
                   labelText: 'Teléfono con código de país',
                   hintText: 'Ej. +591 71234567',

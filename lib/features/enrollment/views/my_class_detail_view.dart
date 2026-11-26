@@ -645,8 +645,8 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
               ),
             ),
             onPressed: () => _confirmCancel(context),
-            icon: const Icon(Icons.cancel_outlined),
-            label: const Text('Cancelar inscripción'),
+            icon: const Icon(Icons.remove_circle_outline),
+            label: const Text('Quitar de mi horario'),
           ),
       ],
     );
@@ -658,11 +658,12 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: context.cardBg,
         title: Text(
-          'Cancelar inscripción',
+          'Quitar de mi horario',
           style: TextStyle(color: context.textOnBg),
         ),
         content: Text(
-          '¿Seguro que quieres cancelar tu inscripción a esta clase?',
+          '¿Seguro que quieres quitar esta clase de tu horario? '
+          'Podés volver a anotarte cuando quieras.',
           style: TextStyle(color: context.textMuted),
         ),
         actions: [
@@ -676,7 +677,7 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
               foregroundColor: AppColors.onError,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Sí, cancelar'),
+            child: const Text('Sí, quitar'),
           ),
         ],
       ),
@@ -694,7 +695,9 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
       ..showSnackBar(
         SnackBar(
           content: Text(
-            success ? 'Inscripción cancelada.' : 'No se pudo cancelar.',
+            success
+                ? 'Clase quitada de tu horario.'
+                : 'No se pudo quitar la clase.',
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: context.cardBg,

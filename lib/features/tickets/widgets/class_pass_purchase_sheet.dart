@@ -13,6 +13,7 @@ import '../../../data/models/vip_plan_model.dart';
 import '../../../data/services/pagosya_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../../../providers/checkin_provider.dart';
+import '../../../providers/class_enrollment_provider.dart';
 import '../../../providers/class_purchase_provider.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../tickets/views/pagosya_checkout_screen.dart';
@@ -138,6 +139,8 @@ class _ClassPassPurchaseSheetState
         ref.invalidate(myClassTicketsProvider);
         ref.invalidate(classPassQuoteProvider(widget.enrollment.id));
         ref.invalidate(myVipMembershipsProvider);
+        ref.invalidate(myEnrollmentsProvider);
+        ref.invalidate(myClassesOverviewProvider);
         if (mounted) Navigator.of(context).pop(true);
       }
     } on TicketException catch (e) {

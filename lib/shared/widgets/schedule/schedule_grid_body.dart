@@ -119,10 +119,13 @@ class _ScheduleGridBodyState extends State<ScheduleGridBody> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableWidth = constraints.maxWidth - _timeColWidth;
-          final colWidth = (availableWidth / days.length).clamp(
-            _minColWidth,
-            220.0,
-          );
+          // Si las columnas entran, se reparten todo el ancho disponible (en
+          // horizontal se ve la semana completa sin franjas vacías); si no,
+          // se usa el mínimo legible y la grilla scrollea.
+          final rawColWidth = availableWidth / days.length;
+          final colWidth = rawColWidth >= _minColWidth
+              ? rawColWidth
+              : _minColWidth;
           final totalDaysWidth = colWidth * days.length;
 
           return Row(

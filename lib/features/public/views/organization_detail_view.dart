@@ -237,7 +237,11 @@ class _PublicOrganizationDetailViewState
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.stars_rounded, size: 20, color: AppColors.primary),
+                    const Icon(
+                      Icons.stars_rounded,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'INSCRIPCIONES Y PLANES',
@@ -255,10 +259,7 @@ class _PublicOrganizationDetailViewState
                   width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [
-                        AppColors.primary,
-                        Color(0xFF8B5CF6),
-                      ],
+                      colors: [AppColors.primary, Color(0xFF8B5CF6)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -286,7 +287,10 @@ class _PublicOrganizationDetailViewState
                         );
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 18,
+                        ),
                         child: Row(
                           children: [
                             Container(
@@ -307,7 +311,7 @@ class _PublicOrganizationDetailViewState
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    'Inscribirme a Clases',
+                                    'Anotarme a clases',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 17,
@@ -317,9 +321,12 @@ class _PublicOrganizationDetailViewState
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
-                                    'Elige tu clase, paquete de sesiones o Pase VIP',
+                                    'Elegí tu clase, comprá tu pase y aparecerá '
+                                    'en tu horario',
                                     style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.85),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
                                       fontSize: 12,
                                     ),
                                   ),
