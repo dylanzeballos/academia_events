@@ -1,28 +1,30 @@
 /// Estado de publicación de una clase para su organización
 /// (espejo del RPC `class_publication_status`).
+///
+/// Publicar una clase está incluido en la suscripción: solo se informa si la
+/// membresía mensual está vigente. `alreadyPaid` queda por compatibilidad con
+/// pagos de publicación anteriores a ese cambio.
 class ClassPublicationStatus {
   const ClassPublicationStatus({
     required this.alreadyPaid,
     required this.monthlyMembership,
-    this.price,
+    required this.requiresPayment,
   });
 
-  /// Ya existe un pago de publicación registrado.
+  /// Existe un pago de publicación previo (flujo anterior).
   final bool alreadyPaid;
 
   /// La organización tiene suscripción mensual vigente.
   final bool monthlyMembership;
 
-  /// Precio de publicación configurado por la plataforma (null = no configurado).
-  final double? price;
-
-  bool get hasPrice => price != null && price! > 0;
+  /// Las clases nunca requieren pago de publicación.
+  final bool requiresPayment;
 
   factory ClassPublicationStatus.fromJson(Map<String, dynamic> json) {
     return ClassPublicationStatus(
       alreadyPaid: json['already_paid'] as bool? ?? false,
       monthlyMembership: json['monthly_membership'] as bool? ?? false,
-      price: (json['price'] as num?)?.toDouble(),
+      requiresPayment: json['requires_payment'] as bool? ?? false,
     );
   }
 }
