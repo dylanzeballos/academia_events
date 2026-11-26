@@ -163,6 +163,16 @@ class PagosyaService {
     return _invoke({'action': 'platform_merchant_create'});
   }
 
+  /// Estado del comercio de la plataforma (banco) según PagosYa.
+  Future<Map<String, dynamic>> platformMerchantSummary() async {
+    return _invoke({'action': 'platform_merchant_summary'});
+  }
+
+  /// Enlace temporal para conectar el banco del comercio de la plataforma.
+  Future<Map<String, dynamic>> platformBankSession() async {
+    return _invoke({'action': 'platform_bank_session'});
+  }
+
   Future<Map<String, dynamic>> _invoke(Map<String, dynamic> body) async {
     try {
       final response = await supabase.functions.invoke(
@@ -236,6 +246,8 @@ class PagosyaService {
         return 'La membresía no está pendiente de pago.';
       case 'PLATFORM_MERCHANT_NOT_CONFIGURED':
         return 'La cuenta de cobros de la plataforma no está configurada.';
+      case 'SESSION_WITHOUT_TOKEN':
+        return 'PagosYa no devolvió un enlace válido. Intentá de nuevo.';
       case 'INTENT_NOT_FOUND':
         return 'No se encontró el cobro.';
       case 'AMOUNT_REQUIRED':
@@ -244,6 +256,8 @@ class PagosyaService {
         return 'No se encontró el evento o la clase.';
       case 'PUBLICATION_ALREADY_PAID':
         return 'La publicación ya fue pagada.';
+      case 'CLASS_PUBLICATION_INCLUDED':
+        return 'La publicación de clases está incluida en la suscripción activa.';
       case 'PUBLICATION_PRICE_NOT_CONFIGURED':
         return 'La plataforma todavía no configuró el precio de publicación. Pedile el QR al administrador.';
       case 'WEBHOOK_URL_REQUIRED':

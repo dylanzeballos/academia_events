@@ -359,6 +359,12 @@ Deno.serve(async (req) => {
 
       // ------------------------------------ publicaciones (evento / clase)
       if (kind === "event_publication" || kind === "class_publication") {
+        // La publicación de clases está incluida en la suscripción mensual:
+        // no se genera ningún cobro adicional.
+        if (kind === "class_publication") {
+          throw new PagosyaError("CLASS_PUBLICATION_INCLUDED", 409);
+        }
+
         const isEvent = kind === "event_publication";
         const table = isEvent ? "events" : "dance_classes";
         const { data: entity } = await admin
@@ -783,6 +789,52 @@ Deno.serve(async (req) => {
       if (error) throw new PagosyaError("PLATFORM_MERCHANT_SAVE_FAILED", 500);
 
       return json(req, { affiliate_id: affiliateId });
+    }
+
+    // Banco del comercio de la plataforma (membresías y publicaciones).
+    if (action === "platform_merchant_summary") {
+      await requirePlatformAdmin(admin, user.id);
+
+      const { data: config } = await admin
+        .from("payment_platform_config")
+        .select("affiliate_id")
+        .eq("id", true)
+        .maybeSingle();
+      if (!config?.affiliate_id) {
+        throw new PagosyaError("PLATFORM_MERCHANT_NOT_CONFIGURED", 409);
+      }
+
+      const summary = await pagosya("merchant_summary", {
+        affiliate_id: config.affiliate_id,
+      });
+      return json(req, {
+        affiliate_id: config.affiliate_id,
+        bank_status: summary.bank?.status ?? summary.bank_status ?? null,
+        summary,
+      });
+    }
+
+    if (action === "platform_bank_session") {
+      await requirePlatformAdmin(admin, user.id);
+
+      const { data: config } = await admin
+        .from("payment_platform_config")
+        .select("affiliate_id")
+        .eq("id", true)
+        .maybeSingle();
+      if (!config?.affiliate_id) {
+        throw new PagosyaError("PLATFORM_MERCHANT_NOT_CONFIGURED", 409);
+      }
+
+      const session = await pagosya("create_session", {
+        affiliate_id: config.affiliate_id,
+        component: "bank",
+        actor_ref: user.id,
+      });
+
+      if (!session.token) throw new PagosyaError("SESSION_WITHOUT_TOKEN", 502);
+
+      return json(req, { url: `${BANK_URL}#${session.token}`, expires_in: 1800 });
     }
 
     if (action === "create_bank_session") {
