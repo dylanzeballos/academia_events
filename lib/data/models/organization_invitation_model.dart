@@ -13,6 +13,7 @@ class OrganizationInvitationModel {
     this.createdAt,
     this.updatedAt,
     this.organizationName,
+    this.organizationLogoUrl,
     this.inviterName,
   });
 
@@ -27,6 +28,7 @@ class OrganizationInvitationModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String? organizationName;
+  final String? organizationLogoUrl;
   final String? inviterName;
 
   factory OrganizationInvitationModel.fromJson(Map<String, dynamic> json) {
@@ -42,8 +44,9 @@ class OrganizationInvitationModel {
     }
 
     // Support both joined org name and separate fetch
-    final orgName = orgData?['name'] as String? ??
-        json['org_name'] as String?;
+    final orgName = orgData?['name'] as String? ?? json['org_name'] as String?;
+    final orgLogoUrl =
+        orgData?['logo_url'] as String? ?? json['org_logo_url'] as String?;
 
     return OrganizationInvitationModel(
       id: json['id'] as String,
@@ -63,15 +66,15 @@ class OrganizationInvitationModel {
           ? DateTime.tryParse(json['updated_at'] as String)
           : null,
       organizationName: orgName,
+      organizationLogoUrl: orgLogoUrl,
       inviterName: inviterName,
     );
   }
 
   bool get isPending => status == 'pending';
   bool get isAccepted => status == 'accepted';
-  bool get isDeclined => status == 'declined';
-  bool get isExpired =>
-      expiresAt != null && DateTime.now().isAfter(expiresAt!);
+  bool get isDeclined => status == 'rejected' || status == 'declined';
+  bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
 
   String get statusDisplayName {
     switch (status) {

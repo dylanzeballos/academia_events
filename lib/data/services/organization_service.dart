@@ -444,6 +444,7 @@ class OrganizationService {
       final invitations = await supabase
           .from('organization_invitations')
           .select('*')
+          .ilike('email', email)
           .eq('status', 'pending')
           .gt('expires_at', DateTime.now().toIso8601String())
           .order('created_at', ascending: false);
@@ -454,11 +455,26 @@ class OrganizationService {
           try {
             final org = await supabase
                 .from('organizations')
-                .select('name')
+                .select('name, logo_url')
                 .eq('id', orgId)
                 .maybeSingle();
             if (org != null) {
               inv['org_name'] = org['name'] as String?;
+              inv['org_logo_url'] = org['logo_url'] as String?;
+            }
+          } catch (_) {}
+        }
+
+        final inviterId = inv['invited_by'] as String?;
+        if (inviterId != null) {
+          try {
+            final inviter = await supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', inviterId)
+                .maybeSingle();
+            if (inviter != null) {
+              inv['inviter_profile'] = inviter;
             }
           } catch (_) {}
         }
@@ -505,6 +521,17 @@ class OrganizationService {
 
   String _friendlyPostgresError(String message) {
     final msg = message.toLowerCase();
+    if (msg.contains('no te pertenece')) {
+      return 'Esta invitación pertenece a otra cuenta.';
+    }
+    if (msg.contains('ya no está pendiente') ||
+        msg.contains('ya no esta pendiente')) {
+      return 'Esta invitación ya fue respondida.';
+    }
+    if (msg.contains('invitación expiró') ||
+        msg.contains('invitacion expiro')) {
+      return 'La invitación venció.';
+    }
     if (msg.contains('permission denied') ||
         msg.contains('row-level security')) {
       return 'No tienes permiso para realizar esta acción.';
