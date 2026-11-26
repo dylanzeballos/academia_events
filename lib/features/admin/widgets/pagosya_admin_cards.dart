@@ -4,46 +4,148 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../shared/widgets/app_section_card.dart';
 
-/// Registro de la plataforma como comercio de PagosYa.
+/// Registro de la plataforma como comercio de PagosYa y estado de su banco.
 class PagosyaPlatformCard extends StatelessWidget {
   const PagosyaPlatformCard({
     super.key,
     required this.affiliateId,
+    required this.bankStatus,
     required this.busy,
     required this.onRegister,
+    required this.onConnectBank,
+    required this.onRefresh,
+    this.error,
   });
 
   final String? affiliateId;
+  final String? bankStatus;
   final bool busy;
   final VoidCallback onRegister;
+  final VoidCallback onConnectBank;
+  final VoidCallback onRefresh;
+  final String? error;
+
+  bool get _registered => (affiliateId ?? '').isNotEmpty;
+
+  bool get _bankConnected => (bankStatus ?? '').toLowerCase() == 'connected';
+
+  String get _bankLabel {
+    final status = (bankStatus ?? '').trim();
+    if (status.isEmpty) return 'Sin conectar';
+    switch (status.toLowerCase()) {
+      case 'connected':
+        return 'Conectado';
+      case 'pending':
+      case 'in_progress':
+        return 'Pendiente';
+      case 'rejected':
+      case 'failed':
+        return 'Rechazado';
+      default:
+        return status;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final registered = (affiliateId ?? '').isNotEmpty;
-
     return AppSectionCard(
       title: 'Plataforma',
       icon: Icons.account_balance_outlined,
       children: [
         Text(
-          registered
-              ? 'La plataforma ya está registrada como comercio en PagosYa.'
+          _registered
+              ? 'La plataforma ya está registrada como comercio en PagosYa. '
+                    'Las membresías y publicaciones se cobran a esta cuenta.'
               : 'Registrá la plataforma como comercio para cobrar membresías y '
                     'publicaciones con QR. Es un paso único y requiere la clave spk_.',
           style: TextStyle(color: context.textMuted, fontSize: 13, height: 1.4),
         ),
-        if (registered) ...[
-          const SizedBox(height: 8),
-          SelectableText(
-            affiliateId!,
-            style: TextStyle(color: context.textOnBg, fontSize: 12),
-          ),
-        ] else ...[
+        if (!_registered) ...[
           const SizedBox(height: 12),
           FilledButton.icon(
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
             onPressed: busy ? null : onRegister,
             icon: const Icon(Icons.add_business_outlined),
             label: const Text('Registrar plataforma'),
+          ),
+        ] else ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Comercio de la plataforma',
+                      style: TextStyle(
+                        color: context.textMuted,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    SelectableText(
+                      affiliateId!,
+                      style: TextStyle(color: context.textOnBg, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              AppStatusChip(
+                label: _bankLabel,
+                color: _bankConnected ? AppColors.success : AppColors.warning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _bankConnected
+                ? 'El banco está conectado: las membresías ya se pueden cobrar.'
+                : 'Conectá el banco para recibir el dinero de las membresías. '
+                      'Sin banco, PagosYa rechaza el cobro con '
+                      'BANK_INTEGRATION_REQUIRED.',
+            style: TextStyle(
+              color: context.textMuted,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'No se pudo consultar el banco: $error',
+              style: TextStyle(color: AppColors.error, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (!_bankConnected)
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+                  onPressed: busy ? null : onConnectBank,
+                  icon: const Icon(Icons.account_balance_outlined),
+                  label: const Text('Conectar banco'),
+                )
+              else
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 44),
+                  ),
+                  onPressed: busy ? null : onConnectBank,
+                  icon: const Icon(Icons.sync_outlined),
+                  label: const Text('Reconectar banco'),
+                ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+                onPressed: busy ? null : onRefresh,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Actualizar estado'),
+              ),
+            ],
           ),
         ],
       ],
@@ -157,8 +259,16 @@ class PagosyaAccountsCard extends StatelessWidget {
 
   Widget _bankChip(String? status) {
     final connected = status == 'connected';
+    final normalized = status?.trim().toLowerCase();
+    final label = switch (normalized) {
+      null || '' => 'Sin banco',
+      'connected' => 'Conectado',
+      'pending' || 'in_progress' => 'Pendiente',
+      'rejected' || 'failed' => 'Rechazado',
+      _ => status!,
+    };
     return AppStatusChip(
-      label: status ?? 'sin banco',
+      label: label,
       color: connected ? AppColors.success : AppColors.warning,
     );
   }

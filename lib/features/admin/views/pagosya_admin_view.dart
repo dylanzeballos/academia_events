@@ -1,15 +1,20 @@
 // lib/features/admin/views/pagosya_admin_view.dart
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/config/supabase_config.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/theme_extensions.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/services/admin_service.dart';
 import '../../../data/services/pagosya_service.dart';
 import '../../../shared/widgets/app_confirm_dialog.dart';
+import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_responsive_body.dart';
-import '../../../shared/widgets/loading_indicator.dart';
+import '../widgets/membership_plan_dialog.dart';
 import '../widgets/pagosya_admin_cards.dart';
+import '../widgets/pagosya_plans_card.dart';
 import '../widgets/pagosya_webhook_cards.dart';
 import '../widgets/pagosya_webhook_secret_dialog.dart';
 
@@ -23,14 +28,19 @@ class PagosyaAdminView extends StatefulWidget {
 
 class _PagosyaAdminViewState extends State<PagosyaAdminView> {
   static const _service = PagosyaService();
+  static const _adminService = AdminService();
 
   Map<String, dynamic>? _config;
   Map<String, dynamic>? _overview;
   Map<String, dynamic>? _webhook;
+  Map<String, dynamic>? _platformSummary;
   List<Map<String, dynamic>> _accounts = const [];
   List<Map<String, dynamic>> _events = const [];
+  List<Map<String, dynamic>> _plans = const [];
   String? _overviewError;
   String? _webhookError;
+  String? _platformError;
+  String? _plansError;
 
   bool _loading = true;
   bool _busy = false;
@@ -48,8 +58,11 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
       _error = null;
       _overviewError = null;
       _webhookError = null;
+      _platformError = null;
+      _plansError = null;
       _overview = null;
       _webhook = null;
+      _platformSummary = null;
     });
 
     try {
@@ -91,6 +104,13 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
 
     // Datos remotos: un fallo no debe romper el panel.
     try {
+      final plans = await _adminService.fetchMembershipPlans();
+      if (mounted) setState(() => _plans = plans);
+    } catch (e) {
+      if (mounted) setState(() => _plansError = friendlyError(e));
+    }
+
+    try {
       final overview = await _service.overview();
       if (mounted) setState(() => _overview = overview);
     } catch (e) {
@@ -102,6 +122,16 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
       if (mounted) setState(() => _webhook = webhook);
     } catch (e) {
       if (mounted) setState(() => _webhookError = e.toString());
+    }
+
+    final affiliate = _config?['affiliate_id']?.toString() ?? '';
+    if (affiliate.isNotEmpty) {
+      try {
+        final summary = await _service.platformMerchantSummary();
+        if (mounted) setState(() => _platformSummary = summary);
+      } catch (e) {
+        if (mounted) setState(() => _platformError = friendlyError(e));
+      }
     }
   }
 
@@ -125,6 +155,80 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
   Future<void> _registerPlatform() => _run(() async {
     await _service.registerPlatformMerchant();
   }, 'Plataforma registrada en PagosYa.');
+
+  Future<void> _connectPlatformBank() async {
+    setState(() => _busy = true);
+    try {
+      final result = await _service.platformBankSession();
+      final url = result['url'] as String?;
+      if (url == null || url.isEmpty) {
+        throw Exception('PagosYa no devolvió un enlace bancario');
+      }
+      if (!mounted) return;
+      final opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) {
+        AppFeedback.error(context, 'No se pudo abrir PagosYa.');
+      }
+    } catch (e) {
+      if (mounted) AppFeedback.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _refreshPlatformBank() => _run(() async {
+    await _service.platformMerchantSummary();
+  }, 'Estado del banco actualizado.');
+
+  Future<void> _openPlanForm([Map<String, dynamic>? plan]) async {
+    final payload = await showMembershipPlanDialog(context, plan: plan);
+    if (payload == null || !mounted) return;
+
+    final id = payload['id'] as String?;
+    await _run(() async {
+      await _adminService.saveMembershipPlan(
+        id: id,
+        name: payload['name'] as String,
+        description: payload['description'] as String?,
+        price: (payload['price'] as num).toDouble(),
+        currency: payload['currency'] as String,
+        interval: payload['interval'] as String,
+        isActive: payload['isActive'] as bool,
+        canCreateEvents: payload['canCreateEvents'] as bool,
+        canCreateClasses: payload['canCreateClasses'] as bool,
+        showInCalendar: payload['showInCalendar'] as bool,
+        maxEventsPerMonth: payload['maxEventsPerMonth'] as int?,
+        maxClassesPerMonth: payload['maxClassesPerMonth'] as int?,
+      );
+    }, plan == null ? 'Plan creado.' : 'Plan actualizado.');
+  }
+
+  Future<void> _togglePlan(Map<String, dynamic> plan) async {
+    final id = plan['id']?.toString();
+    if (id == null || id.isEmpty) return;
+    final active = plan['is_active'] != false;
+    if (active) {
+      final name = plan['name']?.toString() ?? 'este plan';
+      final ok = await showAppConfirm(
+        context,
+        title: 'Desactivar plan',
+        message:
+            '"$name" dejará de ofrecerse en la app y no habilitará publicar '
+            'clases ni eventos. Podés reactivarlo cuando quieras.',
+        confirmLabel: 'Desactivar',
+        isDangerous: true,
+        icon: Icons.pause_circle_outline,
+      );
+      if (!ok || !mounted) return;
+    }
+    await _run(
+      () => _adminService.setMembershipPlanActive(id, !active),
+      active ? 'Plan desactivado.' : 'Plan activado.',
+    );
+  }
 
   Future<void> _editWebhook() async {
     final url = await showAppPrompt(
@@ -169,6 +273,19 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
 
   Future<void> _toggleWebhook() async {
     if (_webhookUrl.isEmpty) return _editWebhook();
+    if (_webhookEnabled) {
+      final ok = await showAppConfirm(
+        context,
+        title: 'Pausar webhook',
+        message:
+            'Mientras esté pausado, PagosYa no confirmará pagos automáticamente. '
+            '¿Querés pausarlo igual?',
+        confirmLabel: 'Pausar',
+        isDangerous: true,
+        icon: Icons.pause_circle_outline,
+      );
+      if (!ok || !mounted) return;
+    }
     await _run(() async {
       await _service.webhookSet(url: _webhookUrl, enabled: !_webhookEnabled);
     }, _webhookEnabled ? 'Webhook pausado.' : 'Webhook activado.');
@@ -201,27 +318,15 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const LoadingIndicator();
+    if (_loading) return const _PagosyaSkeleton();
 
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: _load, child: const Text('Reintentar')),
-            ],
-          ),
-        ),
-      );
+      return AppErrorState(message: _error!, onRetry: _load);
     }
 
     final affiliate = _config?['affiliate_id']?.toString();
 
-    return LayoutBuilder(
+    final content = LayoutBuilder(
       builder: (context, constraints) {
         final available = constraints.maxWidth.clamp(0, 1100).toDouble();
         final wide = available >= 900;
@@ -230,8 +335,21 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
         final cards = <Widget>[
           PagosyaPlatformCard(
             affiliateId: affiliate,
+            bankStatus: _platformSummary?['bank_status']?.toString(),
             busy: _busy,
+            error: _platformError,
             onRegister: _registerPlatform,
+            onConnectBank: _connectPlatformBank,
+            onRefresh: _refreshPlatformBank,
+          ),
+          PagosyaPlansCard(
+            plans: _plans,
+            busy: _busy,
+            error: _plansError,
+            onCreate: _openPlanForm,
+            onEdit: _openPlanForm,
+            onToggle: _togglePlan,
+            onRetry: _load,
           ),
           PagosyaPlanCard(overview: _overview, error: _overviewError),
           PagosyaWebhookCard(
@@ -265,6 +383,38 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
           ),
         );
       },
+    );
+
+    return Column(
+      children: [
+        if (_busy)
+          const LinearProgressIndicator(minHeight: 2, color: AppColors.primary),
+        Expanded(child: content),
+      ],
+    );
+  }
+}
+
+class _PagosyaSkeleton extends StatelessWidget {
+  const _PagosyaSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Cargando panel de PagosYa',
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: 3,
+        separatorBuilder: (_, _) => const SizedBox(height: 16),
+        itemBuilder: (_, _) => Container(
+          height: 150,
+          decoration: BoxDecoration(
+            color: context.cardBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: context.divider),
+          ),
+        ),
+      ),
     );
   }
 }

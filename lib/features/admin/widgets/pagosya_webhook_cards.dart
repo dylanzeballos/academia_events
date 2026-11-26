@@ -44,13 +44,9 @@ class PagosyaWebhookCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            enabled ? 'Activo' : 'Pausado',
-            style: TextStyle(
-              color: enabled ? AppColors.success : AppColors.warning,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+          AppStatusChip(
+            label: enabled ? 'Activo' : 'Pausado',
+            color: enabled ? AppColors.success : AppColors.warning,
           ),
         ],
         const SizedBox(height: 12),
@@ -59,12 +55,14 @@ class PagosyaWebhookCard extends StatelessWidget {
           runSpacing: 8,
           children: [
             FilledButton.icon(
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
               onPressed: busy ? null : onEdit,
               icon: const Icon(Icons.link),
               label: const Text('Configurar URL'),
             ),
             if (url.isNotEmpty)
               OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
                 onPressed: busy ? null : onToggle,
                 icon: Icon(enabled ? Icons.pause : Icons.play_arrow),
                 label: Text(enabled ? 'Pausar' : 'Activar'),
@@ -138,6 +136,7 @@ class PagosyaEventsCard extends StatelessWidget {
           ),
           if (failed)
             TextButton(
+              style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
               onPressed: busy
                   ? null
                   : () => onRetry(event['event_id'].toString()),
