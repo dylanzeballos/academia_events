@@ -8,20 +8,26 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/class_presentation.dart';
 import '../../../core/utils/public_urls.dart';
 import '../../../core/utils/theme_extensions.dart';
+import '../../../data/models/class_access.dart';
 import '../../../data/models/class_enrollment_model.dart';
 import '../../../data/models/class_model.dart';
+import '../../../data/models/class_pass_model.dart';
 import '../../../data/models/dance_class_schedule_model.dart';
+import '../../../data/models/vip_plan_model.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/checkin_provider.dart';
 import '../../../providers/class_enrollment_provider.dart';
+import '../../../providers/class_purchase_provider.dart';
 import '../../../features/tickets/widgets/class_pass_purchase_sheet.dart';
+import '../app_confirm_dialog.dart';
 import '../app_feedback.dart';
 
 /// Ficha de una clase, como modal desde el horario semanal.
 ///
 /// Muestra lo que el alumno necesita para decidir (ritmo, profesor, días,
-/// horarios, precios y cupos) y resuelve la inscripción sin salir de acá:
-/// confirmación en un diálogo y, al quedar inscrito, el acceso a comprar el
-/// pase de sesiones.
+/// horarios, precios y cupos) y resuelve la compra sin salir de acá: primero
+/// anota al alumno y después abre la compra del pase. La clase entra al
+/// horario recién cuando tiene un pase activo.
 class ClassDetailSheet extends ConsumerStatefulWidget {
   const ClassDetailSheet({
     super.key,
@@ -96,12 +102,14 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
           borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
         ),
         title: Text(
-          'Inscribirme',
+          'Anotarme y comprar pase',
           style: TextStyle(color: dialogContext.textOnBg),
         ),
         content: Text(
-          '¿Confirmás tu inscripción a "${danceClass.title}"?\n\n'
-          'Después vas a poder comprar tu pase de sesiones, mensual o VIP.',
+          'Para que "${danceClass.title}" aparezca en tu horario necesitás un '
+          'pase activo.\n\n'
+          'Primero te anotamos en la clase y después elegís el pase de '
+          'sesiones, mensual o VIP para pagarlo.',
           style: TextStyle(color: dialogContext.textMuted, height: 1.45),
         ),
         actions: [
@@ -118,7 +126,7 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
               foregroundColor: AppColors.onPrimary,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Inscribirme'),
+            child: const Text('Continuar'),
           ),
         ],
       ),
@@ -142,6 +150,47 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
         );
       }
     });
+    if (!success) return;
+
+    // Recién después de pagar el pase la clase entra al horario: abrimos la
+    // compra enseguida para no dejar la inscripción "colgada".
+    try {
+      final enrollments = await ref.read(myEnrollmentsProvider.future);
+      if (!mounted) return;
+      final enrollment = _enrollment(enrollments);
+      if (enrollment != null) await _openPurchase(enrollment);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = friendlyError(e));
+    }
+  }
+
+  Future<void> _confirmRemove(ClassEnrollmentModel enrollment) async {
+    final confirmed = await showAppConfirm(
+      context,
+      title: 'Quitar de mi horario',
+      message:
+          '¿Quitar "${widget.danceClass.title}" de tu horario? '
+          'Podés volver a anotarte cuando quieras.',
+      confirmLabel: 'Quitar',
+      isDangerous: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    final success = await ref
+        .read(enrollmentActionProvider.notifier)
+        .cancel(enrollment.id);
+    if (!mounted) return;
+    if (success) {
+      AppFeedback.success(context, 'Clase quitada de tu horario.');
+      Navigator.pop(context);
+    } else {
+      AppFeedback.error(
+        context,
+        ref.read(enrollmentActionProvider).error ??
+            'No se pudo quitar la clase.',
+      );
+    }
   }
 
   Future<void> _openPurchase(ClassEnrollmentModel enrollment) async {
@@ -176,6 +225,24 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
         ref.watch(myEnrollmentsProvider).value ??
         const <ClassEnrollmentModel>[];
     final enrollment = _enrollment(enrollments);
+
+    final passes =
+        ref.watch(myClassPassesProvider).value ?? const <ClassPassModel>[];
+    final vipMemberships =
+        ref.watch(myVipMembershipsProvider).value ??
+        const <VipMembershipModel>[];
+    final vipOrganizations = vipMemberships
+        .where((v) => v.isActive)
+        .map((v) => v.organizationId)
+        .toSet();
+    final access = ClassAccess.resolve(
+      classId: danceClass.id,
+      organizationId: danceClass.organizationId.isEmpty
+          ? null
+          : danceClass.organizationId,
+      passes: passes,
+      vipOrganizationIds: vipOrganizations,
+    );
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -315,7 +382,7 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              child: _buildAction(context, enrollment, isLoggedIn),
+              child: _buildAction(context, enrollment, isLoggedIn, access),
             ),
           ),
         ],
@@ -327,8 +394,13 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
     BuildContext context,
     ClassEnrollmentModel? enrollment,
     bool isLoggedIn,
+    ClassAccess access,
   ) {
     if (enrollment != null) {
+      final hasAccess = access.kind != ClassAccessKind.none;
+      // Solo ofrecemos quitar cuando no hay pase o cuando ya no tiene horario:
+      // con un pase vigente y sesiones programadas la clase debe quedarse.
+      final canRemove = !hasAccess || widget.schedules.isEmpty;
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -336,18 +408,24 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.check_circle_rounded,
+              Icon(
+                hasAccess
+                    ? Icons.check_circle_rounded
+                    : Icons.lock_clock_outlined,
                 size: 16,
-                color: AppColors.success,
+                color: hasAccess ? AppColors.success : AppColors.warning,
               ),
               const SizedBox(width: 6),
-              Text(
-                'Ya estás inscrito',
-                style: TextStyle(
-                  color: context.textMuted,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  hasAccess
+                      ? 'Ya está en tu horario'
+                      : 'Falta tu pase para verla en el horario',
+                  style: TextStyle(
+                    color: context.textMuted,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -355,7 +433,11 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
           const SizedBox(height: 8),
           FilledButton.icon(
             icon: const Icon(Icons.qr_code_2, size: 18),
-            label: const Text('Comprar sesiones, mensual o VIP'),
+            label: Text(
+              hasAccess
+                  ? 'Comprar más sesiones o pase'
+                  : 'Comprar pase y activarla',
+            ),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
@@ -363,6 +445,15 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
             ),
             onPressed: () => _openPurchase(enrollment),
           ),
+          if (canRemove) ...[
+            const SizedBox(height: 4),
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              onPressed: () => _confirmRemove(enrollment),
+              icon: const Icon(Icons.remove_circle_outline, size: 17),
+              label: const Text('Quitar de mi horario'),
+            ),
+          ],
         ],
       );
     }
@@ -403,8 +494,8 @@ class _ClassDetailSheetState extends ConsumerState<ClassDetailSheet> {
               : const Icon(Icons.assignment_turned_in_outlined, size: 18),
           label: Text(
             isLoggedIn
-                ? 'Inscribirme a esta clase'
-                : 'Iniciá sesión para inscribirte',
+                ? 'Anotarme y comprar pase'
+                : 'Iniciá sesión para anotarte',
           ),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,

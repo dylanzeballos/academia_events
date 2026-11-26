@@ -1,7 +1,7 @@
 /// Organización activa que tiene al menos una clase publicada.
 ///
 /// Se usa para el flujo de exploración: carrusel de organizaciones →
-/// clases `published` de esa organización → botón "Inscribirme".
+/// clases `published` de esa organización → botón "Anotarme".
 class OrganizationWithClasses {
   const OrganizationWithClasses({
     required this.id,

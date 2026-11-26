@@ -166,7 +166,7 @@ class ClassAccessSheet extends ConsumerWidget {
         .where((e) => e.id == enrollmentId)
         .firstOrNull;
     if (enrollment == null || !context.mounted) return;
-    await showModalBottomSheet<void>(
+    final paid = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: context.cardBg,
       isScrollControlled: true,
@@ -177,6 +177,11 @@ class ClassAccessSheet extends ConsumerWidget {
       ),
       builder: (_) => ClassPassPurchaseSheet(enrollment: enrollment),
     );
+    if (paid == true && context.mounted) {
+      ref.invalidate(myEnrollmentsProvider);
+      ref.invalidate(myClassesOverviewProvider);
+      Navigator.pop(context);
+    }
   }
 }
 
