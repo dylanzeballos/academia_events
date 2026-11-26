@@ -43,4 +43,22 @@ class NotificationRepository {
         .eq('user_id', userId)
         .isFilter('read_at', null);
   }
+
+  // Marcar una notificación como no leída
+  Future<void> markAsUnread(String notificationId) async {
+    await _supabase
+        .from('notifications')
+        .update({'read_at': null})
+        .eq('id', notificationId);
+  }
+
+  // Eliminar una notificación
+  Future<void> deleteNotification(String notificationId) async {
+    await _supabase.from('notifications').delete().eq('id', notificationId);
+  }
+
+  // Eliminar todos los avisos del usuario (solo quedan los de hoy)
+  Future<void> deleteAll(String userId) async {
+    await _supabase.from('notifications').delete().eq('user_id', userId);
+  }
 }
