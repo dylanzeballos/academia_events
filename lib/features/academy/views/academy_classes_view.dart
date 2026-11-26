@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/class_presentation.dart';
+import '../../../core/utils/screen_orientation.dart';
 import '../../../core/utils/theme_extensions.dart';
 import '../../../providers/dance_class_provider.dart';
 import '../../../providers/organization_provider.dart';
@@ -31,7 +32,38 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
   /// Ritmo seleccionado para filtrar; `null` = todos.
   String? _selectedGenre;
 
+  /// Deja la pantalla en vertical y espera al frame siguiente antes de navegar:
+  /// así la pantalla destino no se abre rotada.
+  Future<void> _resetToPortrait() async {
+    await ScreenOrientation.lockPortrait();
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  Future<void> _toggleOrientation(bool isLandscape) async {
+    if (isLandscape) {
+      await ScreenOrientation.lockPortrait();
+    } else {
+      await ScreenOrientation.lockLandscape();
+    }
+  }
+
+  Future<void> _backToDashboard() async {
+    await _resetToPortrait();
+    if (!mounted) return;
+    context.go(AppRoutes.academyDashboard);
+  }
+
+  @override
+  void dispose() {
+    // La orientación es estado global: restaurarla evita que otra pantalla
+    // herede el horizontal.
+    ScreenOrientation.lockPortrait();
+    super.dispose();
+  }
+
   Future<void> _openCreateClass() async {
+    await _resetToPortrait();
+    if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ClassCreateView()),
@@ -42,6 +74,8 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
   }
 
   Future<void> _openClassDetail(String classId) async {
+    await _resetToPortrait();
+    if (!mounted) return;
     await context.push('${AppRoutes.classDetail}/$classId');
     if (!mounted) return;
     ref.invalidate(orgClassesProvider);
@@ -54,11 +88,13 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
     final myRole = ref.watch(myOrgRoleProvider);
     final canManage = myRole?.canManageClasses ?? false;
     final legendEntries = entriesAsync.value ?? const <OrgScheduleEntry>[];
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return PopScope<void>(
       canPop: false,
-      onPopInvokedWithResult: (_, _) {
-        if (mounted) context.go(AppRoutes.academyDashboard);
+      onPopInvokedWithResult: (_, _) async {
+        await _backToDashboard();
       },
       child: Scaffold(
         backgroundColor: context.scaffoldBg,
@@ -72,7 +108,7 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
               color: context.textOnBg,
               size: 20,
             ),
-            onPressed: () => context.go(AppRoutes.academyDashboard),
+            onPressed: _backToDashboard,
           ),
           title: Text(
             'Horario semanal',
@@ -84,6 +120,16 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
           ),
           actions: [
             IconButton(
+              tooltip: isLandscape ? 'Volver a vertical' : 'Ver en horizontal',
+              icon: Icon(
+                isLandscape
+                    ? Icons.screen_lock_portrait_rounded
+                    : Icons.screen_rotation_rounded,
+                color: AppColors.primary,
+              ),
+              onPressed: () => _toggleOrientation(isLandscape),
+            ),
+            IconButton(
               tooltip: 'Actualizar horario',
               icon: Icon(Icons.refresh_rounded, color: context.textMuted),
               onPressed: () {
@@ -92,7 +138,7 @@ class _AcademyClassesViewState extends ConsumerState<AcademyClassesView> {
               },
             ),
           ],
-          bottom: legendEntries.isEmpty
+          bottom: legendEntries.isEmpty || isLandscape
               ? null
               : PreferredSize(
                   preferredSize: const Size.fromHeight(38),
