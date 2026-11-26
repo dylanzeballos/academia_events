@@ -67,6 +67,17 @@ String friendlyError(Object error) {
       lower.contains('pasarela de pagos no está configurada')) {
     return text;
   }
+  if (lower.contains('no te pertenece')) {
+    return 'Esta invitación pertenece a otra cuenta.';
+  }
+  if (lower.contains('ya no está pendiente') ||
+      lower.contains('ya no esta pendiente')) {
+    return 'Esta invitación ya fue respondida.';
+  }
+  if (lower.contains('invitación expiró') ||
+      lower.contains('invitacion expiro')) {
+    return 'La invitación venció.';
+  }
   if (lower.contains('permission') ||
       lower.contains('row-level security') ||
       lower.contains('not authorized') ||

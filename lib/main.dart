@@ -98,15 +98,13 @@ class _AcademiaAppState extends ConsumerState<AcademiaApp> {
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
     // El usuario tocó una notificación con la app en segundo plano.
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      _openNotifications();
-    });
+    FirebaseMessaging.onMessageOpenedApp.listen(_openFromMessage);
 
     // La app estaba cerrada y se abrió desde una notificación.
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message == null) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _openNotifications();
+        _openFromMessage(message);
       });
     });
   }
@@ -144,9 +142,31 @@ class _AcademiaAppState extends ConsumerState<AcademiaApp> {
               ],
             ],
           ),
-          action: SnackBarAction(label: 'Ver', onPressed: _openNotifications),
+          action: SnackBarAction(
+            label: 'Ver',
+            onPressed: () => _openFromMessage(message),
+          ),
         ),
       );
+  }
+
+  /// Abre la pantalla que corresponde al push: invitaciones o el centro de
+  /// avisos. El backend envía `route=my_invitations` en el `data` del push.
+  void _openFromMessage(RemoteMessage message) {
+    if (Supabase.instance.client.auth.currentUser == null) return;
+
+    final data = message.data;
+    final type = data['type']?.toString();
+    final route = data['route']?.toString();
+
+    if (type == 'organization_invitation' ||
+        route == 'my_invitations' ||
+        data['invitation_id'] != null) {
+      ref.read(appRouterProvider).go(AppRoutes.myInvitations);
+      return;
+    }
+
+    _openNotifications();
   }
 
   void _openNotifications() {
