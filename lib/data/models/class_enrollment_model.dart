@@ -77,16 +77,16 @@ class ClassEnrollmentModel {
       userId: json['user_id'] as String,
       status: (json['status'] as String?) ?? 'pending',
       enrolledAt: json['enrolled_at'] != null
-          ? DateTime.tryParse(json['enrolled_at'] as String)
+          ? DateTime.tryParse(json['enrolled_at'] as String)?.toLocal()
           : null,
       cancelledAt: json['cancelled_at'] != null
-          ? DateTime.tryParse(json['cancelled_at'] as String)
+          ? DateTime.tryParse(json['cancelled_at'] as String)?.toLocal()
           : null,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'] as String)?.toLocal()
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'] as String)
+          ? DateTime.tryParse(json['updated_at'] as String)?.toLocal()
           : null,
       classTitle:
           danceClass?['title'] as String? ?? json['class_title'] as String?,
@@ -110,9 +110,9 @@ class ClassEnrollmentModel {
     'dance_class_id': danceClassId,
     'user_id': userId,
     'status': status,
-    'enrolled_at': enrolledAt?.toIso8601String(),
-    'cancelled_at': cancelledAt?.toIso8601String(),
-    'created_at': createdAt?.toIso8601String(),
-    'updated_at': updatedAt?.toIso8601String(),
+    'enrolled_at': enrolledAt?.toUtc().toIso8601String(),
+    'cancelled_at': cancelledAt?.toUtc().toIso8601String(),
+    'created_at': createdAt?.toUtc().toIso8601String(),
+    'updated_at': updatedAt?.toUtc().toIso8601String(),
   };
 }

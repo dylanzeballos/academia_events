@@ -29,7 +29,7 @@ class EventTicketModel {
       qrData: json['qr_data'] as String?,
       eventTitle: event['title'] as String,
       eventCoverImageUrl: event['cover_image_url'] as String?,
-      eventStartAt: DateTime.parse(event['start_at'] as String),
+      eventStartAt: DateTime.parse(event['start_at'] as String).toLocal(),
       ticketTypeName: ticketType['name'] as String,
     );
   }

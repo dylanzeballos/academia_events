@@ -17,7 +17,8 @@ class VipAttendanceData {
 
   factory VipAttendanceData.fromJson(Map<String, dynamic> json) {
     return VipAttendanceData(
-      monthStart: DateTime.tryParse(json['month_start'] as String? ?? '') ??
+      monthStart:
+          DateTime.tryParse(json['month_start'] as String? ?? '') ??
           DateTime.now(),
       classes: [
         for (final c in (json['classes'] as List? ?? const []))
@@ -133,7 +134,7 @@ class VipMark {
       userId: json['user_id'] as String? ?? '',
       classId: json['class_id'] as String? ?? '',
       recordedAt: json['recorded_at'] != null
-          ? DateTime.tryParse(json['recorded_at'] as String)
+          ? DateTime.tryParse(json['recorded_at'] as String)?.toLocal()
           : null,
     );
   }

@@ -79,7 +79,7 @@ final userGroupedTicketsProvider =
             eventTitle: event['title'] as String? ?? 'Evento',
             coverImageUrl: event['cover_image_url'] as String?,
             eventStartAt: event['start_at'] != null
-                ? DateTime.tryParse(event['start_at'])
+                ? DateTime.tryParse(event['start_at'])?.toLocal()
                 : null,
             orders: [],
           );

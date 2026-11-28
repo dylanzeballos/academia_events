@@ -737,10 +737,10 @@ class _MonthlyCard extends StatelessWidget {
     final sessions = (data['session_count'] as num?)?.toInt() ?? 0;
     final currency = (data['currency'] as String?) ?? 'BOB';
     final start = data['period_start'] != null
-        ? DateTime.tryParse(data['period_start'] as String)
+        ? DateTime.tryParse(data['period_start'] as String)?.toLocal()
         : null;
     final end = data['period_end'] != null
-        ? DateTime.tryParse(data['period_end'] as String)
+        ? DateTime.tryParse(data['period_end'] as String)?.toLocal()
         : null;
 
     return _OfferCard(

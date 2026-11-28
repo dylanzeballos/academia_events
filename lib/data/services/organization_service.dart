@@ -446,7 +446,7 @@ class OrganizationService {
           .select('*')
           .ilike('email', email)
           .eq('status', 'pending')
-          .gt('expires_at', DateTime.now().toIso8601String())
+          .gt('expires_at', DateTime.now().toUtc().toIso8601String())
           .order('created_at', ascending: false);
 
       for (final inv in invitations) {

@@ -48,10 +48,10 @@ class VipPlanModel {
           .map((e) => VipPlanClass.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       periodStart: json['period_start'] != null
-          ? DateTime.tryParse(json['period_start'] as String)
+          ? DateTime.tryParse(json['period_start'] as String)?.toLocal()
           : null,
       periodEnd: json['period_end'] != null
-          ? DateTime.tryParse(json['period_end'] as String)
+          ? DateTime.tryParse(json['period_end'] as String)?.toLocal()
           : null,
     );
   }
@@ -117,8 +117,8 @@ class VipMembershipModel {
       status: (json['status'] as String?) ?? 'active',
       price: (json['price'] as num?)?.toDouble() ?? 0,
       currency: (json['currency'] as String?)?.trim() ?? 'BOB',
-      startsAt: DateTime.parse(json['starts_at'] as String),
-      endsAt: DateTime.parse(json['ends_at'] as String),
+      startsAt: DateTime.parse(json['starts_at'] as String).toLocal(),
+      endsAt: DateTime.parse(json['ends_at'] as String).toLocal(),
       planName: json['plan_name'] as String?,
     );
   }

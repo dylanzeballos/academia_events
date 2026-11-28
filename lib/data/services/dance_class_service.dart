@@ -321,8 +321,8 @@ class DanceClassService {
       await supabase
           .from('dance_class_sessions')
           .update({
-            'start_at': newStartAt.toIso8601String(),
-            'end_at': newEndAt.toIso8601String(),
+            'start_at': newStartAt.toUtc().toIso8601String(),
+            'end_at': newEndAt.toUtc().toIso8601String(),
             'status': 'rescheduled',
           })
           .eq('id', sessionId);
@@ -401,8 +401,8 @@ class DanceClassService {
             'dance_class_id': classId,
             'schedule_id': scheduleId,
             'session_date': current.toIso8601String().split('T')[0],
-            'start_at': sessionStart.toIso8601String(),
-            'end_at': sessionEnd.toIso8601String(),
+            'start_at': sessionStart.toUtc().toIso8601String(),
+            'end_at': sessionEnd.toUtc().toIso8601String(),
             'status': 'scheduled',
             'location_override': locationOverride,
           });

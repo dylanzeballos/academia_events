@@ -46,18 +46,18 @@ class DanceClassSessionModel {
       id: json['id'] as String,
       danceClassId: json['dance_class_id'] as String,
       sessionDate: DateTime.parse(json['session_date'] as String),
-      startAt: DateTime.parse(json['start_at'] as String),
-      endAt: DateTime.parse(json['end_at'] as String),
+      startAt: DateTime.parse(json['start_at'] as String).toLocal(),
+      endAt: DateTime.parse(json['end_at'] as String).toLocal(),
       scheduleId: json['schedule_id'] as String?,
       status: (json['status'] as String?) ?? 'scheduled',
       locationOverride: json['location_override'] as Map<String, dynamic>?,
       cancelledReason: json['cancelled_reason'] as String?,
       isCompleted: (json['is_completed'] as bool?) ?? false,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'] as String)?.toLocal()
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'] as String)
+          ? DateTime.tryParse(json['updated_at'] as String)?.toLocal()
           : null,
     );
   }
@@ -65,8 +65,8 @@ class DanceClassSessionModel {
   Map<String, dynamic> toJson() => {
     'dance_class_id': danceClassId,
     'session_date': sessionDate.toIso8601String().split('T')[0],
-    'start_at': startAt.toIso8601String(),
-    'end_at': endAt.toIso8601String(),
+    'start_at': startAt.toUtc().toIso8601String(),
+    'end_at': endAt.toUtc().toIso8601String(),
     'schedule_id': scheduleId,
     'status': status,
     'location_override': locationOverride,
@@ -107,8 +107,8 @@ class NextClassSession {
       id: json['id'] as String,
       classId: danceClass?['id'] as String? ?? '',
       classTitle: danceClass?['title'] as String? ?? 'Clase',
-      startAt: DateTime.parse(json['start_at'] as String),
-      endAt: DateTime.parse(json['end_at'] as String),
+      startAt: DateTime.parse(json['start_at'] as String).toLocal(),
+      endAt: DateTime.parse(json['end_at'] as String).toLocal(),
     );
   }
 }

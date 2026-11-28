@@ -51,8 +51,8 @@ class ClassPassModel {
   factory ClassPassModel.fromJson(Map<String, dynamic> json) {
     return ClassPassModel(
       id: json['id'] as String,
-      startsAt: DateTime.parse(json['starts_at'] as String),
-      endsAt: DateTime.parse(json['ends_at'] as String),
+      startsAt: DateTime.parse(json['starts_at'] as String).toLocal(),
+      endsAt: DateTime.parse(json['ends_at'] as String).toLocal(),
       passStatus: json['pass_status'] as String? ?? 'active',
       classId: json['class_id'] as String,
       enrollmentId: json['enrollment_id'] as String,

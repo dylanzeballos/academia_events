@@ -68,12 +68,14 @@ class SessionStats {
   factory SessionStats.fromJson(Map<String, dynamic> json) {
     return SessionStats(
       sessionId: json['session_id'] as String? ?? '',
-      sessionDate: DateTime.tryParse(json['session_date'] as String? ?? '') ??
+      sessionDate:
+          DateTime.tryParse(json['session_date'] as String? ?? '') ??
           DateTime.now(),
-      startAt: DateTime.tryParse(json['start_at'] as String? ?? '') ??
+      startAt:
+          DateTime.tryParse(json['start_at'] as String? ?? '')?.toLocal() ??
           DateTime.now(),
       endAt: json['end_at'] != null
-          ? DateTime.tryParse(json['end_at'] as String)
+          ? DateTime.tryParse(json['end_at'] as String)?.toLocal()
           : null,
       status: json['status'] as String? ?? 'scheduled',
       present: (json['present'] as num?)?.toInt() ?? 0,
@@ -126,7 +128,7 @@ class ClassStudent {
       sessionsTotal: (json['sessions_total'] as num?)?.toInt() ?? 0,
       lastAttendanceStatus: json['last_attendance_status'] as String?,
       lastCheckInTime: json['last_check_in_time'] != null
-          ? DateTime.tryParse(json['last_check_in_time'] as String)
+          ? DateTime.tryParse(json['last_check_in_time'] as String)?.toLocal()
           : null,
       attendance: [
         for (final a in (json['attendance'] as List? ?? const []))
@@ -165,11 +167,12 @@ class StudentSessionAttendance {
   factory StudentSessionAttendance.fromJson(Map<String, dynamic> json) {
     return StudentSessionAttendance(
       sessionId: json['session_id'] as String? ?? '',
-      sessionDate: DateTime.tryParse(json['session_date'] as String? ?? '') ??
+      sessionDate:
+          DateTime.tryParse(json['session_date'] as String? ?? '') ??
           DateTime.now(),
       status: json['status'] as String? ?? '',
       recordedAt: json['recorded_at'] != null
-          ? DateTime.tryParse(json['recorded_at'] as String)
+          ? DateTime.tryParse(json['recorded_at'] as String)?.toLocal()
           : null,
     );
   }

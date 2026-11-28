@@ -99,10 +99,10 @@ class ClassModel {
               as String?,
       currency: (json['currency'] as String?) ?? 'BOB',
       startTime: json['start_at'] != null
-          ? DateTime.tryParse(json['start_at'] as String)
+          ? DateTime.tryParse(json['start_at'] as String)?.toLocal()
           : null,
       endTime: json['end_at'] != null
-          ? DateTime.tryParse(json['end_at'] as String)
+          ? DateTime.tryParse(json['end_at'] as String)?.toLocal()
           : null,
       timezone: (json['timezone'] as String?) ?? 'America/La_Paz',
       instructorId: json['instructor_id'] as String?,
@@ -122,8 +122,8 @@ class ClassModel {
     'price_monthly': priceMonthly,
     'dance_category_id': danceCategoryId,
     'currency': currency,
-    'start_at': startTime?.toIso8601String(),
-    'end_at': endTime?.toIso8601String(),
+    'start_at': startTime?.toUtc().toIso8601String(),
+    'end_at': endTime?.toUtc().toIso8601String(),
     'timezone': timezone,
     'instructor_id': instructorId,
   };

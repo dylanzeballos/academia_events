@@ -67,7 +67,8 @@ class _OrganizationMembershipViewState
         final pending = _pendingMembership(memberships);
         final activeEnd = active == null
             ? null
-            : DateTime.tryParse(active['current_period_end']?.toString() ?? '');
+            : DateTime.tryParse(active['current_period_end']?.toString() ?? '')
+                  ?.toLocal();
         final canRenewNow =
             active != null &&
             activeEnd != null &&
@@ -148,7 +149,7 @@ class _OrganizationMembershipViewState
       if (membership['status'] != 'active') continue;
       final end = DateTime.tryParse(
         membership['current_period_end']?.toString() ?? '',
-      );
+      )?.toLocal();
       if (end != null && !end.isAfter(now)) continue;
       if (best == null ||
           (end != null && (bestEnd == null || end.isAfter(bestEnd)))) {
@@ -463,14 +464,23 @@ class _MembershipStatusCard extends StatelessWidget {
     return plan is Map ? plan['name']?.toString() ?? 'Membresía' : 'Membresía';
   }
 
+  String _formatPeriodDate(Object? value) {
+    final parsed = DateTime.tryParse(value?.toString() ?? '');
+    if (parsed == null) return value?.toString().split('T').first ?? '—';
+    final local = parsed.toLocal();
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '${local.year}-$month-$day';
+  }
+
   String get _period {
-    final start = membership['current_period_start']
-        ?.toString()
-        .split('T')
-        .first;
-    final end = membership['current_period_end']?.toString().split('T').first;
-    if (start == null && end == null) return 'Fechas pendientes';
-    return '${start ?? '—'} al ${end ?? '—'}';
+    final start = _formatPeriodDate(membership['current_period_start']);
+    final end = _formatPeriodDate(membership['current_period_end']);
+    if (membership['current_period_start'] == null &&
+        membership['current_period_end'] == null) {
+      return 'Fechas pendientes';
+    }
+    return '$start al $end';
   }
 
   @override

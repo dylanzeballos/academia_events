@@ -28,15 +28,17 @@ class NotificationModel {
       type: json['type'] as String,
       title: json['title'] as String,
       message: json['message'] as String,
-      data: json['data'] != null ? Map<String, dynamic>.from(json['data'] as Map) : null,
-      readAt: json['read_at'] != null ? DateTime.parse(json['read_at'] as String) : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      data: json['data'] != null
+          ? Map<String, dynamic>.from(json['data'] as Map)
+          : null,
+      readAt: json['read_at'] != null
+          ? DateTime.parse(json['read_at'] as String).toLocal()
+          : null,
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
     );
   }
 
-  NotificationModel copyWith({
-    DateTime? readAt,
-  }) {
+  NotificationModel copyWith({DateTime? readAt}) {
     return NotificationModel(
       id: id,
       userId: userId,

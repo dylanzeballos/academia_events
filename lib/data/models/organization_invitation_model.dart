@@ -57,13 +57,13 @@ class OrganizationInvitationModel {
       status: json['status'] as String,
       token: json['token'] as String?,
       expiresAt: json['expires_at'] != null
-          ? DateTime.tryParse(json['expires_at'] as String)
+          ? DateTime.tryParse(json['expires_at'] as String)?.toLocal()
           : null,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'] as String)?.toLocal()
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'] as String)
+          ? DateTime.tryParse(json['updated_at'] as String)?.toLocal()
           : null,
       organizationName: orgName,
       organizationLogoUrl: orgLogoUrl,

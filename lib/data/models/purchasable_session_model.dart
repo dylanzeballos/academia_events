@@ -32,8 +32,8 @@ class PurchasableSession {
     return PurchasableSession(
       id: json['id'] as String,
       sessionDate: DateTime.parse(json['session_date'] as String),
-      startAt: DateTime.parse(json['start_at'] as String),
-      endAt: DateTime.parse(json['end_at'] as String),
+      startAt: DateTime.parse(json['start_at'] as String).toLocal(),
+      endAt: DateTime.parse(json['end_at'] as String).toLocal(),
       capacity: (json['capacity'] as num?)?.toInt(),
       occupied: (json['occupied'] as num?)?.toInt() ?? 0,
       pricePerSession: (json['price_per_session'] as num?)?.toDouble() ?? 0,

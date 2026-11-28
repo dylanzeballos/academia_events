@@ -308,7 +308,7 @@ class OrganizationActivityItem {
           ? (json['user_name'] as String).trim()
           : 'Usuario',
       actionText: (json['action_text'] as String?) ?? '',
-      occurredAt: DateTime.parse(json['occurred_at'] as String),
+      occurredAt: DateTime.parse(json['occurred_at'] as String).toLocal(),
     );
   }
 }

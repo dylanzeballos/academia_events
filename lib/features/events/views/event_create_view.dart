@@ -333,8 +333,8 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'slug': slug,
         'description': description,
         'contact_phone': contact.isNotEmpty ? contact : null,
-        'start_at': startAt.toIso8601String(),
-        'end_at': endAt.toIso8601String(),
+        'start_at': startAt.toUtc().toIso8601String(),
+        'end_at': endAt.toUtc().toIso8601String(),
         'timezone': 'America/La_Paz',
         'status': 'draft',
         'moderation_status': 'approved',
@@ -364,8 +364,8 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
                 'quantity': _selectedVenueCapacity ?? 100,
                 'currency': 'BOB',
                 'is_active': true,
-                'sales_start_at': now.toIso8601String(),
-                'sales_end_at': endAt.toIso8601String(),
+                'sales_start_at': now.toUtc().toIso8601String(),
+                'sales_end_at': endAt.toUtc().toIso8601String(),
               },
             ];
 

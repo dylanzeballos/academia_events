@@ -213,8 +213,8 @@ class EventModel {
       contactPhone: json['contact_phone'] as String?,
       rulesPdfUrl: json['rules_pdf_url'] as String?,
       location: parsedLocation,
-      startTime: DateTime.parse(json['start_at'] as String),
-      endTime: DateTime.parse(json['end_at'] as String),
+      startTime: DateTime.parse(json['start_at'] as String).toLocal(),
+      endTime: DateTime.parse(json['end_at'] as String).toLocal(),
       timezone: (json['timezone'] as String?) ?? 'America/La_Paz',
       capacity: (json['capacity'] as num?)?.toInt(),
       status: (json['status'] as String?) ?? 'draft',
@@ -222,10 +222,10 @@ class EventModel {
       visibility: (json['visibility'] as String?) ?? 'public',
       requiresApproval: (json['requires_approval'] as bool?) ?? true,
       publishedAt: json['published_at'] != null
-          ? DateTime.tryParse(json['published_at'] as String)
+          ? DateTime.tryParse(json['published_at'] as String)?.toLocal()
           : null,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'] as String)?.toLocal()
           : null,
       ticketTypes: parsedTickets,
     );
@@ -239,8 +239,8 @@ class EventModel {
     'venue_id': venueId,
     'description': description,
     'cover_image_url': coverImageUrl,
-    'start_at': startTime.toIso8601String(),
-    'end_at': endTime.toIso8601String(),
+    'start_at': startTime.toUtc().toIso8601String(),
+    'end_at': endTime.toUtc().toIso8601String(),
     'timezone': timezone,
     'capacity': capacity,
     'status': status,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:academia_events/core/theme/app_colors.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -1157,7 +1158,9 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
     if (value == null) return null;
     final text = value.toString().trim();
     if (text.isEmpty) return null;
-    return text.split('T').first;
+    final parsed = DateTime.tryParse(text);
+    if (parsed == null) return text.split('T').first;
+    return DateFormat('yyyy-MM-dd').format(parsed.toLocal());
   }
 
   String? _shortId(Object? value) {

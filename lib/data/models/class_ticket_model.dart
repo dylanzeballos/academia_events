@@ -44,12 +44,12 @@ class ClassTicketModel {
   bool get canShowQr => isIssued && qrToken != null;
 
   String get statusDisplayName => switch (status) {
-        'issued' => 'Vigente',
-        'used' => 'Usado',
-        'expired' => 'Expirado',
-        'cancelled' => 'Cancelado',
-        _ => DisplayLabels.status(status),
-      };
+    'issued' => 'Vigente',
+    'used' => 'Usado',
+    'expired' => 'Expirado',
+    'cancelled' => 'Cancelado',
+    _ => DisplayLabels.status(status),
+  };
 
   factory ClassTicketModel.fromJson(Map<String, dynamic> json) {
     return ClassTicketModel(
@@ -60,16 +60,17 @@ class ClassTicketModel {
       classId: json['class_id'] as String,
       classTitle: json['class_title'] as String,
       organizationName: json['organization_name'] as String?,
-      sessionStartAt: DateTime.parse(json['session_start_at'] as String),
-      sessionEndAt: DateTime.parse(json['session_end_at'] as String),
+      sessionStartAt: DateTime.parse(json['session_start_at'] as String)
+          .toLocal(),
+      sessionEndAt: DateTime.parse(json['session_end_at'] as String).toLocal(),
       passStatus: json['pass_status'] as String? ?? 'active',
       usedAt: json['used_at'] != null
-          ? DateTime.tryParse(json['used_at'] as String)
+          ? DateTime.tryParse(json['used_at'] as String)?.toLocal()
           : null,
       qrToken: json['qr_token'] as String?,
       qrActive: (json['qr_active'] as bool?) ?? false,
       qrExpiresAt: json['qr_expires_at'] != null
-          ? DateTime.tryParse(json['qr_expires_at'] as String)
+          ? DateTime.tryParse(json['qr_expires_at'] as String)?.toLocal()
           : null,
     );
   }

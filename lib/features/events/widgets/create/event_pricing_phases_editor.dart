@@ -38,7 +38,7 @@ class EventPricingPhasesEditor extends StatefulWidget {
   final DateTime eventStartDate;
   final DateTime eventEndDate;
   final bool isTheatreEvent;
-  final  ValueChanged<List<Map<String, dynamic>>> onTicketsDataChanged;
+  final ValueChanged<List<Map<String, dynamic>>> onTicketsDataChanged;
 
   @override
   State<EventPricingPhasesEditor> createState() =>
@@ -184,8 +184,8 @@ class _EventPricingPhasesEditorState extends State<EventPricingPhasesEditor> {
         'quantity': stock,
         'currency': 'BOB',
         'is_active': true,
-        'sales_start_at': DateTime.now().toIso8601String(),
-        'sales_end_at': widget.eventEndDate.toIso8601String(),
+        'sales_start_at': DateTime.now().toUtc().toIso8601String(),
+        'sales_end_at': widget.eventEndDate.toUtc().toIso8601String(),
       });
     } else {
       for (final phase in _phases) {
@@ -199,8 +199,8 @@ class _EventPricingPhasesEditorState extends State<EventPricingPhasesEditor> {
           'quantity': stock,
           'currency': 'BOB',
           'is_active': true,
-          'sales_start_at': phase.startDate?.toIso8601String(),
-          'sales_end_at': phase.endDate?.toIso8601String(),
+          'sales_start_at': phase.startDate?.toUtc().toIso8601String(),
+          'sales_end_at': phase.endDate?.toUtc().toIso8601String(),
         });
       }
     }
@@ -213,7 +213,8 @@ class _EventPricingPhasesEditorState extends State<EventPricingPhasesEditor> {
     final minDate = phase.startDate ?? DateTime.now();
     final maxDate = widget.eventEndDate;
 
-    final safeInitial = (phase.endDate != null &&
+    final safeInitial =
+        (phase.endDate != null &&
             !phase.endDate!.isBefore(minDate) &&
             !phase.endDate!.isAfter(maxDate))
         ? phase.endDate!
@@ -467,8 +468,8 @@ class _EventPricingPhasesEditorState extends State<EventPricingPhasesEditor> {
                                         isLastPhase
                                             ? 'Hasta el fin del evento'
                                             : (p.endDate != null
-                                                ? 'Hasta: ${p.endDate!.day}/${p.endDate!.month}/${p.endDate!.year}'
-                                                : 'Definir fin'),
+                                                  ? 'Hasta: ${p.endDate!.day}/${p.endDate!.month}/${p.endDate!.year}'
+                                                  : 'Definir fin'),
                                         style: TextStyle(
                                           color: isLastPhase
                                               ? context.textMuted

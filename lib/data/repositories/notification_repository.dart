@@ -24,7 +24,7 @@ class NotificationRepository {
   Future<void> markAsRead(String notificationId) async {
     final updatedRows = await _supabase
         .from('notifications')
-        .update({'read_at': DateTime.now().toIso8601String()})
+        .update({'read_at': DateTime.now().toUtc().toIso8601String()})
         .eq('id', notificationId)
         .select('id');
 
@@ -39,7 +39,7 @@ class NotificationRepository {
   Future<void> markAllAsRead(String userId) async {
     await _supabase
         .from('notifications')
-        .update({'read_at': DateTime.now().toIso8601String()})
+        .update({'read_at': DateTime.now().toUtc().toIso8601String()})
         .eq('user_id', userId)
         .isFilter('read_at', null);
   }
