@@ -11,6 +11,7 @@ import '../../../providers/layout_mode_provider.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
+import '../../../shared/widgets/app_confirm_dialog.dart';
 import '../widgets/detail/event_detail_header.dart';
 import '../widgets/detail/event_location_section.dart';
 import '../widgets/detail/event_publish_action_bar.dart';
@@ -80,6 +81,43 @@ class EventDetailView extends ConsumerWidget {
     }
   }
 
+  Future<void> _setSuspension(
+    BuildContext context,
+    WidgetRef ref,
+    EventModel event,
+  ) async {
+    final suspended = event.moderationStatus == 'suspended';
+    final ok = await showAppConfirm(
+      context,
+      title: suspended ? 'Reactivar evento' : 'Suspender evento',
+      message: suspended
+          ? '¿Reactivar "${event.title}"? Volverá a estar visible para el público.'
+          : '¿Suspender "${event.title}"? Dejará de estar visible para el público.',
+      confirmLabel: suspended ? 'Reactivar' : 'Suspender',
+      isDangerous: !suspended,
+      icon: suspended ? Icons.play_circle_outline : Icons.pause_circle_outline,
+    );
+    if (!ok) return;
+
+    try {
+      await ref
+          .read(eventsRepositoryProvider)
+          .setEventSuspension(event.id, !suspended);
+      ref.invalidate(eventDetailProvider(event.id));
+      ref.invalidate(orgEventsProvider);
+      ref.invalidate(allEventsProvider);
+      ref.invalidate(weekEventsProvider);
+      if (context.mounted) {
+        AppFeedback.success(
+          context,
+          suspended ? 'Evento reactivado.' : 'Evento suspendido.',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) AppFeedback.error(context, friendlyError(e));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventAsync = ref.watch(eventDetailProvider(eventId));
@@ -143,6 +181,26 @@ class EventDetailView extends ConsumerWidget {
             ),
           if (isAcademyMode)
             eventAsync.maybeWhen(
+              data: (event) {
+                final suspended = event.moderationStatus == 'suspended';
+                if (!suspended && event.status != 'published') {
+                  return const SizedBox.shrink();
+                }
+                return IconButton(
+                  tooltip: suspended ? 'Reactivar evento' : 'Suspender evento',
+                  icon: Icon(
+                    suspended
+                        ? Icons.play_circle_outline
+                        : Icons.pause_circle_outline,
+                    color: suspended ? AppColors.success : AppColors.warning,
+                  ),
+                  onPressed: () => _setSuspension(context, ref, event),
+                );
+              },
+              orElse: () => const SizedBox.shrink(),
+            ),
+          if (isAcademyMode)
+            eventAsync.maybeWhen(
               data: (event) => IconButton(
                 icon: const Icon(Icons.delete_outline, color: AppColors.error),
                 onPressed: () => _deleteEvent(context, ref, event),
@@ -163,6 +221,7 @@ class EventDetailView extends ConsumerWidget {
       bottomNavigationBar: eventAsync.maybeWhen(
         data: (event) {
           if (isAcademyMode) {
+            if (event.moderationStatus == 'suspended') return null;
             if (event.status == 'draft') {
               return EventPublishActionBar(event: event);
             }
@@ -295,7 +354,10 @@ class _EventDetailContent extends StatelessWidget {
                 if (event.capacity != null) ...[
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: context.cardBg,
                       borderRadius: BorderRadius.circular(10),
@@ -307,7 +369,10 @@ class _EventDetailContent extends StatelessWidget {
                         const SizedBox(width: 10),
                         Text(
                           'Capacidad permitida:',
-                          style: TextStyle(color: context.textMuted, fontSize: 13),
+                          style: TextStyle(
+                            color: context.textMuted,
+                            fontSize: 13,
+                          ),
                         ),
                         const Spacer(),
                         Text(
@@ -374,13 +439,23 @@ class _EventDetailContent extends StatelessWidget {
                         ),
                         IconButton(
                           tooltip: 'Llamar',
-                          icon: const Icon(Icons.call, color: AppColors.primary, size: 20),
-                          onPressed: () => _launchPhone(context, event.contactPhone!),
+                          icon: const Icon(
+                            Icons.call,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              _launchPhone(context, event.contactPhone!),
                         ),
                         IconButton(
                           tooltip: 'WhatsApp',
-                          icon: const Icon(Icons.chat_outlined, color: AppColors.success, size: 20),
-                          onPressed: () => _launchWhatsApp(context, event.contactPhone!),
+                          icon: const Icon(
+                            Icons.chat_outlined,
+                            color: AppColors.success,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              _launchWhatsApp(context, event.contactPhone!),
                         ),
                       ],
                     ),
@@ -395,15 +470,24 @@ class _EventDetailContent extends StatelessWidget {
                     onTap: () => _launchPdf(context, event.rulesPdfUrl!),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.picture_as_pdf, color: AppColors.primary, size: 24),
+                          const Icon(
+                            Icons.picture_as_pdf,
+                            color: AppColors.primary,
+                            size: 24,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -419,12 +503,19 @@ class _EventDetailContent extends StatelessWidget {
                                 ),
                                 Text(
                                   'Toca para ver el documento oficial del evento',
-                                  style: TextStyle(color: context.textMuted, fontSize: 11),
+                                  style: TextStyle(
+                                    color: context.textMuted,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          Icon(Icons.open_in_new_rounded, size: 18, color: accent),
+                          Icon(
+                            Icons.open_in_new_rounded,
+                            size: 18,
+                            color: accent,
+                          ),
                         ],
                       ),
                     ),

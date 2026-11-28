@@ -8,17 +8,16 @@ import '../../../core/theme/theme_transition.dart';
 import '../../../core/utils/display_labels.dart';
 import '../../../core/utils/public_urls.dart';
 import '../../../core/utils/theme_extensions.dart';
-import '../../../core/utils/validators.dart';
 import '../../../data/services/admin_service.dart';
-import '../../../data/services/pagosya_service.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/events_provider.dart';
+import '../../../providers/public_events_provider.dart';
 import '../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../shared/widgets/app_empty_state.dart';
 import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/app_section_card.dart';
 import '../widgets/event_category_dialog.dart';
-import '../widgets/publication_qr_dialog.dart';
 import 'pagosya_admin_view.dart';
 
 class AdminDashboardView extends ConsumerStatefulWidget {
@@ -585,7 +584,8 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
   bool _hasActions(Map<String, dynamic> row) {
     final status = _readStatus(row);
     return switch (_section) {
-      AdminSection.events || AdminSection.organizations => true,
+      AdminSection.events => _eventHasActions(row),
+      AdminSection.organizations => true,
       AdminSection.categories => true,
       AdminSection.memberships => _isPendingMembership(status),
       AdminSection.payouts => status == 'pending' || status == 'processing',
@@ -593,104 +593,22 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
     };
   }
 
+  bool _eventHasActions(Map<String, dynamic> row) {
+    final status = _readStatus(row);
+    return status == 'approved' || status == 'suspended';
+  }
+
   Widget _eventActions(Map<String, dynamic> row) {
     final id = row['id']?.toString() ?? '';
     final title = row['title']?.toString() ?? 'este evento';
-    final status = _readStatus(row);
-    final isPending = status == 'pending_approval' || status == 'pending';
-    final isApproved = status == 'approved';
-    final isRejected = status == 'rejected';
-    final isSuspended = status == 'suspended';
-
-    final actions =
-        <String, ({String label, IconData icon, VoidCallback onTap})>{
-          'approve': (
-            label: isPending ? 'Aprobar y publicar' : 'Aprobar',
-            icon: Icons.check,
-            onTap: () => _moderate(id, title, 'approved'),
-          ),
-          'reactivate': (
-            label: 'Reactivar',
-            icon: Icons.play_arrow,
-            onTap: () => _moderate(id, title, 'approved'),
-          ),
-          'reject': (
-            label: 'Rechazar',
-            icon: Icons.close,
-            onTap: () => _moderate(id, title, 'rejected'),
-          ),
-          'suspend': (
-            label: 'Suspender',
-            icon: Icons.pause,
-            onTap: () => _moderate(id, title, 'suspended'),
-          ),
-          'qr': (
-            label: 'QR publicación',
-            icon: Icons.qr_code_2,
-            onTap: () => _generatePublication('event_publication', id, title),
-          ),
-        };
-
-    final primaryKey = isPending
-        ? 'approve'
-        : isApproved
-        ? 'qr'
-        : (isRejected || isSuspended)
-        ? 'reactivate'
-        : 'approve';
-    final secondaryKey = isPending
-        ? 'reject'
-        : isApproved
-        ? 'suspend'
-        : null;
-
-    final primary = actions[primaryKey]!;
-    final secondary = secondaryKey == null ? null : actions[secondaryKey]!;
-
-    final available = <String>[
-      if (!isApproved && !isRejected && !isSuspended) 'approve',
-      if (isRejected || isSuspended) 'reactivate',
-      if (!isRejected) 'reject',
-      if (isApproved || isPending) 'suspend',
-      'qr',
-    ];
-    final menuKeys = available
-        .where((key) => key != primaryKey && key != secondaryKey)
-        .toList();
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        FilledButton.icon(
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-          onPressed: primary.onTap,
-          icon: Icon(primary.icon, size: 18),
-          label: Text(primary.label),
-        ),
-        if (secondary != null)
-          _action(secondary.label, secondary.icon, secondary.onTap),
-        if (menuKeys.isNotEmpty)
-          PopupMenuButton<String>(
-            tooltip: 'Más acciones del evento',
-            onSelected: (key) => actions[key]!.onTap(),
-            itemBuilder: (context) => [
-              for (final key in menuKeys)
-                PopupMenuItem(
-                  value: key,
-                  child: Row(
-                    children: [
-                      Icon(actions[key]!.icon, size: 20),
-                      const SizedBox(width: 12),
-                      Text(actions[key]!.label),
-                    ],
-                  ),
-                ),
-            ],
-            icon: const Icon(Icons.more_horiz_rounded),
-          ),
-      ],
+    final suspended = _readStatus(row) == 'suspended';
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: _action(
+        suspended ? 'Reactivar evento' : 'Suspender evento',
+        suspended ? Icons.play_circle_outline : Icons.pause_circle_outline,
+        () => _setEventSuspension(id, title, !suspended),
+      ),
     );
   }
 
@@ -755,67 +673,28 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
     await _run(() => _service.setEventCategoryActive(id, !active));
   }
 
-  Future<void> _generatePublication(
-    String kind,
+  Future<void> _setEventSuspension(
     String id,
     String title,
+    bool suspended,
   ) async {
-    final amountText = await showAppPrompt(
+    final ok = await showAppConfirm(
       context,
-      title: 'Publicación',
-      message: 'Monto a cobrar por publicar "$title".',
-      label: 'Monto en BOB',
-      confirmLabel: 'Generar QR',
+      title: suspended ? 'Suspender evento' : 'Reactivar evento',
+      message: suspended
+          ? '¿Suspender "$title"? Dejará de estar visible para el público.'
+          : '¿Reactivar "$title"? Volverá a estar visible para el público.',
+      confirmLabel: suspended ? 'Suspender' : 'Reactivar',
+      isDangerous: suspended,
+      icon: suspended ? Icons.pause_circle_outline : Icons.play_circle_outline,
     );
-    if (amountText == null || !mounted) return;
-
-    final validation = AppValidators.amount(amountText);
-    if (validation != null) {
-      AppFeedback.warning(context, validation);
-      return;
-    }
-    final amount = double.parse(amountText.trim().replaceAll(',', '.'));
-
-    try {
-      final checkout = await const PagosyaService().createPublicationCheckout(
-        kind: kind,
-        referenceId: id,
-        amount: amount,
-      );
-      if (!mounted) return;
-      await showPublicationQrDialog(context, checkout);
-    } catch (e) {
-      if (mounted) AppFeedback.error(context, friendlyError(e));
-    }
-  }
-
-  Future<void> _moderate(String id, String title, String status) async {
-    if (status == 'approved') {
-      final ok = await showAppConfirm(
-        context,
-        title: 'Aprobar evento',
-        message: '¿Aprobar y publicar "$title"? Será visible para el público.',
-        confirmLabel: 'Aprobar',
-        icon: Icons.verified_outlined,
-      );
-      if (!ok) return;
-      await _run(() => _service.moderateEvent(id, 'approved'));
-      return;
-    }
-    final isReject = status == 'rejected';
-    final reason = await showAppPrompt(
-      context,
-      title: isReject ? 'Rechazar evento' : 'Suspender evento',
-      message: isReject
-          ? 'Indica el motivo del rechazo de "$title".'
-          : 'Indica el motivo de la suspensión de "$title" (opcional).',
-      label: 'Motivo',
-      isDangerous: true,
-      isRequired: isReject,
-      confirmLabel: isReject ? 'Rechazar' : 'Suspender',
+    if (!ok) return;
+    await _run(
+      () => _service.moderateEvent(id, suspended ? 'suspended' : 'approved'),
     );
-    if (reason == null) return;
-    await _run(() => _service.moderateEvent(id, status, reason: reason));
+    ref.invalidate(organizationsWithEventsProvider);
+    ref.invalidate(weekEventsProvider);
+    ref.invalidate(allEventsProvider);
   }
 
   Widget _organizationActions(Map<String, dynamic> row) {
@@ -857,6 +736,7 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
     );
     if (!ok) return;
     await _run(() => _service.setOrganizationActive(id, !currentlyActive));
+    ref.invalidate(organizationsWithEventsProvider);
   }
 
   Widget _membershipActions(Map<String, dynamic> row) {
@@ -892,6 +772,7 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
     );
     if (!ok) return;
     await _run(() => _service.verifyMembership(id, approve));
+    ref.invalidate(organizationsWithEventsProvider);
   }
 
   Widget _payoutStatusActions(Map<String, dynamic> row) {

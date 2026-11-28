@@ -24,6 +24,7 @@ class EventModel {
     this.timezone = 'America/La_Paz',
     this.capacity,
     this.status = 'draft',
+    this.moderationStatus = 'approved',
     this.visibility = 'public',
     this.requiresApproval = true,
     this.publishedAt,
@@ -53,6 +54,7 @@ class EventModel {
   final String timezone;
   final int? capacity;
   final String status;
+  final String moderationStatus;
   final String visibility;
   final bool requiresApproval;
   final DateTime? publishedAt;
@@ -97,57 +99,66 @@ class EventModel {
     String? timezone,
     int? capacity,
     String? status,
+    String? moderationStatus,
     String? visibility,
     bool? requiresApproval,
     DateTime? publishedAt,
     DateTime? createdAt,
     int? colorIndex,
     List<TicketTypeModel>? ticketTypes,
-  }) =>
-      EventModel(
-        id: id ?? this.id,
-        title: title ?? this.title,
-        organizationId: organizationId ?? this.organizationId,
-        organizationName: organizationName ?? this.organizationName,
-        organizationLogoUrl: organizationLogoUrl ?? this.organizationLogoUrl,
-        categoryId: categoryId ?? this.categoryId,
-        categoryName: categoryName ?? this.categoryName,
-        venueId: venueId ?? this.venueId,
-        danceCategoryIds: danceCategoryIds ?? this.danceCategoryIds,
-        danceCategoryNames: danceCategoryNames ?? this.danceCategoryNames,
-        description: description ?? this.description,
-        coverImageUrl: coverImageUrl ?? this.coverImageUrl,
-        qrImageUrl: qrImageUrl ?? this.qrImageUrl,
-        contactPhone: contactPhone ?? this.contactPhone,
-        rulesPdfUrl: rulesPdfUrl ?? this.rulesPdfUrl,
-        location: location ?? this.location,
-        startTime: startTime ?? this.startTime,
-        endTime: endTime ?? this.endTime,
-        timezone: timezone ?? this.timezone,
-        capacity: capacity ?? this.capacity,
-        status: status ?? this.status,
-        visibility: visibility ?? this.visibility,
-        requiresApproval: requiresApproval ?? this.requiresApproval,
-        publishedAt: publishedAt ?? this.publishedAt,
-        createdAt: createdAt ?? this.createdAt,
-        colorIndex: colorIndex ?? this.colorIndex,
-        ticketTypes: ticketTypes ?? this.ticketTypes,
-      );
+  }) => EventModel(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    organizationId: organizationId ?? this.organizationId,
+    organizationName: organizationName ?? this.organizationName,
+    organizationLogoUrl: organizationLogoUrl ?? this.organizationLogoUrl,
+    categoryId: categoryId ?? this.categoryId,
+    categoryName: categoryName ?? this.categoryName,
+    venueId: venueId ?? this.venueId,
+    danceCategoryIds: danceCategoryIds ?? this.danceCategoryIds,
+    danceCategoryNames: danceCategoryNames ?? this.danceCategoryNames,
+    description: description ?? this.description,
+    coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+    qrImageUrl: qrImageUrl ?? this.qrImageUrl,
+    contactPhone: contactPhone ?? this.contactPhone,
+    rulesPdfUrl: rulesPdfUrl ?? this.rulesPdfUrl,
+    location: location ?? this.location,
+    startTime: startTime ?? this.startTime,
+    endTime: endTime ?? this.endTime,
+    timezone: timezone ?? this.timezone,
+    capacity: capacity ?? this.capacity,
+    status: status ?? this.status,
+    moderationStatus: moderationStatus ?? this.moderationStatus,
+    visibility: visibility ?? this.visibility,
+    requiresApproval: requiresApproval ?? this.requiresApproval,
+    publishedAt: publishedAt ?? this.publishedAt,
+    createdAt: createdAt ?? this.createdAt,
+    colorIndex: colorIndex ?? this.colorIndex,
+    ticketTypes: ticketTypes ?? this.ticketTypes,
+  );
 
   factory EventModel.fromJson(Map<String, dynamic> json) {
     final categoryData = json['event_categories'] as Map<String, dynamic>?;
     final orgData = json['organizations'] as Map<String, dynamic>?;
-    final parsedOrgName = orgData?['name'] as String? ?? (json['organization_name'] as String?) ?? '';
-    final parsedOrgLogo = orgData?['logo_url'] as String? ?? (json['organization_logo_url'] as String?);
+    final parsedOrgName =
+        orgData?['name'] as String? ??
+        (json['organization_name'] as String?) ??
+        '';
+    final parsedOrgLogo =
+        orgData?['logo_url'] as String? ??
+        (json['organization_logo_url'] as String?);
 
     EventLocationModel? parsedLocation;
     if (json['event_locations'] != null) {
-      if (json['event_locations'] is List && (json['event_locations'] as List).isNotEmpty) {
+      if (json['event_locations'] is List &&
+          (json['event_locations'] as List).isNotEmpty) {
         parsedLocation = EventLocationModel.fromJson(
           (json['event_locations'] as List).first as Map<String, dynamic>,
         );
       } else if (json['event_locations'] is Map<String, dynamic>) {
-        parsedLocation = EventLocationModel.fromJson(json['event_locations'] as Map<String, dynamic>);
+        parsedLocation = EventLocationModel.fromJson(
+          json['event_locations'] as Map<String, dynamic>,
+        );
       }
     }
 
@@ -161,11 +172,16 @@ class EventModel {
     final rawTickets = json['ticket_types'] as List?;
     final parsedTickets = rawTickets != null
         ? rawTickets
-            .map((t) => TicketTypeModel.fromJson(Map<String, dynamic>.from(t as Map)))
-            .toList()
+              .map(
+                (t) => TicketTypeModel.fromJson(
+                  Map<String, dynamic>.from(t as Map),
+                ),
+              )
+              .toList()
         : <TicketTypeModel>[];
 
-    final danceCategoryNames = (json['event_dance_categories'] as List?)
+    final danceCategoryNames =
+        (json['event_dance_categories'] as List?)
             ?.map((item) => (item as Map)['dance_categories'])
             .whereType<Map>()
             .map((category) => category['name'] as String? ?? '')
@@ -180,9 +196,12 @@ class EventModel {
       organizationName: parsedOrgName,
       organizationLogoUrl: parsedOrgLogo,
       categoryId: json['category_id'] as String?,
-      categoryName: categoryData?['name'] as String? ?? (json['category_name'] as String?),
+      categoryName:
+          categoryData?['name'] as String? ??
+          (json['category_name'] as String?),
       venueId: json['venue_id'] as String?,
-      danceCategoryIds: (json['event_dance_categories'] as List?)
+      danceCategoryIds:
+          (json['event_dance_categories'] as List?)
               ?.map((c) => (c as Map)['dance_category_id'] as String? ?? '')
               .where((id) => id.isNotEmpty)
               .toList() ??
@@ -199,6 +218,7 @@ class EventModel {
       timezone: (json['timezone'] as String?) ?? 'America/La_Paz',
       capacity: (json['capacity'] as num?)?.toInt(),
       status: (json['status'] as String?) ?? 'draft',
+      moderationStatus: (json['moderation_status'] as String?) ?? 'approved',
       visibility: (json['visibility'] as String?) ?? 'public',
       requiresApproval: (json['requires_approval'] as bool?) ?? true,
       publishedAt: json['published_at'] != null
@@ -212,22 +232,22 @@ class EventModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'organization_id': organizationId,
-        'category_id': categoryId,
-        'venue_id': venueId,
-        'description': description,
-        'cover_image_url': coverImageUrl,
-        'start_at': startTime.toIso8601String(),
-        'end_at': endTime.toIso8601String(),
-        'timezone': timezone,
-        'capacity': capacity,
-        'status': status,
-        'visibility': visibility,
-        'requires_approval': requiresApproval,
-        if (contactPhone != null) 'contact_phone': contactPhone,
-        if (rulesPdfUrl != null) 'rules_pdf_url': rulesPdfUrl,
-        if (location != null) 'event_locations': location!.toJson(),
-      };
+    'id': id,
+    'title': title,
+    'organization_id': organizationId,
+    'category_id': categoryId,
+    'venue_id': venueId,
+    'description': description,
+    'cover_image_url': coverImageUrl,
+    'start_at': startTime.toIso8601String(),
+    'end_at': endTime.toIso8601String(),
+    'timezone': timezone,
+    'capacity': capacity,
+    'status': status,
+    'visibility': visibility,
+    'requires_approval': requiresApproval,
+    if (contactPhone != null) 'contact_phone': contactPhone,
+    if (rulesPdfUrl != null) 'rules_pdf_url': rulesPdfUrl,
+    if (location != null) 'event_locations': location!.toJson(),
+  };
 }
