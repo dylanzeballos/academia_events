@@ -60,7 +60,10 @@ class DateFormatter {
       List.generate(count, (i) => start.add(Duration(days: i)));
 
   /// Tiempo en minutos desde la medianoche.
-  static int minutesFromMidnight(DateTime dt) => dt.hour * 60 + dt.minute;
+  static int minutesFromMidnight(DateTime dt) {
+    final local = dt.toLocal();
+    return local.hour * 60 + local.minute;
+  }
 
   /// Duración en minutos entre dos DateTime.
   static int durationMinutes(DateTime start, DateTime end) =>
@@ -69,9 +72,11 @@ class DateFormatter {
   /// ¿El tramo [start]–[end] toca el día [day] (inclusive si cruza la
   /// medianoche o dura varios días)?
   static bool rangeCoversDay(DateTime start, DateTime end, DateTime day) {
+    final localStart = start.toLocal();
+    final localEnd = end.toLocal();
     final dayStart = DateTime(day.year, day.month, day.day);
     final nextDay = dayStart.add(const Duration(days: 1));
-    return start.isBefore(nextDay) && end.isAfter(dayStart);
+    return localStart.isBefore(nextDay) && localEnd.isAfter(dayStart);
   }
 
   /// Recorta el tramo [start]–[end] al día [day] y devuelve los minutos desde
@@ -86,14 +91,16 @@ class DateFormatter {
     DateTime end,
     DateTime day,
   ) {
+    final localStart = start.toLocal();
+    final localEnd = end.toLocal();
     final dayStart = DateTime(day.year, day.month, day.day);
     final nextDay = dayStart.add(const Duration(days: 1));
 
-    if (!start.isBefore(nextDay)) return null;
-    if (!end.isAfter(dayStart)) return null;
+    if (!localStart.isBefore(nextDay)) return null;
+    if (!localEnd.isAfter(dayStart)) return null;
 
-    final clampedStart = start.isBefore(dayStart) ? dayStart : start;
-    final clampedEnd = end.isAfter(nextDay) ? nextDay : end;
+    final clampedStart = localStart.isBefore(dayStart) ? dayStart : localStart;
+    final clampedEnd = localEnd.isAfter(nextDay) ? nextDay : localEnd;
     final isEndOfDay = !clampedEnd.isBefore(nextDay);
 
     if (!clampedStart.isBefore(clampedEnd)) return null;
