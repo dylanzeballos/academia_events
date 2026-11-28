@@ -13,6 +13,7 @@ import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../../shared/widgets/schedule/schedule_grid_body.dart';
+import '../../../shared/widgets/schedule/student_class_schedule_view.dart';
 import '../../tickets/widgets/class_pass_purchase_sheet.dart';
 import '../widgets/class_access_sheet.dart';
 import 'explore_classes_view.dart';
@@ -24,11 +25,27 @@ import 'explore_classes_view.dart';
 ///
 /// Al tocar una clase se abre el modal de acceso con el QR de la próxima
 /// sesión (las entradas de clases ya no viven en la pestaña de tickets).
-class MyClassesView extends ConsumerWidget {
+class MyClassesView extends ConsumerStatefulWidget {
   const MyClassesView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyClassesView> createState() => _MyClassesViewState();
+}
+
+class _MyClassesViewState extends ConsumerState<MyClassesView> {
+  DateTime _selectedDay = DateTime.now();
+  StudentScheduleMode _mode = StudentScheduleMode.agenda;
+
+  void _selectDay(DateTime day) {
+    setState(() => _selectedDay = DateTime(day.year, day.month, day.day));
+  }
+
+  void _changeWeek(int offset) {
+    setState(() => _selectedDay = _selectedDay.add(Duration(days: 7 * offset)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final overviewAsync = ref.watch(myClassesOverviewProvider);
 
     return Scaffold(
@@ -78,29 +95,33 @@ class MyClassesView extends ConsumerWidget {
                     onRemove: (item) => _remove(context, ref, item),
                   ),
                 if (overview.entries.isNotEmpty)
+                  StudentClassScheduleControls(
+                    selectedDay: _selectedDay,
+                    mode: _mode,
+                    onDaySelected: _selectDay,
+                    onModeChanged: (mode) => setState(() => _mode = mode),
+                    onWeekChanged: _changeWeek,
+                  ),
+                if (overview.entries.isNotEmpty)
                   Expanded(
-                    child: ScheduleGridBody(
-                      entries: overview.entries,
-                      showOrganization: true,
-                      accessFor: (classId) => overview.accessByClass[classId],
-                      onOpenClass: (classId) {
-                        final enrollmentId =
-                            overview.enrollmentByClass[classId];
-                        final danceClass = overview.entries
-                            .where((e) => e.danceClass.id == classId)
-                            .firstOrNull
-                            ?.danceClass;
-                        if (enrollmentId == null || danceClass == null) return;
-                        ClassAccessSheet.show(
-                          context,
-                          danceClass: danceClass,
-                          access:
-                              overview.accessByClass[classId] ??
-                              const ClassAccess(kind: ClassAccessKind.none),
-                          enrollmentId: enrollmentId,
-                        );
-                      },
-                    ),
+                    child: _mode == StudentScheduleMode.agenda
+                        ? StudentClassAgenda(
+                            day: _selectedDay,
+                            entries: overview.entries,
+                            showOrganization: true,
+                            accessFor: (classId) =>
+                                overview.accessByClass[classId],
+                            onOpenClass: (classId) =>
+                                _openClass(context, overview, classId),
+                          )
+                        : ScheduleGridBody(
+                            entries: overview.entries,
+                            showOrganization: true,
+                            accessFor: (classId) =>
+                                overview.accessByClass[classId],
+                            onOpenClass: (classId) =>
+                                _openClass(context, overview, classId),
+                          ),
                   )
                 else
                   const Expanded(child: _PendingOnlyState()),
@@ -117,6 +138,28 @@ class MyClassesView extends ConsumerWidget {
         icon: const Icon(Icons.explore_outlined),
         label: const Text('Explorar'),
       ),
+    );
+  }
+
+  void _openClass(
+    BuildContext context,
+    MyClassesOverview overview,
+    String classId,
+  ) {
+    final enrollmentId = overview.enrollmentByClass[classId];
+    final danceClass = overview.entries
+        .where((entry) => entry.danceClass.id == classId)
+        .firstOrNull
+        ?.danceClass;
+    if (enrollmentId == null || danceClass == null) return;
+
+    ClassAccessSheet.show(
+      context,
+      danceClass: danceClass,
+      access:
+          overview.accessByClass[classId] ??
+          const ClassAccess(kind: ClassAccessKind.none),
+      enrollmentId: enrollmentId,
     );
   }
 

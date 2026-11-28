@@ -11,6 +11,7 @@ import '../loading_indicator.dart';
 import 'class_detail_sheet.dart';
 import 'genre_filter_bar.dart';
 import 'schedule_grid_body.dart';
+import 'student_class_schedule_view.dart';
 
 /// Horario semanal de una organización, listo para el público.
 ///
@@ -43,10 +44,12 @@ class WeeklyScheduleGrid extends ConsumerStatefulWidget {
     super.key,
     required this.organizationId,
     this.showFilters = true,
+    this.showAgendaView = false,
   });
 
   final String organizationId;
   final bool showFilters;
+  final bool showAgendaView;
 
   @override
   ConsumerState<WeeklyScheduleGrid> createState() => _WeeklyScheduleGridState();
@@ -55,6 +58,16 @@ class WeeklyScheduleGrid extends ConsumerStatefulWidget {
 class _WeeklyScheduleGridState extends ConsumerState<WeeklyScheduleGrid> {
   /// `null` = todos los ritmos.
   String? _selectedGenre;
+  DateTime _selectedDay = DateTime.now();
+  StudentScheduleMode _mode = StudentScheduleMode.agenda;
+
+  void _selectDay(DateTime day) {
+    setState(() => _selectedDay = DateTime(day.year, day.month, day.day));
+  }
+
+  void _changeWeek(int offset) {
+    setState(() => _selectedDay = _selectedDay.add(Duration(days: 7 * offset)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,12 +124,30 @@ class _WeeklyScheduleGridState extends ConsumerState<WeeklyScheduleGrid> {
 
         return Column(
           children: [
+            if (widget.showAgendaView)
+              StudentClassScheduleControls(
+                selectedDay: _selectedDay,
+                mode: _mode,
+                onDaySelected: _selectDay,
+                onModeChanged: (mode) => setState(() => _mode = mode),
+                onWeekChanged: _changeWeek,
+              ),
             if (widget.showFilters) filterBar,
             Expanded(
-              child: ScheduleGridBody(
-                entries: entries,
-                onOpenClass: (classId) => _openClassSheet(allEntries, classId),
-              ),
+              child:
+                  widget.showAgendaView && _mode == StudentScheduleMode.agenda
+                  ? StudentClassAgenda(
+                      day: _selectedDay,
+                      entries: entries,
+                      onOpenClass: (classId) =>
+                          _openClassSheet(allEntries, classId),
+                      emptyMessage: 'Esta academia no tiene clases este día. Elegí otro día para ver su horario.',
+                    )
+                  : ScheduleGridBody(
+                      entries: entries,
+                      onOpenClass: (classId) =>
+                          _openClassSheet(allEntries, classId),
+                    ),
             ),
           ],
         );

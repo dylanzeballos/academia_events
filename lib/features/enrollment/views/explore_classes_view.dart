@@ -123,6 +123,7 @@ class _ExploreClassesViewState extends ConsumerState<ExploreClassesView> {
                       : WeeklyScheduleGrid(
                           key: ValueKey(selectedOrgId),
                           organizationId: selectedOrgId,
+                          showAgendaView: true,
                         ),
                 ),
               ],
