@@ -1009,7 +1009,15 @@ async function startIntent(
     .eq("status", "pending")
     .maybeSingle();
 
-  if (existing?.pagosya_checkout_id) {
+  const existingExpiresAt = existing?.expires_at
+    ? Date.parse(existing.expires_at)
+    : Number.NaN;
+  const existingIsValid =
+    Boolean(existing?.pagosya_checkout_id) &&
+    Number.isFinite(existingExpiresAt) &&
+    existingExpiresAt > Date.now();
+
+  if (existingIsValid) {
     const incomingSessions = Array.isArray(params.metadata.session_ids)
       ? (params.metadata.session_ids as string[])
       : [];
@@ -1026,29 +1034,42 @@ async function startIntent(
       return {
         kind: params.kind,
         reference_id: params.referenceId,
-        intent_id: existing.id,
-        checkout_id: existing.pagosya_checkout_id,
-        checkout_url: existing.checkout_url,
-        qr_data_url: existing.qr_data_url,
-        total_amount: existing.amount,
-        currency: existing.currency,
+        intent_id: existing!.id,
+        checkout_id: existing!.pagosya_checkout_id,
+        checkout_url: existing!.checkout_url,
+        qr_data_url: existing!.qr_data_url,
+        total_amount: existing!.amount,
+        currency: existing!.currency,
         reused: true,
-        sandbox: isSandboxCheckoutId(existing.pagosya_checkout_id),
-        expires_at: checkoutExpiry(existing.expires_at),
+        sandbox: isSandboxCheckoutId(existing!.pagosya_checkout_id),
+        expires_at: checkoutExpiry(existing!.expires_at),
       };
     }
+  }
 
-    // El alumno cambió las sesiones seleccionadas: invalidar el cobro previo.
+  // Un cobro vencido (o con otras sesiones) ya no se puede reutilizar: se
+  // cancela y se genera uno nuevo para que el QR no quede pegado en expirado.
+  if (existing) {
     await admin
       .from("payment_intents")
-      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .update({
+        status: "cancelled",
+        pagosya_checkout_id: null,
+        checkout_url: null,
+        qr_data_url: null,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", existing.id);
   }
 
   const checkoutPayload = {
     amount: params.amount,
     currency: params.currency,
-    order_id: params.referenceId,
+    // Las publicaciones reutilizan el id del evento; PagosYa necesita un
+    // order_id distinto por intento para no devolver el checkout viejo.
+    order_id: params.kind === "event_publication"
+      ? `${params.referenceId}-${Date.now()}`
+      : params.referenceId,
     expiration_minutes: 15,
     success_url: appUrl("/pago/confirmado"),
     cancel_url: appUrl("/pago/cancelado"),

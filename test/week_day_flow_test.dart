@@ -31,7 +31,7 @@ class _FakeEventsRepo implements IEventsRepository {
       throw UnimplementedError();
 
   @override
-  Future<void> createFullEvent({
+  Future<String> createFullEvent({
     required Map<String, dynamic> eventData,
     required Map<String, dynamic> locationData,
     List<Map<String, dynamic>>? ticketTypesData,
@@ -47,6 +47,10 @@ class _FakeEventsRepo implements IEventsRepository {
 
   @override
   Future<void> deleteEvent(String id) => throw UnimplementedError();
+
+  @override
+  Future<void> setEventSuspension(String id, bool suspended) =>
+      throw UnimplementedError();
 
   @override
   Future<List<EventModel>> fetchAllEvents() async => events;

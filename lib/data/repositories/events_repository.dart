@@ -8,7 +8,7 @@ abstract interface class IEventsRepository {
   Future<List<EventModel>> fetchWeekEvents(DateTime weekReference);
   Future<List<EventModel>> fetchOrganizationEvents(String organizationId);
   Future<EventModel> createEvent(Map<String, dynamic> data);
-  Future<void> createFullEvent({
+  Future<String> createFullEvent({
     required Map<String, dynamic> eventData,
     required Map<String, dynamic> locationData,
     List<Map<String, dynamic>>? ticketTypesData,
@@ -19,6 +19,7 @@ abstract interface class IEventsRepository {
   });
   Future<void> updateEvent(String id, Map<String, dynamic> data);
   Future<void> deleteEvent(String id);
+  Future<void> setEventSuspension(String id, bool suspended);
 
   Future<List<EventModel>> fetchAllEvents();
   Future<EventModel> fetchEventById(String id);
@@ -75,7 +76,7 @@ class EventsRepository implements IEventsRepository {
   }
 
   @override
-  Future<void> createFullEvent({
+  Future<String> createFullEvent({
     required Map<String, dynamic> eventData,
     required Map<String, dynamic> locationData,
     List<Map<String, dynamic>>? ticketTypesData,
@@ -136,6 +137,8 @@ class EventsRepository implements IEventsRepository {
           .toList();
       await service.insertTicketTypes(ticketsWithEventId);
     }
+
+    return eventId;
   }
 
   @override
@@ -146,6 +149,11 @@ class EventsRepository implements IEventsRepository {
   @override
   Future<void> deleteEvent(String id) async {
     await service.deleteEvent(id);
+  }
+
+  @override
+  Future<void> setEventSuspension(String id, bool suspended) async {
+    await service.setEventSuspension(id, suspended);
   }
 
   List<EventModel> _assignColors(List<EventModel> events) {

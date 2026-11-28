@@ -15,6 +15,7 @@ import '../../../core/theme/theme_extensions.dart';
 import '../../../providers/events_provider.dart';
 import '../../../providers/membership_provider.dart';
 import '../../../providers/organization_provider.dart';
+import '../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../shared/widgets/app_feedback.dart';
 import '../../organization/widgets/membership_required_notice.dart';
 import '../widgets/create/event_basic_info_form.dart';
@@ -22,6 +23,7 @@ import '../widgets/create/event_location_form.dart';
 import '../widgets/create/event_pricing_phases_editor.dart';
 import '../widgets/create/event_schedule_form.dart';
 import '../widgets/create/image_picker_box.dart';
+import '../widgets/detail/event_publish_action_bar.dart';
 import '../widgets/map.dart';
 
 class EventCreateView extends ConsumerStatefulWidget {
@@ -335,7 +337,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
         'end_at': endAt.toIso8601String(),
         'timezone': 'America/La_Paz',
         'status': 'draft',
-        'moderation_status': 'pending_approval',
+        'moderation_status': 'approved',
         'visibility': 'public',
         'requires_approval': true,
         'capacity': parsedCapacity,
@@ -367,7 +369,7 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
               },
             ];
 
-      await ref
+      final eventId = await ref
           .read(eventsRepositoryProvider)
           .createFullEvent(
             eventData: eventData,
@@ -384,11 +386,39 @@ class _EventCreateViewState extends ConsumerState<EventCreateView> {
       ref.invalidate(allEventsProvider);
 
       if (mounted) {
+        final publishNow = await showAppConfirm(
+          context,
+          title: 'Evento creado',
+          message:
+              'Quedó guardado como borrador. ¿Querés publicarlo ahora? Se '
+              'cobrará el precio único de publicación configurado por la '
+              'plataforma.',
+          confirmLabel: 'Publicar ahora',
+          cancelLabel: 'Después',
+          icon: Icons.qr_code_2,
+        );
+        if (!mounted) return;
+
+        if (publishNow) {
+          await showEventPublicationFlow(
+            context,
+            ref,
+            eventId: eventId,
+            eventTitle: title,
+          );
+          if (!mounted) return;
+          context.pushReplacement(
+            AppRoutes.eventDetailPattern.replaceFirst(':id', eventId),
+          );
+          return;
+        }
+
         context.pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Evento creado. Para publicarlo necesitás la suscripción mensual activa y el pago de publicación.',
+              'Evento guardado como borrador. Podés publicarlo desde su '
+              'detalle.',
             ),
             backgroundColor: context.cardBg,
           ),

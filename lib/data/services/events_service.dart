@@ -20,7 +20,7 @@ class EventsService {
           id, title, organization_id, category_id, venue_id,
           description, cover_image_url, contact_phone, rules_pdf_url,
           start_at, end_at, timezone,
-          capacity, status, visibility,
+          capacity, status, moderation_status, visibility,
           requires_approval, published_at, created_at,
           organizations(name, logo_url),
           event_categories(name),
@@ -46,7 +46,7 @@ class EventsService {
           id, title, organization_id, category_id, venue_id,
           description, cover_image_url, contact_phone, rules_pdf_url,
           start_at, end_at, timezone,
-          capacity, status, visibility,
+          capacity, status, moderation_status, visibility,
           requires_approval, published_at, created_at,
           organizations(name, logo_url),
           event_categories(name),
@@ -67,7 +67,7 @@ class EventsService {
           id, title, organization_id, category_id, venue_id,
           description, cover_image_url, contact_phone, rules_pdf_url,
           start_at, end_at, timezone,
-          capacity, status, visibility,
+          capacity, status, moderation_status, visibility,
           requires_approval, published_at, created_at,
           organizations(name, logo_url),
           event_categories(name),
@@ -87,7 +87,7 @@ class EventsService {
           id, title, organization_id, category_id, venue_id,
           description, cover_image_url, contact_phone, rules_pdf_url,
           start_at, end_at, timezone,
-          capacity, status, visibility,
+          capacity, status, moderation_status, visibility,
           requires_approval, published_at, created_at,
           organizations(name, logo_url),
           event_categories(name),
@@ -107,6 +107,13 @@ class EventsService {
 
   Future<void> updateEvent(String id, Map<String, dynamic> data) async {
     await supabase.from('events').update(data).eq('id', id);
+  }
+
+  Future<void> setEventSuspension(String id, bool suspended) async {
+    await supabase.rpc(
+      'set_event_suspension',
+      params: {'p_event_id': id, 'p_suspended': suspended},
+    );
   }
 
   Future<void> deleteEvent(String id) async {
