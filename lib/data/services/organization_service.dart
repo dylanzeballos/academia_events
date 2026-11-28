@@ -490,7 +490,7 @@ class OrganizationService {
     try {
       final result = await supabase.rpc(
         'accept_invitation',
-        params: {'invitation_id': invitationId},
+        params: {'p_invitation_id': invitationId},
       );
       return result as Map<String, dynamic>;
     } on PostgrestException catch (e) {
@@ -502,7 +502,7 @@ class OrganizationService {
     try {
       final result = await supabase.rpc(
         'decline_invitation',
-        params: {'invitation_id': invitationId},
+        params: {'p_invitation_id': invitationId},
       );
       return result as Map<String, dynamic>;
     } on PostgrestException catch (e) {
@@ -544,6 +544,10 @@ class OrganizationService {
     }
     if (msg.contains('work_mem') || msg.contains('out of memory')) {
       return 'Error interno. Intenta de nuevo más tarde.';
+    }
+    if (msg.contains('could not find the function') ||
+        msg.contains('pgrst202')) {
+      return 'La operación de invitaciones no está disponible. Actualiza la app e intenta de nuevo.';
     }
     return 'Error al guardar. Intenta de nuevo.';
   }
