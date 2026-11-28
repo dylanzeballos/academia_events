@@ -58,12 +58,13 @@ Future<String?> showAppPrompt(
   required String message,
   String label = 'Motivo',
   String hint = '',
+  String initialValue = '',
   String confirmLabel = 'Confirmar',
   String cancelLabel = 'Cancelar',
   bool isDangerous = false,
   bool isRequired = false,
 }) async {
-  final controller = TextEditingController();
+  final controller = TextEditingController(text: initialValue);
   final result = await showDialog<String>(
     context: context,
     builder: (ctx) {

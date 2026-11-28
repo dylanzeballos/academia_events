@@ -68,7 +68,9 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
     try {
       final config = await supabase
           .from('payment_platform_config')
-          .select('affiliate_id, external_id, updated_at')
+          .select(
+            'affiliate_id, external_id, updated_at, event_publication_price',
+          )
           .eq('id', true)
           .maybeSingle();
 
@@ -230,6 +232,41 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
     );
   }
 
+  Future<void> _editPublicationPrice() async {
+    final current = _eventPublicationPrice;
+    final text = await showAppPrompt(
+      context,
+      title: 'Precio de publicación',
+      message:
+          'Precio único que paga cualquier organización para publicar un '
+          'evento. Se cobra al generar el QR desde el panel.',
+      label: 'Precio en BOB',
+      initialValue: current == null
+          ? ''
+          : current.toStringAsFixed(current == current.roundToDouble() ? 0 : 2),
+      confirmLabel: 'Guardar',
+    );
+    if (text == null || !mounted) return;
+
+    final validation = AppValidators.amount(text);
+    if (validation != null) {
+      AppFeedback.warning(context, validation);
+      return;
+    }
+    final price = double.parse(text.trim().replaceAll(',', '.'));
+
+    setState(() => _busy = true);
+    try {
+      await _adminService.setEventPublicationPrice(price);
+      await _load();
+      if (mounted) AppFeedback.success(context, 'Precio actualizado.');
+    } catch (e) {
+      if (mounted) AppFeedback.error(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _editWebhook() async {
     final url = await showAppPrompt(
       context,
@@ -316,6 +353,12 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
   String get _webhookUrl => _webhookSource?['url']?.toString() ?? '';
   bool get _webhookEnabled => _webhookSource?['enabled'] == true;
 
+  double? get _eventPublicationPrice {
+    final value = _config?['event_publication_price'];
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const _PagosyaSkeleton();
@@ -350,6 +393,11 @@ class _PagosyaAdminViewState extends State<PagosyaAdminView> {
             onEdit: _openPlanForm,
             onToggle: _togglePlan,
             onRetry: _load,
+          ),
+          PagosyaPublicationPriceCard(
+            price: _eventPublicationPrice,
+            busy: _busy,
+            onEdit: _editPublicationPrice,
           ),
           PagosyaPlanCard(overview: _overview, error: _overviewError),
           PagosyaWebhookCard(

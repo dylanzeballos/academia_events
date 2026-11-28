@@ -200,7 +200,7 @@ devolvía `300 PGRST201` y todas las consultas de clases fallaban silenciosament
 | Crear clases/eventos | Trigger `guard_class_membership` / `guard_event_membership` → exige membresía activa |
 | Publicar clase | Trigger `guard_class_publication_payment` → exige membresía **mensual** activa. La publicación está incluida en la suscripción: **no se cobra aparte** |
 | Publicar evento | Trigger `guard_event_publication_payment` → exige membresía **mensual** + fila en `event_publication_payments` |
-| Pago de publicación | Solo para **eventos**. El admin de plataforma puede generar el QR con monto libre; la **organización** (owner/admin/manager) también puede pagarlo desde el detalle del evento, usando `payment_platform_config.event_publication_price`. Al confirmarse el pago, `private.fulfill_publication` publica solo |
+| Pago de publicación | Solo para **eventos**, con **precio único global** en `payment_platform_config.event_publication_price` (BOB 30). La **organización** (owner/admin/manager) genera el QR desde el detalle del evento o al crear con “Publicar ahora”. El admin no genera QR: solo configura el precio en **PagosYa → Publicación de eventos**. Al confirmarse el pago, `private.fulfill_publication` publica solo |
 | Estado inicial | Clases y eventos nacen `draft`: no se ven en el público hasta publicarse |
 | Sesiones | Se generan desde el detalle de la clase (`generateSessions`); sin sesiones no se puede comprar |
 | Precios | `price` = por sesión, `price_monthly` = pase mensual |

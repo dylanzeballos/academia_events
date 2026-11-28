@@ -52,6 +52,15 @@ class PagosyaService {
     return PagosyaCheckout.fromJson(data);
   }
 
+  /// Precio único de publicación de eventos configurado por la plataforma.
+  Future<double?> eventPublicationPrice() async {
+    final data = await supabase
+        .rpc('event_publication_price')
+        .timeout(const Duration(seconds: 8));
+    if (data is num) return data.toDouble();
+    return double.tryParse(data?.toString() ?? '');
+  }
+
   /// Estado de publicación de una clase (pago pendiente, precio y membresía).
   Future<ClassPublicationStatus> classPublicationStatus(String classId) async {
     final data = await supabase

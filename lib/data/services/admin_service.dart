@@ -124,6 +124,19 @@ class AdminService {
     );
   }
 
+  // ─── Configuración de pagos ───────────────────────
+
+  Future<double> setEventPublicationPrice(double price) async {
+    final result = await supabase.rpc(
+      'admin_set_event_publication_price',
+      params: {'p_price': price},
+    );
+    final value = result is num
+        ? result.toDouble()
+        : double.tryParse('$result');
+    return value ?? price;
+  }
+
   // ─── Categorías de eventos ─────────────────────────
 
   /// Crea una categoría si [id] es null; si no, la actualiza. Devuelve el id.

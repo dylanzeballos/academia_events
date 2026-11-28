@@ -158,14 +158,19 @@ select public.admin_verify_subscription('<subscription-id>', false); -- rechazar
 > `admin_verify_subscription` (aprobar/rechazar). El seed anterior se cargó
 > directamente en la base con fines de prueba.
 
-### 3.3 Publicaciones (admin de plataforma)
+### 3.3 Publicaciones de eventos (organización)
 
-1. Administración → Eventos → **QR publicación**.
-2. Ingresar un monto.
-3. **Esperado:** QR ficticio.
+1. Crear el evento desde la academia y elegir **Publicar ahora**, o abrir el
+   detalle de un evento en borrador.
+2. Tocar **Publicar evento**. El monto es el precio único configurado por el
+   admin de plataforma (**BOB 30** por defecto).
+3. **Esperado:** QR ficticio con el precio configurado.
 
-> Las clases ya no llevan QR de publicación: publicarlas está incluido en la
+> Las clases no llevan QR de publicación: publicarlas está incluido en la
 > suscripción mensual activa.
+>
+> El admin ya no genera el QR desde Administración → Eventos. Solo configura el
+> precio en Administración → PagosYa → **Publicación de eventos**.
 
 4. Para confirmar la publicación de prueba, llamar a la acción
    `sandbox_confirm` con el `intent_id` (el diálogo de QR todavía no tiene el

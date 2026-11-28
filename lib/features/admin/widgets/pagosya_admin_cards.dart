@@ -273,3 +273,78 @@ class PagosyaAccountsCard extends StatelessWidget {
     );
   }
 }
+
+/// Precio único de publicación de eventos para todas las organizaciones.
+class PagosyaPublicationPriceCard extends StatelessWidget {
+  const PagosyaPublicationPriceCard({
+    super.key,
+    required this.price,
+    required this.busy,
+    required this.onEdit,
+    this.error,
+  });
+
+  final double? price;
+  final bool busy;
+  final VoidCallback onEdit;
+  final String? error;
+
+  String get _formattedPrice {
+    final value = price;
+    if (value == null || value <= 0) return 'Sin configurar';
+    final decimals = value == value.roundToDouble() ? 0 : 2;
+    return 'BOB ${value.toStringAsFixed(decimals)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSectionCard(
+      title: 'Publicación de eventos',
+      icon: Icons.sell_outlined,
+      children: [
+        Text(
+          'Precio único que paga cualquier organización para publicar un '
+          'evento. Se usa al generar el QR desde el panel.',
+          style: TextStyle(color: context.textMuted, fontSize: 13, height: 1.4),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Precio actual',
+          style: TextStyle(
+            color: context.textMuted,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          _formattedPrice,
+          style: TextStyle(
+            color: context.textOnBg,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'No se pudo guardar el precio: $error',
+            style: TextStyle(color: AppColors.error, fontSize: 12),
+          ),
+        ],
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+          onPressed: busy ? null : onEdit,
+          icon: const Icon(Icons.edit_outlined, size: 18),
+          label: Text(
+            price == null || price! <= 0
+                ? 'Configurar precio'
+                : 'Cambiar precio',
+          ),
+        ),
+      ],
+    );
+  }
+}

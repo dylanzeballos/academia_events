@@ -210,20 +210,26 @@ La **publicación de clases** está incluida en la suscripción mensual: desde e
 detalle de la clase la organización la publica sin pagar nada (el RPC
 `class_publication_status` devuelve `requires_payment: false`).
 
-La **publicación de eventos** sigue siendo un pago único. Desde
-**Administración → Eventos**, cada registro tiene el botón **"QR publicación"**:
+La **publicación de eventos** es un pago único con un **precio global** para
+todas las organizaciones. Se configura en **Administración → PagosYa →
+Publicación de eventos** (`payment_platform_config.event_publication_price`).
 
-1. El admin ingresa el monto a cobrar.
-2. Se genera un checkout en la cuenta de la plataforma y se muestra el QR y el
-   enlace para compartir con la organización.
-3. Cuando la organización paga, el webhook registra:
+Flujo desde la organización:
+
+1. Al crear el evento puede elegir **Publicar ahora**, o abrir el detalle de un
+   evento en borrador y tocar **Publicar evento**.
+2. La app consulta el precio con `event_publication_price()` y muestra la
+   confirmación.
+3. Se genera un checkout en la cuenta de la plataforma y se muestra el QR.
+4. Cuando la organización paga, el webhook registra:
    - una fila en `payments` (`event_publication`),
    - una fila en `event_publication_payments`,
    - una **notificación** para todos los administradores de plataforma,
    - y **publica automáticamente**: el evento pasa a `approved` + `published`
      (salvo que esté `suspended`).
 
-No se puede generar dos veces el mismo cobro: si la publicación ya fue pagada,
+El admin ya no genera el QR desde Eventos: solo define el precio y modera. No se
+puede generar dos veces el mismo cobro: si la publicación ya fue pagada,
 responde `PUBLICATION_ALREADY_PAID`. Un checkout `class_publication` se rechaza
 con `CLASS_PUBLICATION_INCLUDED` (las clases no se cobran).
 
@@ -251,6 +257,9 @@ En **Administración → PagosYa** el admin de plataforma tiene:
 - **Planes de membresía**: crear, editar y activar/desactivar planes
   (nombre, descripción, precio, moneda, frecuencia y límites). Solo los planes
   `monthly` activos se ofrecen en la app; el anual no habilita publicar.
+- **Publicación de eventos**: precio único global para publicar eventos
+  (por defecto BOB 30). Las organizaciones generan el QR desde el detalle del
+  evento; el admin solo configura el monto.
 - **Plan y cartera**: comercios afiliados, cupo del plan y `capacity_used`
   (`overview`).
 - **Webhook global**: URL, activar/pausar, y rotar el secreto (se muestra una
