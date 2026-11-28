@@ -5,6 +5,7 @@ class TimelineScale {
     required this.startHour,
     required this.endHour,
     required Set<int> activeHours,
+    Set<int> compressedHours = const {},
     required double activePxPerHour,
     this.availableHeight = double.infinity,
     this.zoom = 1,
@@ -12,6 +13,7 @@ class TimelineScale {
     this.centerContentIfShort = false,
   }) {
     _activeHours = Set<int>.unmodifiable(activeHours);
+    _compressedHours = Set<int>.unmodifiable(compressedHours);
     final n = endHour - startHour;
     if (n <= 0) {
       _verticalOffset = 0;
@@ -26,7 +28,9 @@ class TimelineScale {
       final active = _activeHours.contains(h);
       base.add(
         active
-            ? math.max(activePxPerHour, _activeFloorPx)
+            ? _compressedHours.contains(h)
+                  ? _compressedActivePx
+                  : math.max(activePxPerHour, _activeFloorPx)
             : collapseInactiveHours
             ? _collapsedGapPx
             : _inactiveBasePx,
@@ -56,9 +60,13 @@ class TimelineScale {
 
   static const double _inactiveBasePx = 28;
   static const double _activeFloorPx = 45;
-  static const double _collapsedGapPx = 4;
+  static const double _collapsedGapPx = 2;
+  // Agrupa visualmente horas consecutivas de eventos largos. Una jornada de
+  // 21 h ocupa ~210 px en vez de más de una pantalla.
+  static const double _compressedActivePx = 10;
 
   late final Set<int> _activeHours;
+  late final Set<int> _compressedHours;
   late final List<double> _perHour;
   late final List<double> _top;
   late final double _verticalOffset;
@@ -66,9 +74,14 @@ class TimelineScale {
   int get totalHours => endHour - startHour;
   double get totalHeight => _top.isEmpty ? 0 : _top.last + 2 * _verticalOffset;
   bool isActiveHour(int hour) => _activeHours.contains(hour);
+  bool isCompressedHour(int hour) => _compressedHours.contains(hour);
+
   bool shouldDrawHourBoundary(int hour) {
     if (!collapseInactiveHours || hour <= startHour || hour >= endHour) {
       return true;
+    }
+    if (isCompressedHour(hour) || isCompressedHour(hour - 1)) {
+      return false;
     }
     return isActiveHour(hour - 1) || isActiveHour(hour);
   }

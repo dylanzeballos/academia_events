@@ -32,8 +32,7 @@ class DayColumnBody extends StatelessWidget {
   final VoidCallback onTap;
   final bool showNowLine;
 
-  static const double _minSingleCardHeight = 70.0;
-  static const double _maxSingleCardHeight = 110.0;
+  static const double _minSingleCardHeight = 28.0;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +86,7 @@ class DayColumnBody extends StatelessWidget {
           ),
         ),
         child: Stack(
+          fit: StackFit.expand,
           children: [
             ...List.generate(scale.totalHours + 1, (i) {
               final hour = scale.startHour + i;
@@ -122,10 +122,9 @@ class DayColumnBody extends StatelessWidget {
                     final bottom = scale.yForMinutes(cluster.endMin);
                     final calculatedHeight = bottom - top;
                     final eventCount = cluster.events.length;
-                    final desiredHeight = calculatedHeight.clamp(
-                      _minSingleCardHeight * scale.zoom * eventCount,
-                      _maxSingleCardHeight * scale.zoom * eventCount,
-                    );
+                    final minHeight =
+                        _minSingleCardHeight * scale.zoom * eventCount;
+                    final desiredHeight = math.max(calculatedHeight, minHeight);
                     final nextClusterStart = clusterIndex + 1 < clusters.length
                         ? clusters[clusterIndex + 1].startMin
                         : null;
@@ -249,9 +248,8 @@ class _InnerEventRow extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact =
-            constraints.maxHeight < 58 * zoom ||
-            constraints.maxWidth < 110 * zoom;
+        final compact = constraints.maxHeight < 58 * zoom;
+        final tall = constraints.maxHeight > 220 * zoom;
         return InkWell(
           onTap: () => EventPreviewSheet.show(context, event),
           child: Padding(
@@ -270,8 +268,8 @@ class _InnerEventRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: color,
-                          fontSize: 8 * zoom,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 10 * zoom,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
@@ -280,15 +278,17 @@ class _InnerEventRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: context.textOnBg,
-                          fontSize: 9 * zoom,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11 * zoom,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
                   )
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: tall
+                        ? MainAxisAlignment.start
+                        : MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
@@ -307,8 +307,8 @@ class _InnerEventRow extends StatelessWidget {
                               timeRange,
                               style: TextStyle(
                                 color: context.scaffoldBg,
-                                fontSize: 9 * zoom,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 10 * zoom,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -321,7 +321,7 @@ class _InnerEventRow extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: color.withValues(alpha: 0.95),
-                                  fontSize: 10 * zoom,
+                                  fontSize: 11 * zoom,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -334,7 +334,7 @@ class _InnerEventRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: context.textOnBg,
-                          fontSize: 11 * zoom,
+                          fontSize: 13 * zoom,
                           fontWeight: FontWeight.w800,
                           height: 1.1,
                         ),
@@ -346,7 +346,7 @@ class _InnerEventRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: context.textMuted,
-                            fontSize: 9 * zoom,
+                            fontSize: 11 * zoom,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -357,7 +357,7 @@ class _InnerEventRow extends StatelessWidget {
                             priceLabel,
                             style: TextStyle(
                               color: color,
-                              fontSize: 10 * zoom,
+                              fontSize: 11 * zoom,
                               fontWeight: FontWeight.w900,
                             ),
                           ),

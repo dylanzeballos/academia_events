@@ -49,7 +49,10 @@ import 'week_day_header.dart';
 }
 
 const double _timelineLabelWidth = 44.0;
-const double _minDayColumnWidth = 64.0;
+// Ancho mínimo para que las cards conserven una tipografía legible en móvil.
+// El resto de los días queda disponible con desplazamiento horizontal.
+const double _minDayColumnWidth = 120.0;
+const int _longEventThresholdMinutes = 6 * 60;
 
 class WeekColumns extends ConsumerStatefulWidget {
   const WeekColumns({
@@ -91,8 +94,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
   double _zoom = 1;
   static const double _minZoom = 0.7;
   static const double _maxZoom = 4;
-
-  TimelineScale? _activeScale;
+  double _lastColWidth = 0;
+  double _lastGridWidth = 0;
 
   final Map<int, Offset> _points = {};
   double? _lastSpacing;
@@ -152,6 +155,7 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
     if (widget.autoScrollToEarliest) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEarliest());
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedDay());
   }
 
   void _refreshRightEdge() {
@@ -189,21 +193,35 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
   @override
   void didUpdateWidget(covariant WeekColumns oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!widget.autoScrollToEarliest) return;
     if (oldWidget.weekDays.isEmpty || widget.weekDays.isEmpty) return;
-    final dayChanged = !_isSameDay(
-      oldWidget.weekDays.first,
-      widget.weekDays.first,
-    );
-    if (dayChanged) {
+    final dayChanged = !_isSameDay(oldWidget.selectedDay, widget.selectedDay);
+    if (dayChanged && widget.autoScrollToEarliest) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEarliest());
+    }
+    if (dayChanged) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollToSelectedDay(),
+      );
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshRightEdge());
   }
 
+  void _scrollToSelectedDay() {
+    if (!_hScrollController.hasClients || _lastColWidth <= 0) return;
+    final index = widget.weekDays.indexWhere(
+      (day) => _isSameDay(day, widget.selectedDay),
+    );
+    if (index < 0) return;
+
+    final target = index * _lastColWidth - (_lastGridWidth - _lastColWidth) / 2;
+    _hScrollController.jumpTo(
+      target.clamp(0.0, _hScrollController.position.maxScrollExtent),
+    );
+  }
+
   void _scrollToEarliest() {
     if (!_scrollController.hasClients) return;
-    final day = widget.weekDays.first;
+    final day = widget.selectedDay;
 
     final dayEvents =
         widget.events
@@ -218,24 +236,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
       return;
     }
 
-    final first = dayEvents.first;
-    final range = DateFormatter.clampRangeToDayMinutes(
-      first.startTime,
-      first.endTime,
-      day,
-    );
-    final startMin =
-        range?.$1 ?? DateFormatter.minutesFromMidnight(first.startTime);
-
-    final scale = _activeScale;
-    double target = 0;
-    if (scale != null) {
-      final start = math.max(startMin - 60, scale.startHour * 60);
-      target = scale.yForMinutes(start);
-    }
-    _scrollController.jumpTo(
-      target.clamp(0.0, _scrollController.position.maxScrollExtent),
-    );
+    // No auto-scroll vertical: empezar en 0 para ver todo el día.
+    _scrollController.jumpTo(0);
   }
 
   static bool _isSameDay(DateTime a, DateTime b) =>
@@ -264,6 +266,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
     );
 
     final activeHours = <int>{};
+    final longEventHours = <int>{};
+    final shortEventHours = <int>{};
     for (final day in widget.weekDays) {
       for (final event in dayEvents[day.weekday] ?? const <EventModel>[]) {
         final range = DateFormatter.clampRangeToDayMinutes(
@@ -273,18 +277,26 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
         );
         if (range == null) continue;
         final (startMin, endMin) = range;
+        // Cada tramo diario se escala según su duración visible: si un evento
+        // cruza medianoche y ocupa solo 3 h en esta columna, conserva esas 3 h;
+        // solo se comprimen tramos largos dentro del mismo día.
+        final isLong = endMin - startMin >= _longEventThresholdMinutes;
         for (var hour = startMin ~/ 60; hour * 60 < endMin; hour++) {
           activeHours.add(hour);
+          if (isLong) {
+            longEventHours.add(hour);
+          } else {
+            shortEventHours.add(hour);
+          }
         }
       }
     }
+    // Las horas cubiertas solo por eventos largos se agrupan para que un
+    // evento de 00:00 a 21:00 no ocupe 21 horas de alto. Si hay un evento
+    // corto en esa franja, esa hora conserva su altura normal.
+    final compressedHours = longEventHours.difference(shortEventHours);
 
-    final eventDays = widget.weekDays
-        .where((day) => (dayEvents[day.weekday] ?? const []).isNotEmpty)
-        .toList();
-    final daysToRender = eventDays.isEmpty
-        ? widget.weekDays
-        : List<DateTime>.unmodifiable(eventDays);
+    final daysToRender = widget.weekDays;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -297,6 +309,8 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
         );
         final colWidth = baseColWidth * _zoom;
         final totalDaysWidth = colWidth * daysToRender.length;
+        _lastColWidth = colWidth;
+        _lastGridWidth = gridWidth;
         final showSlideHint = totalDaysWidth > gridWidth && !_atRightEdge;
 
         return Stack(
@@ -316,17 +330,27 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                       child: Row(
                         children: [
                           SizedBox(width: labelWidth),
-                          ...daysToRender.map(
-                            (day) => SizedBox(
+                          ...daysToRender.map((day) {
+                            final eventsForDay = widget.events
+                                .where(
+                                  (event) => DateFormatter.rangeCoversDay(
+                                    event.startTime,
+                                    event.endTime,
+                                    day,
+                                  ),
+                                )
+                                .toList();
+                            return SizedBox(
                               width: colWidth,
                               child: WeekDayHeader(
                                 day: day,
                                 isSelected: _isSameDay(day, widget.selectedDay),
+                                eventCount: eventsForDay.length,
                                 onTap: () => widget.onDaySelected(day),
                                 zoom: _zoom,
                               ),
-                            ),
-                          ),
+                            );
+                          }),
                         ],
                       ),
                     ),
@@ -337,13 +361,13 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                           startHour: startHour,
                           endHour: endHour,
                           activeHours: activeHours,
+                          compressedHours: compressedHours,
                           activePxPerHour: widget.heightPerHour,
                           availableHeight: innerConstraints.maxHeight,
                           zoom: _zoom,
                           collapseInactiveHours: widget.weekDays.length > 1,
                           centerContentIfShort: widget.weekDays.length > 1,
                         );
-                        _activeScale = scale;
 
                         return SingleChildScrollView(
                           controller: _scrollController,
@@ -368,17 +392,31 @@ class _WeekColumnsState extends ConsumerState<WeekColumns> {
                                       width: totalDaysWidth,
                                       child: Row(
                                         children: daysToRender.map((day) {
+                                          final eventsForDay =
+                                              widget.events
+                                                  .where(
+                                                    (event) =>
+                                                        DateFormatter.rangeCoversDay(
+                                                          event.startTime,
+                                                          event.endTime,
+                                                          day,
+                                                        ),
+                                                  )
+                                                  .toList()
+                                                ..sort(
+                                                  (a, b) => a.startTime
+                                                      .compareTo(b.startTime),
+                                                );
                                           return SizedBox(
                                             width: colWidth,
+                                            height: scale.totalHeight,
                                             child: DayColumnBody(
                                               day: day,
                                               isSelected: _isSameDay(
                                                 day,
                                                 widget.selectedDay,
                                               ),
-                                              events:
-                                                  dayEvents[day.weekday] ??
-                                                  const [],
+                                              events: eventsForDay,
                                               scale: scale,
                                               showNowLine: widget.showNowLine,
                                               onTap: () =>

@@ -11,12 +11,14 @@ class WeekDayHeader extends StatelessWidget {
     required this.day,
     required this.isSelected,
     required this.onTap,
+    this.eventCount = 0,
     this.zoom = 1,
   });
 
   final DateTime day;
   final bool isSelected;
   final VoidCallback onTap;
+  final int eventCount;
   final double zoom;
 
   bool get _isToday {
@@ -51,17 +53,35 @@ class WeekDayHeader extends StatelessWidget {
               ),
             ),
             SizedBox(height: 2 * zoom),
-            Text(
-              DateFormatter.dayNumber(day),
-              style: TextStyle(
-                fontSize: 15 * zoom,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w400,
-                color: isSelected
-                    ? AppColors.onPrimary
-                    : _isToday
-                    ? AppColors.primary
-                    : context.textOnBg,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  DateFormatter.dayNumber(day),
+                  style: TextStyle(
+                    fontSize: 15 * zoom,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w400,
+                    color: isSelected
+                        ? AppColors.onPrimary
+                        : _isToday
+                        ? AppColors.primary
+                        : context.textOnBg,
+                  ),
+                ),
+                if (eventCount > 0) ...[
+                  SizedBox(width: 3 * zoom),
+                  Container(
+                    width: 5 * zoom,
+                    height: 5 * zoom,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.onPrimary
+                          : AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
